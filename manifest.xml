@@ -1,0 +1,9 @@
+<package>
+  <description brief="Instantaneous trajectory generation component">
+  This component uses the reflexxes library to generate motion commands based on the current state of the system, the target state and motion constraints.
+  </description>
+  <author>Jakob Schwendner/jakob.schwendner@dfki.de</author>
+  <license>LGPL</license>
+  <depend package="base/types" />
+  <depend package="reflexxes" />
+</package>

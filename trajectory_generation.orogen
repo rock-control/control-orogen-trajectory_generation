@@ -1,0 +1,24 @@
+name "trajectory_generation"
+
+import_types_from "trajectory_generationTypes.hpp"
+import_types_from "base"
+using_library "reflexxes"
+
+task_context "Task" do
+    needs_configuration
+
+    input_port("limits", "/base/JointLimits").
+	doc("The limits for the joints")
+
+    input_port("target", "/base/commands/JointsSampledTrajectory").
+	doc("The target trajectory which should be followed")
+
+    input_port("joint_state", "/base/samples/Joints").
+	doc("Current state measurement from the actuators")
+
+    output_port("cmd", "/base/commands/Joints").
+	doc("Target values that are send to the actuators")
+
+    periodic 0.1
+end
+
