@@ -5,5 +5,5 @@
   <author>Jakob Schwendner/jakob.schwendner@dfki.de</author>
   <license>LGPL</license>
   <depend package="base/types" />
-  <depend package="reflexxes" />
+  <depend package="control/reflexxes" />
 </package>
