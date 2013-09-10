@@ -7,10 +7,10 @@ using_library "reflexxes"
 task_context "Task" do
     needs_configuration
 
-    input_port("limits", "/base/JointLimits").
+    property("limits", "/base/JointLimits").
 	doc("The limits for the joints")
 
-    input_port("target", "/base/commands/JointsSampledTrajectory").
+    input_port("target", "/base/JointsTrajectory").
 	doc("The target trajectory which should be followed")
 
     input_port("joint_state", "/base/samples/Joints").

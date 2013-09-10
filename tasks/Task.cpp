@@ -1,6 +1,7 @@
 /* Generated from orogen/lib/orogen/templates/tasks/Task.cpp */
 
 #include "Task.hpp"
+#include <base/Logging.hpp>
 
 using namespace trajectory_generation;
 
@@ -29,8 +30,14 @@ bool Task::configureHook()
     if (! TaskBase::configureHook())
         return false;
 
-    const int NUMBER_OF_DOFS = 6;
+    // TODO put into configuration 
     const double CYCLE_TIME_IN_SECONDS = 0.01;
+    const int NUMBER_OF_DOFS = _limits.value().size();
+    if( NUMBER_OF_DOFS == 0 )
+    {
+	LOG_ERROR_S << "No joint limits have been configured" << std::endl;
+	return false;
+    }
 
     RML = new ReflexxesAPI( NUMBER_OF_DOFS, CYCLE_TIME_IN_SECONDS );
     IP  = new RMLPositionInputParameters( NUMBER_OF_DOFS );
