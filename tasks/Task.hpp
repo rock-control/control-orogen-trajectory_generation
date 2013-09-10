@@ -36,6 +36,13 @@ namespace trajectory_generation {
 	RMLPositionOutputParameters *OP;
 	RMLPositionFlags Flags;
 
+	base::JointsTrajectory trajectory;
+	size_t current_step;
+	bool update_target;
+
+	base::samples::Joints status, command;
+	base::JointLimits limits;
+
     public:
         /** TaskContext constructor for Task
          * \param name Name of the task. This name needs to be unique to make it identifiable via nameservices.
