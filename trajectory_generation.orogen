@@ -6,6 +6,7 @@ using_library "reflexxes"
 
 task_context "Task" do
     needs_configuration
+    runtime_states 'FOLLOWING', 'REACHED'
 
     property("limits", "/base/JointLimits").
 	doc("The limits for the joints")

@@ -34,13 +34,13 @@ bool Task::configureHook()
     command.resize( limits.size() );
     command.names = limits.names;
 
-    // TODO put into configuration 
+    // TODO put into configuration
     const double CYCLE_TIME_IN_SECONDS = 0.01;
     const int NUMBER_OF_DOFS = limits.size();
     if( NUMBER_OF_DOFS == 0 )
     {
-	LOG_ERROR_S << "No joint limits have been configured" << std::endl;
-	return false;
+        LOG_ERROR_S << "No joint limits have been configured" << std::endl;
+        return false;
     }
 
     RML = new ReflexxesAPI( NUMBER_OF_DOFS, CYCLE_TIME_IN_SECONDS );
@@ -67,51 +67,57 @@ void Task::updateHook()
 
     while( _target.read( trajectory, false ) == RTT::NewData )
     {
-	// got a new trajectory reading, reset the current index
-	current_step = 0;
-	update_target = true;
-    }	
+        // got a new trajectory reading, reset the current index
+        LOG_DEBUG("Got new trajectory input");
+        current_step = 0;
+        update_target = true;
+        state(FOLLOWING);
+    }
 
     while( _joint_state.read( status, false ) == RTT::NewData
-	    && current_step < trajectory.getTimeSteps() )
+           && current_step < trajectory.getTimeSteps() )
     {
-	if( update_target )
-	{
-	    update_target = false;
-	    assert( status.size() == limits.size() 
-		    && status.size() == trajectory.size() );
+        LOG_DEBUG("Got new joint sample input");
+        if( update_target )
+        {
+            LOG_DEBUG("status.size %d, limits.size: %d, trajectory.size: %d", status.size(),limits.size(), trajectory.size());
+            assert( status.size() == limits.size()
+                    && status.size() == trajectory.size() );
 
-	    for( size_t i=0; i<limits.size(); i++ )
-	    {
-		// TODO, check if the status data is actually compatible
-		IP->CurrentPositionVector->VecData[i] = status[i].position;
-		IP->CurrentVelocityVector->VecData[i] = status[i].speed;
-		IP->CurrentAccelerationVector->VecData[i] = status[i].effort;
-		IP->MaxVelocityVector->VecData[i] = limits[i].max.speed;
-		IP->MaxAccelerationVector->VecData[i] = limits[i].max.effort;
-		IP->MaxJerkVector->VecData[i] = 1.0; // TODO have no idea what to put here
-		IP->TargetPositionVector->VecData[i] = trajectory[i][current_step].position;
-		IP->TargetVelocityVector->VecData[i] = trajectory[i][current_step].speed;
-		IP->SelectionVector->VecData[i] = true;
-	    }
-	}
+            for( size_t i=0; i<limits.size(); i++ )
+            {
+                // TODO, check if the status data is actually compatible
+                IP->CurrentPositionVector->VecData[i] = status[i].position;
+                IP->CurrentVelocityVector->VecData[i] = status[i].speed;
+                IP->CurrentAccelerationVector->VecData[i] = status[i].effort;
+                IP->MaxVelocityVector->VecData[i] = limits[i].max.speed;
+                IP->MaxAccelerationVector->VecData[i] = limits[i].max.effort;
+                IP->MaxJerkVector->VecData[i] = 1.0; // TODO have no idea what to put here
+                IP->TargetPositionVector->VecData[i] = trajectory[i][current_step].position;
+                IP->TargetVelocityVector->VecData[i] = trajectory[i][current_step].speed;
+                IP->SelectionVector->VecData[i] = true;
+            }
+        }
 
-	if( RML->RMLPosition( *IP, OP, Flags ) ==
-		ReflexxesAPI::RML_FINAL_STATE_REACHED )
-	{
-	    current_step++;
-	    update_target = true;
-	}
+        if( RML->RMLPosition( *IP, OP, Flags ) ==
+                ReflexxesAPI::RML_FINAL_STATE_REACHED )
+        {
+            current_step++;
+            update_target = true;
+            if(current_step >= trajectory.getTimeSteps())
+                state(REACHED);
+        }
 
-	// fill in output structure
-	for( size_t i=0; i<command.size(); ++i )
-	{
-	    command[i].position = OP->NewPositionVector->VecData[i];
-	    command[i].speed = OP->NewVelocityVector->VecData[i];
-	    command[i].effort = OP->NewAccelerationVector->VecData[i];
-	}
+        // fill in output structure
+        for( size_t i=0; i<command.size(); ++i )
+        {
+            command[i].position = OP->NewPositionVector->VecData[i];
+            command[i].speed = OP->NewVelocityVector->VecData[i];
+            command[i].effort = OP->NewAccelerationVector->VecData[i];
+            command.time = base::Time::now();
+        }
 
-	_cmd.write( command );
+        _cmd.write( command );
     }
 }
 void Task::errorHook()
