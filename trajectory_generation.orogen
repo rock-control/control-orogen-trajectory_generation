@@ -20,6 +20,20 @@ task_context "Task" do
     output_port("cmd", "/base/commands/Joints").
 	doc("Target values that are send to the actuators")
 
-    periodic 0.1
+    periodic 0.01
+end
+
+task_context "TestPlant" do
+   needs_configuration
+   property("limits", "/base/JointLimits")
+   property("noise_mean", "double")
+   property("noise_variance", "double")
+   property("use_fixed_simulation_step_time", "bool")
+   property("simulation_step_time", "double").doc("In seconds")
+   
+   input_port("cmd", "/base/commands/Joints")
+   output_port("joint_state", "/base/samples/Joints")
+   
+   periodic 0.01
 end
 
