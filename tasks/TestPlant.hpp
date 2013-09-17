@@ -10,12 +10,25 @@
 
 namespace trajectory_generation {
 
+inline double random_sample(double mean, double variance, int iters=15){
+    double summed = 0.0;
+    for(uint i = 0; i < iters; i++){
+        summed += ((double)rand()/(double)RAND_MAX - 0.5)*variance;
+    }
+    double sample = mean + summed/iters;
+    return sample;
+}
+
 class FakeJoint{
 protected:
     base::JointLimitRange j_range;
     base::JointState j_state;
     base::JointState j_setpoint;
     base::JointState::MODE mode;
+
+    base::JointState simulation_noise_mean;
+    base::JointState simulation_noise_variance;
+
     base::Time t_prev;
     std::string name;
     bool first_cycle;
@@ -51,9 +64,22 @@ public:
         this->j_range = j_range;
         first_cycle = true;
         mode = base::JointState::POSITION;
+
+        simulation_noise_mean.position = 0.;
+        simulation_noise_mean.speed = 0.;
+        simulation_noise_mean.effort = 0.;
+
+        simulation_noise_variance.position = 0.;
+        simulation_noise_variance.speed = 0.;
+        simulation_noise_variance.effort = 0.;
     }
 
-    void trunc_to_limit(base::JointState::MODE mode){
+    void set_simulation_noise(base::JointState mean, base::JointState variance){
+        simulation_noise_mean = mean;
+        simulation_noise_variance = variance;
+    }
+
+    inline void trunc_to_limit(base::JointState::MODE mode){
         double field = 0;
         double upper = 0;
         double lower = 0;
@@ -90,8 +116,20 @@ public:
 
         if(corrected != 0.){
             LOG_INFO_S << "Corrected " << mode_name << " of joint " << name << " by " << corrected << " due to limits (desired " << mode_name <<": " << before <<
-                       ", limits [" << lower << ", " << upper <<"], new " << mode_name<<": "<< field << std::endl;
+                          ", limits [" << lower << ", " << upper <<"], new " << mode_name<<": "<< field << std::endl;
         }
+    }
+
+    inline void perturb(double scale){
+        double perturbance_pos = random_sample(simulation_noise_mean.position*scale, simulation_noise_variance.position*scale);
+        double perturbance_spd = random_sample(simulation_noise_mean.speed*scale, simulation_noise_variance.speed*scale);
+        double perturbance_eff = random_sample(simulation_noise_mean.effort*scale, simulation_noise_variance.effort*scale);
+        //LOG_INFO("Perturbing joint %n by pos: %f, spd: %f, eff: %f", mh,
+        //         perturbance_pos, perturbance_spd, perturbance_eff);
+
+        j_state.position += perturbance_pos;
+        j_state.speed += perturbance_spd;
+        j_state.effort += perturbance_eff;
     }
 
     inline void step_dt(const base::Time& dt){
@@ -130,16 +168,18 @@ public:
             trunc_to_limit(base::JointState::POSITION);
             trunc_to_limit(base::JointState::SPEED);
         }
-        t_prev = base::Time::now();
+
+        perturb(dt.toSeconds());
     }
 
     inline void step(base::Time time=base::Time::now()){
         if(first_cycle){
-            t_prev = base::Time::now();
+            t_prev = time-base::Time::fromSeconds(0.01);
         }
 
         base::Time dt = time - t_prev;
         step_dt(dt);
+        t_prev = time;
     }
 
     inline void get_state(base::JointState& j_state){
@@ -177,8 +217,8 @@ class TestPlant : public TestPlantBase
 {
     friend class TestPlantBase;
 protected:
-    double noise_mean;
-    double noise_variance;
+    base::JointState noise_mean;
+    base::JointState noise_variance;
     base::commands::Joints j_cmd;
     base::samples::Joints j_state;
     base::JointLimits limits;
@@ -186,7 +226,7 @@ protected:
     bool use_fixed_simulation_step_time;
     base::Time simulation_step_time;
 
-    typedef std::map<std::string, FakeJoint> JointMap;
+    typedef std::map<std::string, FakeJoint*> JointMap;
     JointMap joints;
 
 
@@ -207,6 +247,8 @@ public:
     /** Default deconstructor of TestPlant
          */
     ~TestPlant();
+
+    void logKnownJoints();
 
     /** This hook is called by Orocos when the state machine transitions
          * from PreOperational to Stopped. If it returns false, then the
