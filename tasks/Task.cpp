@@ -80,28 +80,31 @@ void Task::updateHook()
         LOG_DEBUG("Got new joint sample input");
         if( update_target )
         {
-            LOG_DEBUG("status.size %d, limits.size: %d, trajectory.size: %d", status.size(),limits.size(), trajectory.size());
-            assert( status.size() == limits.size()
-                    && status.size() == trajectory.size() );
-
-            for( size_t i=0; i<limits.size(); i++ )
+            LOG_DEBUG("status.size %d, limits.size: %d, trajectory.size: %d", status.size(), limits.size(), trajectory.size());
+            //assert( status.size() == limits.size()
+            //        && status.size() == trajectory.size() );
+            std::string jname;
+            for( size_t i=0; i<trajectory.size(); i++ )
             {
+                jname = trajectory.names[i];
+                int full_state_index = limits.mapNameToIndex(jname);
                 // TODO, check if the status data is actually compatible
-                IP->CurrentPositionVector->VecData[i] = status[i].position;
-                IP->CurrentVelocityVector->VecData[i] = status[i].speed;
-                IP->CurrentAccelerationVector->VecData[i] = status[i].effort;
-                IP->MaxVelocityVector->VecData[i] = limits[i].max.speed;
-                IP->MaxAccelerationVector->VecData[i] = limits[i].max.effort;
-                IP->MaxJerkVector->VecData[i] = 1.0; // TODO have no idea what to put here
-                IP->TargetPositionVector->VecData[i] = trajectory[i][current_step].position;
-                IP->TargetVelocityVector->VecData[i] = trajectory[i][current_step].speed;
-                IP->SelectionVector->VecData[i] = true;
+                IP->CurrentPositionVector->VecData[full_state_index] = status[full_state_index].position;
+                IP->CurrentVelocityVector->VecData[full_state_index] = status[full_state_index].speed;
+                IP->CurrentAccelerationVector->VecData[full_state_index] = status[full_state_index].effort;
+                IP->MaxVelocityVector->VecData[full_state_index] = limits[full_state_index].max.speed;
+                IP->MaxAccelerationVector->VecData[full_state_index] = limits[full_state_index].max.effort;
+                IP->MaxJerkVector->VecData[full_state_index] = 1.0; //TODO have no idea what to put here
+                IP->TargetPositionVector->VecData[full_state_index] = trajectory[i][current_step].position;
+                IP->TargetVelocityVector->VecData[full_state_index] = trajectory[i][current_step].speed;
+                IP->SelectionVector->VecData[full_state_index] = true;
             }
         }
 
         if( RML->RMLPosition( *IP, OP, Flags ) ==
                 ReflexxesAPI::RML_FINAL_STATE_REACHED )
         {
+            LOG_DEBUG("Waypoint %d/%d reached", current_step, trajectory.getTimeSteps());
             current_step++;
             update_target = true;
             if(current_step >= trajectory.getTimeSteps())
