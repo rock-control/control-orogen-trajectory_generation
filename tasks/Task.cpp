@@ -34,8 +34,8 @@ bool Task::configureHook()
     command.resize( limits.size() );
     command.names = limits.names;
 
-    // TODO put into configuration
-    const double CYCLE_TIME_IN_SECONDS = 0.01;
+    const double CYCLE_TIME_IN_SECONDS = _cycle_time.get();
+
     const int NUMBER_OF_DOFS = limits.size();
     if( NUMBER_OF_DOFS == 0 )
     {
