@@ -81,8 +81,6 @@ void Task::updateHook()
         if( update_target )
         {
             LOG_DEBUG("status.size %d, limits.size: %d, trajectory.size: %d", status.size(), limits.size(), trajectory.size());
-            //assert( status.size() == limits.size()
-            //        && status.size() == trajectory.size() );
             std::string jname;
             for( size_t i=0; i<trajectory.size(); i++ )
             {

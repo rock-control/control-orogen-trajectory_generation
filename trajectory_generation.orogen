@@ -5,11 +5,16 @@ import_types_from "base"
 using_library "reflexxes"
 
 task_context "Task" do
+    cycle_time = 0.01
+
     needs_configuration
     runtime_states 'FOLLOWING', 'REACHED'
 
     property("limits", "/base/JointLimits").
 	doc("The limits for the joints")
+
+    property("cycle_time", "double", cycle_time).
+        doc("Cycle time in seconds")
 
     input_port("target", "/base/JointsTrajectory").
 	doc("The target trajectory which should be followed")
@@ -20,14 +25,14 @@ task_context "Task" do
     output_port("cmd", "/base/commands/Joints").
 	doc("Target values that are send to the actuators")
 
-    periodic 0.01
+    periodic cycle_time
 end
 
 task_context "TestPlant" do
    needs_configuration
    property("limits", "/base/JointLimits")
-   property("noise_mean", "double")
-   property("noise_variance", "double")
+   property("noise_mean", "/base/JointState")
+   property("noise_variance", "/base/JointState")
    property("use_fixed_simulation_step_time", "bool")
    property("simulation_step_time", "double").doc("In seconds")
    
