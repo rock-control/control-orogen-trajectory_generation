@@ -42,10 +42,15 @@ bool TestPlant::configureHook()
     use_fixed_simulation_step_time = _use_fixed_simulation_step_time.get();
 
     for(uint i=0; i<limits.size(); i++){
-
+        base::JointState initial_state;
+        initial_state.position = std::max(0., limits[i].min.position);
+        initial_state.speed = 0;
+        initial_state.effort = 0;
+        initial_state.raw = 0;
         joints.insert( std::make_pair(limits.names[i],
                                       FakeJoint(limits.elements[i],
-                                                base::JointState::Position(0))));
+                                                initial_state,
+                                                limits.names[i])));
     }
     return true;
 }
@@ -64,15 +69,23 @@ void TestPlant::updateHook()
     for(JointMap::iterator it = joints.begin(); it!=joints.end();
         ++it)
     {
+        LOG_DEBUG("Running update for Joint %s", it->first.c_str());
+
         if(use_fixed_simulation_step_time){
             //Simulate
+            LOG_DEBUG("Performing simulation step with fixed step time %d (seconds)", simulation_step_time.toSeconds());
             it->second.step_dt(simulation_step_time);
+            LOG_DEBUG("Simulation step done");
         }
         else{
+            LOG_DEBUG("Performing simulation step with flexible step time. Current time stamp %d (seconds)", cur_time.toSeconds());
             it->second.step(cur_time);
+            LOG_DEBUG("Simulation step done");
         }
         //Set new state for output
-        it->second.state(j_state[it->second.get_name()]);
+        LOG_DEBUG("Updating joint state. Iterator name: %s, Joint name: %s.", it->first.c_str(), it->second.get_name().c_str());
+        it->second.get_state(j_state[it->second.get_name()]);
+        LOG_DEBUG("Joint state update done");
     }
 
     //Process setpoint input
@@ -87,6 +100,10 @@ void TestPlant::updateHook()
             it->second.cmd(j_cmd.elements[i]);
         }
     }
+
+    //Write output
+    j_state.time = base::Time::now();
+    _joint_state.write(j_state);
 
 }
 void TestPlant::errorHook()

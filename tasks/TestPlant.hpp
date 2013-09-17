@@ -21,18 +21,26 @@ protected:
     bool first_cycle;
 
     template<typename T>
-    void trunc_to_bounds(T& v, const T& min, const T& max){
-        if(v<min)
+    T trunc_to_bounds(T& v, const T& min, const T& max){
+        T corrected = 0;
+        if(v<min){
+            corrected = v-min;
             v = min;
-        if(v>max)
+        }
+        if(v>max){
+            corrected = v-max;
             v = max;
+        }
+        return corrected;
     }
 
 public:
     inline FakeJoint(const base::JointLimitRange& j_range,
-                     const base::JointState& initial_state)
+                     const base::JointState& initial_state,
+                     const std::string& name)
     {
         reset(initial_state, j_range);
+        this->name = name;
     }
 
     inline void reset(const base::JointState& initial_state,
@@ -42,6 +50,48 @@ public:
         j_setpoint = initial_state;
         this->j_range = j_range;
         first_cycle = true;
+        mode = base::JointState::POSITION;
+    }
+
+    void trunc_to_limit(base::JointState::MODE mode){
+        double field = 0;
+        double upper = 0;
+        double lower = 0;
+        double before = 0.;
+        double corrected = 0.;
+        std::string mode_name = "";
+        if(mode == base::JointState::POSITION){
+            mode_name = "position";
+            before = j_state.position;
+            corrected = trunc_to_bounds(j_state.position, j_range.min.position, j_range.max.position);
+
+            field = j_state.position;
+            lower = j_range.min.position;
+            upper = j_range.max.position;
+        }
+        else if (mode == base::JointState::SPEED){
+            mode_name = "speed";
+            before = j_state.speed;
+            corrected = trunc_to_bounds(j_state.speed, j_range.min.speed, j_range.max.speed);
+
+            field = j_state.speed;
+            lower = j_range.min.speed;
+            upper = j_range.max.speed;
+        }
+        else if(mode == base::JointState::EFFORT){
+            mode_name = "effort";
+            before = j_state.effort;
+            corrected = trunc_to_bounds(j_state.effort, j_range.min.effort, j_range.max.effort);
+
+            field = j_state.effort;
+            lower = j_range.min.effort;
+            upper = j_range.max.effort;
+        }
+
+        if(corrected != 0.){
+            LOG_INFO_S << "Corrected " << mode_name << " of joint " << name << " by " << corrected << " due to limits (desired " << mode_name <<": " << before <<
+                       ", limits [" << lower << ", " << upper <<"], new " << mode_name<<": "<< field << std::endl;
+        }
     }
 
     inline void step_dt(const base::Time& dt){
@@ -51,51 +101,34 @@ public:
             j_state.speed = j_setpoint.speed;
             j_state.effort = j_setpoint.effort;
 
-            trunc_to_bounds(j_setpoint.position,
-                            j_range.min.position,
-                            j_range.max.position);
-            trunc_to_bounds(j_setpoint.speed,
-                            j_range.min.speed,
-                            j_range.max.speed);
-            trunc_to_bounds(j_setpoint.effort,
-                            j_range.min.effort,
-                            j_range.max.effort);
+            trunc_to_limit(base::JointState::POSITION);
+            trunc_to_limit(base::JointState::SPEED);
+            trunc_to_limit(base::JointState::EFFORT);
         }
         else if(mode == base::JointState::SPEED)
         {
             j_state.speed = j_setpoint.speed;
             j_state.effort = j_setpoint.effort;
 
-            trunc_to_bounds(j_setpoint.speed,
-                            j_range.min.speed,
-                            j_range.max.speed);
-            trunc_to_bounds(j_setpoint.effort,
-                            j_range.min.effort,
-                            j_range.max.effort);
+
+            trunc_to_limit(base::JointState::SPEED);
+            trunc_to_limit(base::JointState::EFFORT);
 
             j_state.position += j_setpoint.speed*dt.toSeconds();
 
-            trunc_to_bounds(j_setpoint.position,
-                            j_range.min.position,
-                            j_range.max.position);
+            trunc_to_limit(base::JointState::POSITION);
         }
         else if(mode == base::JointState::EFFORT)
         {
             j_state.effort = j_setpoint.effort;
 
-            trunc_to_bounds(j_setpoint.effort,
-                            j_range.min.effort,
-                            j_range.max.effort);
+            trunc_to_limit(base::JointState::EFFORT);
 
             j_state.speed += j_setpoint.effort*dt.toSeconds();
             j_state.position += j_setpoint.speed*dt.toSeconds();
 
-            trunc_to_bounds(j_setpoint.position,
-                            j_range.min.position,
-                            j_range.max.position);
-            trunc_to_bounds(j_setpoint.speed,
-                            j_range.min.speed,
-                            j_range.max.speed);
+            trunc_to_limit(base::JointState::POSITION);
+            trunc_to_limit(base::JointState::SPEED);
         }
         t_prev = base::Time::now();
     }
@@ -109,7 +142,7 @@ public:
         step_dt(dt);
     }
 
-    inline void state(base::JointState& j_state){
+    inline void get_state(base::JointState& j_state){
         j_state = this->j_state;
     }
 
