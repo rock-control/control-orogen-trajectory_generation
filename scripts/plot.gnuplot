@@ -1,8 +1,7 @@
 jnum = `echo $JNUM`
 
-set terminal pdf size 3,5
+set terminal pdf solid font 'Arial,8' size 20cm,25cm
 set output 'out'.jnum.'.pdf'
-set font "Arial, 8" 
 
 set multiplot layout 3,1
 
