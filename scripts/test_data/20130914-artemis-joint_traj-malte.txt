@@ -1,0 +1,28 @@
+   positions: [0.,  0.0,  0.0        ,  0.0        ,  0.0        ,  0.0        ]
+    velocities: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    accelerations: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    time_from_start: 
+      secs: 0
+      nsecs: 0
+  - 
+   positions: [-1.30899694,  0.34906585,  0.0        ,  .0        ,  0.0        ,  0.0        ]
+    velocities: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    accelerations: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    time_from_start: 
+      secs: 2
+      nsecs: 0
+  - 
+    positions: [-1.3962634 ,  0.43633231,  0.99483767,  0.52359878,  0.0        ,        1.57079633]
+    velocities: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    accelerations: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    time_from_start: 
+      secs: 3
+      nsecs: 0
+  - 
+    positions: [-1.44862328,  1.30899694,  1.01229097,  0.0        ,  0.59341195,        1.57079633]
+    velocities: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    accelerations: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    time_from_start: 
+      secs: 4
+      nsecs: 0
+

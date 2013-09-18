@@ -39,7 +39,7 @@ limits = TypeHelpers::JointLimits::from_map @robot[:joint_limits]
 # Create Trajectory type
 #
 # Extract raw data from log
-file_path = "/media/data/Projects/BesMan/Software/RockDev/robots/artemis/data/my_joint_traj.txt"
+file_path = "test_data/20130914-artemis-joint_traj-malte.txt"
 ros_dump = File.read(file_path)
 
 tr_cfg = {}
