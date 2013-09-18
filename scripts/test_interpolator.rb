@@ -74,6 +74,15 @@ puts "Establishing connections"
 interpolator.cmd.connect_to plant.cmd
 plant.joint_state.connect_to interpolator.joint_state
 
+#
+# Setup logging
+#
+logger = Orocos.name_service.get @task_config[:plant]+"_Logger"
+logger.file = Dir.pwd+"/joint_state.log"
+logger.log(plant.joint_state,200)
+logger.log(interpolator.cmd,200)
+#logger.log(interpolator.target,200)
+
 sleep(2)
 
 #
@@ -83,6 +92,7 @@ puts "Press Enter to start"
 readline
 plant.start
 interpolator.start
+logger.start
 
 # Setpoint
 puts "Press Enter write setpoint"
@@ -101,6 +111,10 @@ end
 
 puts "Press Enter to quit"
 readline
+
+plant.stop
+interpolator.stop
+logger.stop
 
 
 
