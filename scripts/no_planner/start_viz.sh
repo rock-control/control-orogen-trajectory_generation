@@ -1,0 +1,1 @@
+rock-roboviz /home/natarajan/Workspace/Projects/Spacebot/Softwares/spacebot_dev/control/orogen/trajectory_generation/scripts/test_data/artemis.urdf orogen_default_trajectory_generation__TestPlant

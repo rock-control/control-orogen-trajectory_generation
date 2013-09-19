@@ -2,7 +2,7 @@ require 'orocos'
 require 'pry'
 require 'vizkit'
 $LOAD_PATH << '.'
-$LOAD_PATH << 'lib'
+$LOAD_PATH << '../lib'
 
 require 'robot'
 require 'roslog'
@@ -39,7 +39,7 @@ limits = TypeHelpers::JointLimits::from_map @robot[:joint_limits]
 # Create Trajectory type
 #
 # Extract raw data from log
-file_path = "test_data/20130914-artemis-joint_traj-malte.txt"
+file_path = "../test_data/20130914-artemis-joint_traj-malte.txt"
 ros_dump = File.read(file_path)
 
 tr_cfg = {}
