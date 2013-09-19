@@ -42,3 +42,7 @@ task_context "TestPlant" do
    periodic 0.01
 end
 
+deployment "plant_deployment" do
+    task 'plant' , 'trajectory_generation::TestPlant'
+    add_default_logger
+end
