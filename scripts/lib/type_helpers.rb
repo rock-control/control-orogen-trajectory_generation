@@ -68,7 +68,7 @@ module TypeHelpers
         elems += [el]
       end
   
-      traj.elements = elems.transpose
+      traj.elements = elems
       traj
     end
   end
