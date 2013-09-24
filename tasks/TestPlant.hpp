@@ -54,6 +54,7 @@ public:
     {
         reset(initial_state, j_range);
         this->name = name;
+        mode = base::JointState::POSITION;
     }
 
     inline void reset(const base::JointState& initial_state,
@@ -187,11 +188,12 @@ public:
     }
 
     inline void cmd(base::JointState& setpoint){
+        /*
         if(mode != setpoint.getMode()){
             LOG_INFO("Switching ctrl mode for joint %s from %d to %d.", name.c_str(),
                      mode, setpoint.getMode() );
             mode = setpoint.getMode();
-        }
+        }*/
         j_setpoint = setpoint;
     }
 
