@@ -40,7 +40,7 @@ protected:
     size_t current_step;
     bool update_target;
 
-    base::samples::Joints status, command;
+    base::samples::Joints status, command, desired_reflexes;
     base::JointLimits limits;
 
     double CYCLE_TIME_IN_SECONDS;

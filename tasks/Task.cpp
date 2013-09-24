@@ -33,6 +33,8 @@ bool Task::configureHook()
 
     command.resize( limits.size() );
     command.names = limits.names;
+    desired_reflexes.resize(limits.size());
+    desired_reflexes.names = limits.names;
 
     CYCLE_TIME_IN_SECONDS = _cycle_time.get();
 
@@ -77,21 +79,19 @@ void Task::updateHook()
         update_target = true;
         state(FOLLOWING);
         first_it=true;
-
-        for(uint i=0; i<trajectory.getTimeSteps(); i++)
-        {
-            for(uint j=0; j<6; j++)
-            {
-                std::cout<<trajectory[i][j].speed<<"  ";
-            }
-            std::cout<<std::endl;
-        }
     }
 
     if( _joint_state.read( status, false ) == RTT::NewData
            && current_step < trajectory.getTimeSteps() )
     {
         LOG_DEBUG("Got new joint sample input");
+        for(uint i=0; i<status.size(); i++){
+            if(base::isInfinity(status[i].position) || base::isNaN(status[i].position)){
+                LOG_ERROR("Got invalid joint state sample. Position of joint %s is invalid.", status.names[i].c_str());
+                return;
+            }
+        }
+
         if( update_target )
         {
             LOG_DEBUG("status.size %d, limits.size: %d, trajectory.size: %d", status.size(), limits.size(), trajectory.size());
@@ -105,20 +105,20 @@ void Task::updateHook()
                 int full_state_index = limits.mapNameToIndex(jname);
 
                 if(first_it){
-                    command[full_state_index].position = status[full_state_index].position;
-                    command[full_state_index].speed = status[full_state_index].speed;
-                    command[full_state_index].effort = status[full_state_index].effort;
+                    desired_reflexes[full_state_index].position = status[full_state_index].position;
+                    desired_reflexes[full_state_index].speed = 0.;
+                    desired_reflexes[full_state_index].effort = status[full_state_index].effort;
                 }
 
                 // TODO, check if the status data is actually compatible
                 IP->CurrentPositionVector->VecData[full_state_index] = status[full_state_index].position;
-                IP->CurrentVelocityVector->VecData[full_state_index] = status[full_state_index].speed;
-                IP->CurrentAccelerationVector->VecData[full_state_index] = command[full_state_index].effort;
+                IP->CurrentVelocityVector->VecData[full_state_index] = desired_reflexes[full_state_index].speed; //status[full_state_index].speed;
+                IP->CurrentAccelerationVector->VecData[full_state_index] = desired_reflexes[full_state_index].effort;
                 IP->MaxVelocityVector->VecData[full_state_index] = limits[full_state_index].max.speed;
                 IP->MaxAccelerationVector->VecData[full_state_index] = limits[full_state_index].max.effort;
                 IP->MaxJerkVector->VecData[full_state_index] = 1.0; //TODO have no idea what to put here
                 IP->TargetPositionVector->VecData[full_state_index] = trajectory[current_step][i].position;
-                IP->TargetVelocityVector->VecData[full_state_index] = 0.5;//trajectory[current_step][i].speed;
+                IP->TargetVelocityVector->VecData[full_state_index] = trajectory[current_step][i].speed;
                 IP->SelectionVector->VecData[full_state_index] = true;
             }
             first_it=false;
@@ -130,14 +130,18 @@ void Task::updateHook()
             // fill in output structure
             for( size_t i=0; i<command.size(); ++i )
             {
+                desired_reflexes[i].position = OP->NewPositionVector->VecData[i];
+                desired_reflexes[i].speed = OP->NewVelocityVector->VecData[i];
+                desired_reflexes[i].effort = OP->NewAccelerationVector->VecData[i];
+
                 command[i].position = OP->NewPositionVector->VecData[i];
-                command[i].speed = OP->NewVelocityVector->VecData[i];
+                command[i].speed =  1.0;
                 command[i].effort = OP->NewAccelerationVector->VecData[i];
                 command.time = base::Time::now();
             }
             break;
         case ReflexxesAPI::RML_FINAL_STATE_REACHED:
-            LOG_ERROR("Waypoint %d/%d reached", current_step, trajectory.getTimeSteps());
+            LOG_WARN("Waypoint %d/%d reached", current_step, trajectory.getTimeSteps());
             current_step++;
             update_target = true;
             if(current_step >= trajectory.getTimeSteps())
