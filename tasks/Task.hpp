@@ -43,6 +43,9 @@ protected:
     base::samples::Joints status, command;
     base::JointLimits limits;
 
+    double CYCLE_TIME_IN_SECONDS;
+    base::Time prev_time;
+
     bool first_it;
 
 public:
