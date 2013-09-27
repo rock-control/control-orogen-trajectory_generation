@@ -80,7 +80,7 @@ void Task::updateHook()
     while( _target.read( trajectory, false ) == RTT::NewData )
     {
         // got a new trajectory reading, reset the current index
-        LOG_ERROR("Got new trajectory input");
+        LOG_INFO("Got new trajectory input");
         current_step = 0;
         update_target = true;
         state(FOLLOWING);
@@ -117,18 +117,27 @@ void Task::updateHook()
                 }
 
                 //Current system state
-                if(override_input_position)
+                if(override_input_position){
+                    LOG_DEBUG("Overriding position input for joint %d with %.4f", full_state_index, desired_reflexes[full_state_index].position);
                     IP->CurrentPositionVector->VecData[full_state_index] = desired_reflexes[full_state_index].position;
-                else
+                }
+                else{
                     IP->CurrentPositionVector->VecData[full_state_index] = status[full_state_index].position;
-                if(override_input_speed)
+                }
+                if(override_input_speed){
+                    LOG_DEBUG("Overriding speed input for joint %d with %.4f", full_state_index, desired_reflexes[full_state_index].speed);
                     IP->CurrentVelocityVector->VecData[full_state_index] = desired_reflexes[full_state_index].speed;
-                else
+                }
+                else{
                     IP->CurrentVelocityVector->VecData[full_state_index] = status[full_state_index].speed;
-                if(override_input_effort)
+                }
+                if(override_input_effort){
+                    LOG_DEBUG("Overriding acceleration input for joint %d with %.4f", full_state_index, desired_reflexes[full_state_index].effort);
                     IP->CurrentAccelerationVector->VecData[full_state_index] = desired_reflexes[full_state_index].effort;
-                else
+                }
+                else{
                     IP->CurrentAccelerationVector->VecData[full_state_index] = status[full_state_index].effort;
+                }
 
                 //Constraints
                 IP->MaxVelocityVector->VecData[full_state_index] = limits[full_state_index].max.speed;
@@ -137,7 +146,7 @@ void Task::updateHook()
 
                 //Target system sate
                 IP->TargetPositionVector->VecData[full_state_index] = trajectory[current_step][i].position;
-                IP->TargetVelocityVector->VecData[full_state_index] = trajectory[current_step][i].speed;
+                IP->TargetVelocityVector->VecData[full_state_index] = 0.1;//trajectory[current_step][i].speed;
                 IP->SelectionVector->VecData[full_state_index] = true;
             }
             first_it=false;
@@ -154,14 +163,22 @@ void Task::updateHook()
                 desired_reflexes[i].effort = OP->NewAccelerationVector->VecData[i];
 
                 command[i].position = OP->NewPositionVector->VecData[i];
-                if(!base::isUnset(override_output_speed))
+
+                if(base::isUnset(override_output_speed)){
                     command[i].speed =  OP->NewVelocityVector->VecData[i];
-                else
+                }
+                else{
+                    LOG_DEBUG("Overriding speed output for joint %d with %.4f", i, override_output_speed);
                     command[i].speed =  override_output_speed;
-                if(!base::isUnset(override_output_effort))
-                    command[i].effort =  OP->NewVelocityVector->VecData[i];
-                else
+                }
+
+                if(base::isUnset(override_output_effort)){
+                    command[i].effort =  OP->NewAccelerationVector->VecData[i];
+                }
+                else{
+                    LOG_DEBUG("Overriding effort output for joint %d with %.4f", i, override_output_effort);
                     command[i].effort =  override_output_effort;
+                }
 
                 command.time = base::Time::now();
             }
