@@ -69,6 +69,8 @@ bool Task::startHook()
     update_target = 0;
 
     first_it = true;
+    diff_sum = 0;
+    sample_ctn = 0;
 
     return true;
 }
@@ -77,10 +79,24 @@ void Task::updateHook()
 {
     TaskBase::updateHook();
 
-    while( _target.read( trajectory, false ) == RTT::NewData )
+    while( _trajectory_target.read( trajectory, false ) == RTT::NewData )
     {
         // got a new trajectory reading, reset the current index
         LOG_INFO("Got new trajectory input");
+        current_step = 0;
+        update_target = true;
+        state(FOLLOWING);
+        first_it=true;
+    }
+    while( _position_target.read( position_target, false ) == RTT::NewData )
+    {
+        LOG_INFO("Got joint position target");
+        trajectory.names = position_target.names;
+        trajectory.elements.resize(1);
+        trajectory.elements[0].resize(trajectory.names.size());
+        for(uint i=0; i<position_target.names.size(); i++){
+            trajectory.elements[0][i] = position_target.elements[i];
+        }
         current_step = 0;
         update_target = true;
         state(FOLLOWING);
@@ -224,7 +240,20 @@ void Task::updateHook()
 
         base::Time time = base::Time::now();
         base::Time diff = time-prev_time;
-        //std::cout << diff.toSeconds() << std::endl;
+        diff_sum += diff.toSeconds();
+        sample_ctn++;
+        LOG_INFO_S << diff << " #################### "<<diff.toSeconds()<<std::endl;
+        if(sample_ctn == 1./cycle_time){
+            double avg_time = diff_sum/sample_ctn;
+            LOG_INFO_S << "Average cycle time: " << avg_time<<std::endl;
+            LOG_INFO_S << " Configured: " << cycle_time<<std::endl;
+            LOG_INFO_S << " diff_sum: " << diff_sum<<std::endl;
+            LOG_INFO_S << " sample_ctn: " << sample_ctn<<std::endl;
+            _average_cycle_rate.write(avg_time);
+            sample_ctn = 0;
+            diff_sum = 0.0;
+        }
+
         prev_time = time;
     }
 }

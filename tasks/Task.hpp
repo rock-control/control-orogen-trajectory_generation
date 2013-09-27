@@ -49,6 +49,7 @@ protected:
     RMLPositionFlags Flags;
 
     base::JointsTrajectory trajectory;
+    base::commands::Joints position_target;
     size_t current_step;
     bool update_target;
 
@@ -56,6 +57,8 @@ protected:
     base::Time prev_time;
 
     bool first_it;
+    double diff_sum;
+    int sample_ctn;
 
 public:
     /** TaskContext constructor for Task
