@@ -30,13 +30,20 @@ bool Task::configureHook()
         return false;
 
     limits = _limits.value();
+    cycle_time = _cycle_time.get();
+
+    override_input_position = _override_input_position.value();
+    override_input_speed = _override_input_speed.value();
+    override_input_effort = _override_input_effort.value();
+
+    override_output_speed = _override_output_speed.value();
+    override_output_effort = _override_output_effort.value();
 
     command.resize( limits.size() );
     command.names = limits.names;
     desired_reflexes.resize(limits.size());
     desired_reflexes.names = limits.names;
 
-    CYCLE_TIME_IN_SECONDS = _cycle_time.get();
 
     const int NUMBER_OF_DOFS = limits.size();
     if( NUMBER_OF_DOFS == 0 )
@@ -45,8 +52,7 @@ bool Task::configureHook()
         return false;
     }
 
-    std::cout << CYCLE_TIME_IN_SECONDS << std::endl;
-    RML = new ReflexxesAPI( NUMBER_OF_DOFS, CYCLE_TIME_IN_SECONDS );
+    RML = new ReflexxesAPI( NUMBER_OF_DOFS, cycle_time );
     IP  = new RMLPositionInputParameters( NUMBER_OF_DOFS );
     OP  = new RMLPositionOutputParameters( NUMBER_OF_DOFS );
     Flags.SynchronizationBehavior   =   RMLPositionFlags::ONLY_TIME_SYNCHRONIZATION;
@@ -82,7 +88,7 @@ void Task::updateHook()
     }
 
     if( _joint_state.read( status, false ) == RTT::NewData
-           && current_step < trajectory.getTimeSteps() )
+            && current_step < trajectory.getTimeSteps() )
     {
         LOG_DEBUG("Got new joint sample input");
         for(uint i=0; i<status.size(); i++){
@@ -110,13 +116,26 @@ void Task::updateHook()
                     desired_reflexes[full_state_index].effort = status[full_state_index].effort;
                 }
 
-                // TODO, check if the status data is actually compatible
-                IP->CurrentPositionVector->VecData[full_state_index] = status[full_state_index].position;
-                IP->CurrentVelocityVector->VecData[full_state_index] = desired_reflexes[full_state_index].speed; //status[full_state_index].speed;
-                IP->CurrentAccelerationVector->VecData[full_state_index] = desired_reflexes[full_state_index].effort;
+                //Current system state
+                if(override_input_position)
+                    IP->CurrentPositionVector->VecData[full_state_index] = desired_reflexes[full_state_index].position;
+                else
+                    IP->CurrentPositionVector->VecData[full_state_index] = status[full_state_index].position;
+                if(override_input_speed)
+                    IP->CurrentVelocityVector->VecData[full_state_index] = desired_reflexes[full_state_index].speed;
+                else
+                    IP->CurrentVelocityVector->VecData[full_state_index] = status[full_state_index].speed;
+                if(override_input_effort)
+                    IP->CurrentAccelerationVector->VecData[full_state_index] = desired_reflexes[full_state_index].effort;
+                else
+                    IP->CurrentAccelerationVector->VecData[full_state_index] = status[full_state_index].effort;
+
+                //Constraints
                 IP->MaxVelocityVector->VecData[full_state_index] = limits[full_state_index].max.speed;
                 IP->MaxAccelerationVector->VecData[full_state_index] = limits[full_state_index].max.effort;
                 IP->MaxJerkVector->VecData[full_state_index] = 1.0; //TODO have no idea what to put here
+
+                //Target system sate
                 IP->TargetPositionVector->VecData[full_state_index] = trajectory[current_step][i].position;
                 IP->TargetVelocityVector->VecData[full_state_index] = trajectory[current_step][i].speed;
                 IP->SelectionVector->VecData[full_state_index] = true;
@@ -124,7 +143,7 @@ void Task::updateHook()
             first_it=false;
         }
 
-       int result = RML->RMLPosition( *IP, OP, Flags );
+        int result = RML->RMLPosition( *IP, OP, Flags );
         switch(result){
         case ReflexxesAPI::RML_WORKING:
             // fill in output structure
@@ -135,8 +154,15 @@ void Task::updateHook()
                 desired_reflexes[i].effort = OP->NewAccelerationVector->VecData[i];
 
                 command[i].position = OP->NewPositionVector->VecData[i];
-                command[i].speed =  1.0;
-                command[i].effort = OP->NewAccelerationVector->VecData[i];
+                if(!base::isUnset(override_output_speed))
+                    command[i].speed =  OP->NewVelocityVector->VecData[i];
+                else
+                    command[i].speed =  override_output_speed;
+                if(!base::isUnset(override_output_effort))
+                    command[i].effort =  OP->NewVelocityVector->VecData[i];
+                else
+                    command[i].effort =  override_output_effort;
+
                 command.time = base::Time::now();
             }
             break;
