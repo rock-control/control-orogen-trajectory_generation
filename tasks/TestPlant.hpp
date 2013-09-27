@@ -184,6 +184,12 @@ public:
     }
 
     inline void get_state(base::JointState& j_state){
+        if(base::isNaN(this->j_state.position) ||
+                base::isUnknown(this->j_state.position) ||
+                base::isInfinity(this->j_state.position)){
+            LOG_ERROR("Position of joint %s is invalid. repairing by setting to 0.",this->name.c_str());
+            this->j_state.position = 0;
+        }
         j_state = this->j_state;
     }
 
@@ -194,6 +200,10 @@ public:
                      mode, setpoint.getMode() );
             mode = setpoint.getMode();
         }*/
+        if(base::isNaN(setpoint.position) || base::isInfinity(setpoint.position)){
+            LOG_ERROR("Got invalid setpoint for joint %s. Ignoring.", this->name.c_str());
+            return;
+        }
         j_setpoint = setpoint;
     }
 
