@@ -4,7 +4,7 @@ import_types_from "base"
 using_library "reflexxes"
 
 task_context "Task" do
-    cycle_time = 0.001
+    cycle_time = 0.02
 
     needs_configuration
     runtime_states 'FOLLOWING', 'REACHED'
@@ -27,14 +27,17 @@ task_context "Task" do
         doc('Set output speed to fixed value every time. Setting this value to NaN means no override.')
 
 
-    input_port("target", "/base/JointsTrajectory").
+    input_port("trajectory_target", "/base/JointsTrajectory").
 	doc("The target trajectory which should be followed")
+    input_port("position_target", "/base/commands/Joints").
+        doc("The target joint position")
 
     input_port("joint_state", "/base/samples/Joints").
 	doc("Current state measurement from the actuators")
 
     output_port("cmd", "/base/commands/Joints").
 	doc("Target values that are send to the actuators")
+    output_port("average_cycle_rate", "double")
 
     port_driven "joint_state"
 end
@@ -50,10 +53,11 @@ task_context "TestPlant" do
    input_port("cmd", "/base/commands/Joints")
    output_port("joint_state", "/base/samples/Joints")
    
+
    periodic 0.021172983273343216 #That's how fast artemis' joints update
 end
 
 deployment "plant_deployment" do
-    task 'plant' , 'trajectory_generation::TestPlant'
+    task 'plant', 'trajectory_generation::TestPlant'
     add_default_logger
 end
