@@ -36,7 +36,7 @@ task_context "Task" do
     output_port("cmd", "/base/commands/Joints").
 	doc("Target values that are send to the actuators")
 
-    periodic cycle_time
+    port_driven "joint_state"
 end
 
 task_context "TestPlant" do
@@ -50,7 +50,7 @@ task_context "TestPlant" do
    input_port("cmd", "/base/commands/Joints")
    output_port("joint_state", "/base/samples/Joints")
    
-   periodic 0.001
+   periodic 0.021172983273343216 #That's how fast artemis' joints update
 end
 
 deployment "plant_deployment" do
