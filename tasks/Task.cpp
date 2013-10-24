@@ -2,6 +2,7 @@
 
 #include "Task.hpp"
 #include <base/Logging.hpp>
+#include <base/NamedVector.hpp>
 
 using namespace trajectory_generation;
 
@@ -43,6 +44,9 @@ bool Task::configureHook()
     command.names = limits.names;
     desired_reflexes.resize(limits.size());
     desired_reflexes.names = limits.names;
+
+    j_state_full.resize(limits.size());
+    j_state_full.names = limits.names;
 
 
     const int NUMBER_OF_DOFS = limits.size();
@@ -87,6 +91,14 @@ void Task::updateHook()
         update_target = true;
         state(FOLLOWING);
         first_it=true;
+
+        for(uint i=0; i<trajectory.names.size(); i++){
+            try{j_state_full.mapNameToIndex(trajectory.names[i]);}
+            catch(std::runtime_error){
+                LOG_WARN("Joint '%s' is unknown to trajectory_generation. Check configuration", trajectory.names[i].c_str());
+                continue;
+            }
+        }
     }
     while( _position_target.read( position_target, false ) == RTT::NewData )
     {
@@ -103,67 +115,107 @@ void Task::updateHook()
         first_it=true;
     }
 
-    if( _joint_state.read( status, false ) == RTT::NewData
+    base::samples::Joints j_state_new;
+    if( _joint_state.read( j_state_new, false ) == RTT::NewData
             && current_step < trajectory.getTimeSteps() )
     {
+        //Invalidate  j_state
+        for(uint i=0; i<j_state_full.size(); i++){
+            j_state_full[i] = base::JointState();
+            j_state_full[i].position = base::unset<double>();
+            j_state_full[i].speed = base::unset<float>();
+            j_state_full[i].effort = base::unset<float>();
+            j_state_full[i].raw = base::unset<float>();
+        }
+
         LOG_DEBUG("Got new joint sample input");
-        for(uint i=0; i<status.size(); i++){
-            if(base::isInfinity(status[i].position) || base::isNaN(status[i].position)){
-                LOG_ERROR("Got invalid joint state sample. Position of joint %s is invalid.", status.names[i].c_str());
-                return;
+        for(uint i=0; i<j_state_new.size(); i++){
+            //Check if data is okay
+            if(base::isInfinity(j_state_new[i].position) || base::isNaN(j_state_new[i].position)){
+                LOG_WARN("Got invalid joint state sample. Position of joint %s is invalid.", j_state_new.names[i].c_str());
+                continue;
             }
+            if(base::isInfinity(j_state_new[i].speed) || base::isNaN(j_state_new[i].speed)){
+                LOG_WARN("Got invalid joint state sample. Speed of joint %s is invalid.", j_state_new.names[i].c_str());
+                continue;
+            }
+
+            //Is the joint known to trajectory generation
+            std::string j_name = j_state_new.names[i];
+            int j_idx_full=0;
+            try{j_idx_full = j_state_full.mapNameToIndex(j_name);}
+            catch(std::runtime_error){
+                LOG_WARN("Got joint sample of joint '%s', which is unknown to trajectory generation. Check configuration!", j_name.c_str());
+                continue;
+            }
+
+            //Update state for joint
+            j_state_full[j_idx_full] = j_state_new[i];
         }
 
         if( update_target )
         {
-            LOG_DEBUG("status.size %d, limits.size: %d, trajectory.size: %d", status.size(), limits.size(), trajectory.size());
-            std::string jname;
+            LOG_DEBUG("status.size %d, limits.size: %d, trajectory.size: %d", j_state_full.size(), limits.size(), trajectory.size());
+            std::string j_name;
             for(size_t i=0; i<limits.names.size(); i++){
                 IP->SelectionVector->VecData[i] = false;
             }
             for( size_t i=0; i<trajectory.names.size(); i++ )
             {
-                jname = trajectory.names[i];
-                int full_state_index = limits.mapNameToIndex(jname);
+                int j_idx_full=0;
+                j_name = trajectory.names[i];
+                try{j_idx_full = limits.mapNameToIndex(j_name);}
+                catch(std::runtime_error){
+                    LOG_DEBUG("Skipping unknown joint '%s' from input trajectory", j_name.c_str());
+                    continue;
+                }
 
+                //Do we have a valid joint state?
+                if(base::isInfinity(j_state_full[j_idx_full].position) || base::isNaN(j_state_full[j_idx_full].position)
+                        || base::isInfinity(j_state_full[j_idx_full].speed) || base::isNaN(j_state_full[j_idx_full].speed)){
+                    LOG_ERROR("A trajectory using joint '%s' was given, but no valid joint state was received. Will skip joint.");
+                    continue;
+                }
+
+                //FIXME: Is this really necessary?
                 if(first_it){
-                    desired_reflexes[full_state_index].position = status[full_state_index].position;
-                    desired_reflexes[full_state_index].speed = 0.;
-                    desired_reflexes[full_state_index].effort = status[full_state_index].effort;
+                    desired_reflexes[j_idx_full].position = j_state_full[j_idx_full].position;
+                    desired_reflexes[j_idx_full].speed = 0.;
+                    desired_reflexes[j_idx_full].effort = j_state_full[j_idx_full].effort;
                 }
 
                 //Current system state
                 if(override_input_position){
-                    LOG_DEBUG("Overriding position input for joint %d with %.4f", full_state_index, desired_reflexes[full_state_index].position);
-                    IP->CurrentPositionVector->VecData[full_state_index] = desired_reflexes[full_state_index].position;
+                    LOG_DEBUG("Overriding position input for joint %d with %.4f", j_idx_full, desired_reflexes[j_idx_full].position);
+                    IP->CurrentPositionVector->VecData[j_idx_full] = desired_reflexes[j_idx_full].position;
                 }
                 else{
-                    IP->CurrentPositionVector->VecData[full_state_index] = status[full_state_index].position;
+                    IP->CurrentPositionVector->VecData[j_idx_full] = j_state_full[j_idx_full].position;
                 }
                 if(override_input_speed){
-                    LOG_DEBUG("Overriding speed input for joint %d with %.4f", full_state_index, desired_reflexes[full_state_index].speed);
-                    IP->CurrentVelocityVector->VecData[full_state_index] = desired_reflexes[full_state_index].speed;
+                    LOG_DEBUG("Overriding speed input for joint %d with %.4f", j_idx_full, desired_reflexes[j_idx_full].speed);
+                    IP->CurrentVelocityVector->VecData[j_idx_full] = desired_reflexes[j_idx_full].speed;
                 }
                 else{
-                    IP->CurrentVelocityVector->VecData[full_state_index] = status[full_state_index].speed;
+                    IP->CurrentVelocityVector->VecData[j_idx_full] = j_state_full[j_idx_full].speed;
                 }
                 if(override_input_effort){
-                    LOG_DEBUG("Overriding acceleration input for joint %d with %.4f", full_state_index, desired_reflexes[full_state_index].effort);
-                    IP->CurrentAccelerationVector->VecData[full_state_index] = desired_reflexes[full_state_index].effort;
+                    LOG_DEBUG("Overriding acceleration input for joint %d with %.4f", j_idx_full, desired_reflexes[j_idx_full].effort);
+                    IP->CurrentAccelerationVector->VecData[j_idx_full] = desired_reflexes[j_idx_full].effort;
                 }
                 else{
-                    IP->CurrentAccelerationVector->VecData[full_state_index] = status[full_state_index].effort;
+                    IP->CurrentAccelerationVector->VecData[j_idx_full] = j_state_full[j_idx_full].effort;
                 }
 
                 //Constraints
-                IP->MaxVelocityVector->VecData[full_state_index] = limits[full_state_index].max.speed;
-                IP->MaxAccelerationVector->VecData[full_state_index] = limits[full_state_index].max.effort;
-                IP->MaxJerkVector->VecData[full_state_index] = 1.0; //TODO have no idea what to put here
+                IP->MaxVelocityVector->VecData[j_idx_full] = limits[j_idx_full].max.speed;
+                IP->MaxAccelerationVector->VecData[j_idx_full] = limits[j_idx_full].max.effort;
+                IP->MaxJerkVector->VecData[j_idx_full] = 1.0; //TODO have no idea what to put here
 
                 //Target system sate
-                IP->TargetPositionVector->VecData[full_state_index] = trajectory[current_step][i].position;
-                IP->TargetVelocityVector->VecData[full_state_index] = 0.1;//trajectory[current_step][i].speed;
-                IP->SelectionVector->VecData[full_state_index] = true;
+                IP->TargetPositionVector->VecData[j_idx_full] = trajectory[current_step][i].position;
+                IP->TargetVelocityVector->VecData[j_idx_full] = 0.1;//trajectory[current_step][i].speed;
+                IP->SelectionVector->VecData[j_idx_full] = true;
             }
             first_it=false;
         }

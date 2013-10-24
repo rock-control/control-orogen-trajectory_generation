@@ -53,7 +53,7 @@ protected:
     size_t current_step;
     bool update_target;
 
-    base::samples::Joints status, command, desired_reflexes;
+    base::samples::Joints j_state_full, command, desired_reflexes;
     base::Time prev_time;
 
     bool first_it;
