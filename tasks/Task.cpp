@@ -76,6 +76,9 @@ bool Task::startHook()
     diff_sum = 0;
     sample_ctn = 0;
 
+    prev_time = base::Time::now();
+
+
     return true;
 }
 
@@ -145,7 +148,7 @@ void Task::updateHook()
             int j_idx_full=0;
             try{j_idx_full = j_state_full.mapNameToIndex(j_name);}
             catch(std::runtime_error){
-                LOG_WARN("Got joint sample of joint '%s', which is unknown to trajectory generation. Check configuration!", j_name.c_str());
+                LOG_DEBUG("Got joint sample of joint '%s', which is unknown to trajectory generation. Check configuration!", j_name.c_str());
                 continue;
             }
 
@@ -294,8 +297,8 @@ void Task::updateHook()
         base::Time diff = time-prev_time;
         diff_sum += diff.toSeconds();
         sample_ctn++;
-        LOG_INFO_S << diff << " #################### "<<diff.toSeconds()<<std::endl;
-        if(sample_ctn == 1./cycle_time){
+        LOG_INFO_S << "Sample time:  "<<diff.toSeconds()<< " diff_sum: " << diff_sum << " Sample ctn: " << sample_ctn << " cycle_time: "<<cycle_time<<" 1/cycle_time: "<<1./cycle_time<<std::endl;
+        if(sample_ctn >= 1./cycle_time){
             double avg_time = diff_sum/sample_ctn;
             LOG_INFO_S << "Average cycle time: " << avg_time<<std::endl;
             LOG_INFO_S << " Configured: " << cycle_time<<std::endl;
