@@ -25,6 +25,8 @@ task_context "Task" do
         doc('Set output speed to fixed value every time. Setting this value to NaN means no override.')
     property('override_output_effort', 'double').
         doc('Set output speed to fixed value every time. Setting this value to NaN means no override.')
+    property('override_target_velocity', 'double').
+        doc('Set target velocity forcefully to this value')
 
 
     input_port("trajectory_target", "/base/JointsTrajectory").

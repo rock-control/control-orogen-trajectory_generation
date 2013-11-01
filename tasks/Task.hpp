@@ -41,6 +41,8 @@ protected:
 
     double override_output_speed;   //Set output speed to fixed value every time
     double override_output_effort;  //Set output effort to fixed value every time
+    double override_target_velocity;
+
 
     //For internal use
     ReflexxesAPI *RML;

@@ -36,6 +36,7 @@ bool Task::configureHook()
     override_input_position = _override_input_position.value();
     override_input_speed = _override_input_speed.value();
     override_input_effort = _override_input_effort.value();
+    override_target_velocity = _override_target_velocity.value();
 
     override_output_speed = _override_output_speed.value();
     override_output_effort = _override_output_effort.value();
@@ -215,9 +216,50 @@ void Task::updateHook()
                 IP->MaxAccelerationVector->VecData[j_idx_full] = limits[j_idx_full].max.effort;
                 IP->MaxJerkVector->VecData[j_idx_full] = 1.0; //TODO have no idea what to put here
 
-                //Target system sate
+                //
+                // Target system state
+                //
+                //Just set posiiton
                 IP->TargetPositionVector->VecData[j_idx_full] = trajectory[current_step][i].position;
-                IP->TargetVelocityVector->VecData[j_idx_full] = 0.1;//trajectory[current_step][i].speed;
+
+                //To determine speed
+
+                // Get local posiiton neigbors
+                double prev_target = 0.;
+                double current_target = 0.;
+                double next_target = 0.;
+                current_target = trajectory[current_step][i].position;
+                if(current_step == 0)
+                    prev_target = current_target;
+                else
+                    prev_target = trajectory[current_step-1][i].position;
+                if(current_step == trajectory.getTimeSteps()-1)
+                    next_target = current_target;
+                else
+                    next_target = trajectory[current_step+1][i].position;
+
+                int vel_sign=0;
+                // Case /\
+                if(prev_target <= current_target && next_target <= current_target)
+                    vel_sign = 0;
+                // Case  /
+                //      /
+                if(prev_target < current_target && next_target > current_target)
+                    vel_sign = 1;
+                //Case \/
+                if(prev_target >= current_target && next_target >= current_target)
+                    vel_sign = 0;
+                //Case \
+                //      \
+                if(prev_target > current_target && next_target < current_target)
+                    vel_sign = -1;
+
+                double vel_value = fabs(trajectory[current_step][i].speed);
+                if(!base::isNaN(override_target_velocity))
+                    vel_value = override_target_velocity;
+                IP->TargetVelocityVector->VecData[j_idx_full] = vel_sign * vel_value;
+
+                //Everything set, use this joint for control
                 IP->SelectionVector->VecData[j_idx_full] = true;
             }
             first_it=false;
