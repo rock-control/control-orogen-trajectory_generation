@@ -20,6 +20,40 @@ Task::~Task()
 {
 }
 
+double interpolate(double a, double b, double c){
+    double ba=b-a;
+    double cb=c-b;
+    return (ba+cb)/2.0;
+}
+
+void set_speeds(base::JointsTrajectory& traj, double target_speed){
+    double cur, prev, next, speed;
+    for(uint t=0; t<traj.size(); t++){
+        double max_speed = 0;
+        for(uint j=0; j<traj[t].size(); j++){
+            cur = traj[t][j].position;
+            if(t==0)
+                prev = cur;
+            else
+                prev = traj[t-1][j].position;
+            if(t==traj.size()-1)
+                next = cur;
+            else
+                next = traj[t+1][j].position;
+
+            speed = interpolate(prev, cur, next);
+            if(fabs(speed) > max_speed){
+                max_speed = speed;
+            }
+            traj[t][j].speed = speed;
+        }
+        //Normalize speed to 1.0
+        for(uint j=0; j<traj[t].size(); j++){
+            traj[t][j].speed = (traj[t][j].speed/max_speed) * target_speed;
+        }
+    }
+}
+
 
 /// The following lines are template definitions for the various state machine
 // hooks defined by Orocos::RTT. See Task.hpp for more detailed
@@ -103,6 +137,8 @@ void Task::updateHook()
                 continue;
             }
         }
+
+        set_speeds(trajectory, override_target_velocity);
     }
     while( _position_target.read( position_target, false ) == RTT::NewData )
     {
@@ -112,6 +148,9 @@ void Task::updateHook()
         trajectory.elements[0].resize(trajectory.names.size());
         for(uint i=0; i<position_target.names.size(); i++){
             trajectory.elements[0][i] = position_target.elements[i];
+            if(base::isNaN(position_target.elements[i].speed)){
+                trajectory.elements[0][i].speed = 0.0;
+            }
         }
         current_step = 0;
         update_target = true;
@@ -221,43 +260,7 @@ void Task::updateHook()
                 //
                 //Just set posiiton
                 IP->TargetPositionVector->VecData[j_idx_full] = trajectory[current_step][i].position;
-
-                //To determine speed
-
-                // Get local posiiton neigbors
-                double prev_target = 0.;
-                double current_target = 0.;
-                double next_target = 0.;
-                current_target = trajectory[current_step][i].position;
-                if(current_step == 0)
-                    prev_target = current_target;
-                else
-                    prev_target = trajectory[current_step-1][i].position;
-                if(current_step == trajectory.getTimeSteps()-1)
-                    next_target = current_target;
-                else
-                    next_target = trajectory[current_step+1][i].position;
-
-                int vel_sign=0;
-                // Case /\
-                if(prev_target <= current_target && next_target <= current_target)
-                    vel_sign = 0;
-                // Case  /
-                //      /
-                if(prev_target < current_target && next_target > current_target)
-                    vel_sign = 1;
-                //Case \/
-                if(prev_target >= current_target && next_target >= current_target)
-                    vel_sign = 0;
-                //Case \
-                //      \
-                if(prev_target > current_target && next_target < current_target)
-                    vel_sign = -1;
-
-                double vel_value = fabs(trajectory[current_step][i].speed);
-                if(!base::isNaN(override_target_velocity))
-                    vel_value = override_target_velocity;
-                IP->TargetVelocityVector->VecData[j_idx_full] = vel_sign * vel_value;
+                IP->TargetVelocityVector->VecData[j_idx_full] = trajectory[current_step][i].speed;
 
                 //Everything set, use this joint for control
                 IP->SelectionVector->VecData[j_idx_full] = true;
