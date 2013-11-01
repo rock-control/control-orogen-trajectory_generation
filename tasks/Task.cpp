@@ -83,7 +83,6 @@ bool Task::configureHook()
     j_state_full.resize(limits.size());
     j_state_full.names = limits.names;
 
-
     const int NUMBER_OF_DOFS = limits.size();
     if( NUMBER_OF_DOFS == 0 )
     {
@@ -91,10 +90,17 @@ bool Task::configureHook()
         return false;
     }
 
+    for(uint i=0; i<limits.size(); i++){
+        if(limits[i].max.speed < override_target_velocity){
+            LOG_ERROR("override_target_velocity too high. Joint %s has a max speed of %f. override_target_velocity must be lower than that value.",limits.names[i].c_str(), limits[i].max.speed);
+            return false;
+        }
+    }
+
     RML = new ReflexxesAPI( NUMBER_OF_DOFS, cycle_time );
     IP  = new RMLPositionInputParameters( NUMBER_OF_DOFS );
     OP  = new RMLPositionOutputParameters( NUMBER_OF_DOFS );
-    Flags.SynchronizationBehavior   =   RMLPositionFlags::ONLY_TIME_SYNCHRONIZATION;
+    Flags.SynchronizationBehavior = RMLPositionFlags::ONLY_TIME_SYNCHRONIZATION;
 
     return true;
 }
@@ -150,6 +156,21 @@ void Task::updateHook()
             trajectory.elements[0][i] = position_target.elements[i];
             if(base::isNaN(position_target.elements[i].speed)){
                 trajectory.elements[0][i].speed = 0.0;
+            }
+            try{
+                base::JointLimitRange limit = limits.getElementByName(position_target.names[i]);
+                if(trajectory.elements[0][i].speed > limit.max.speed){
+                    LOG_DEBUG("Desired speed for joint %s is too high. Will set to it's max speed which is %f", limits.names[i].c_str(), limits[i].max.speed);
+                    trajectory.elements[0][i].speed = limits[i].max.speed;
+                }
+                if(trajectory.elements[0][i].speed < -limit.max.speed){
+                    LOG_DEBUG("Desired speed for joint %s is too low. Will set to it's max speed which is %f", limits.names[i].c_str(), -limits[i].max.speed);
+                    trajectory.elements[0][i].speed = -limits[i].max.speed;
+                }
+            }
+            catch( std::runtime_error ex){
+                LOG_ERROR("Joint %s is given in input trajectory, but is unknown to trajectory_genereation. Check configuration.", position_target.names[i].c_str());
+                continue;
             }
         }
         current_step = 0;
