@@ -43,14 +43,17 @@ void set_speeds(base::JointsTrajectory& traj, double target_speed){
 
             speed = interpolate(prev, cur, next);
             if(fabs(speed) > max_speed){
-                max_speed = speed;
+                max_speed = fabs(speed);
             }
+            LOG_INFO("Speed for joint %i in Wapoint %i to %f. Prev pos: %f, pos: %f, nect pos: %f",j, t, speed, prev, cur, next);
             traj[t][j].speed = speed;
         }
         //Normalize speed to 1.0
         for(uint j=0; j<traj[t].size(); j++){
             traj[t][j].speed = (traj[t][j].speed/max_speed) * target_speed;
+            LOG_INFO("Speed for joint %i to %f. normalized to ",j, traj[t][j].speed);
         }
+        LOG_INFO("");
     }
 }
 
@@ -241,7 +244,7 @@ void Task::updateHook()
                     continue;
                 }
 
-                //FIXME: Is this really necessary?
+                //FIXME: Is this really necessary?position_target.names[i]
                 if(first_it){
                     desired_reflexes[j_idx_full].position = j_state_full[j_idx_full].position;
                     desired_reflexes[j_idx_full].speed = 0.;
@@ -300,6 +303,15 @@ void Task::updateHook()
                 desired_reflexes[i].effort = OP->NewAccelerationVector->VecData[i];
 
                 command[i].position = OP->NewPositionVector->VecData[i];
+
+                int j_idx_full=0;
+                std::string j_name = trajectory.names[i];
+                try{j_idx_full = limits.mapNameToIndex(j_name);}
+                catch(std::runtime_error){
+                    LOG_DEBUG("Skipping unknown joint '%s' from input trajectory", j_name.c_str());
+                    continue;
+                }
+                LOG_INFO("Output position for joint %i(%i): %f. Current position: %f. Current target: %f",i, j_idx_full, desired_reflexes[i].position, j_state_full[i], trajectory[current_step][i].position);
 
                 if(base::isUnset(override_output_speed)){
                     command[i].speed =  OP->NewVelocityVector->VecData[i];
