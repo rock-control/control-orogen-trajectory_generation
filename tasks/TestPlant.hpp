@@ -54,6 +54,7 @@ public:
     {
         reset(initial_state, j_range);
         this->name = name;
+        mode = base::JointState::POSITION;
     }
 
     inline void reset(const base::JointState& initial_state,
@@ -183,14 +184,25 @@ public:
     }
 
     inline void get_state(base::JointState& j_state){
+        if(base::isNaN(this->j_state.position) ||
+                base::isUnknown(this->j_state.position) ||
+                base::isInfinity(this->j_state.position)){
+            LOG_ERROR("Position of joint %s is invalid. repairing by setting to 0.",this->name.c_str());
+            this->j_state.position = 0;
+        }
         j_state = this->j_state;
     }
 
     inline void cmd(base::JointState& setpoint){
+        /*
         if(mode != setpoint.getMode()){
             LOG_INFO("Switching ctrl mode for joint %s from %d to %d.", name.c_str(),
                      mode, setpoint.getMode() );
             mode = setpoint.getMode();
+        }*/
+        if(base::isNaN(setpoint.position) || base::isInfinity(setpoint.position)){
+            LOG_ERROR("Got invalid setpoint for joint %s. Ignoring.", this->name.c_str());
+            return;
         }
         j_setpoint = setpoint;
     }

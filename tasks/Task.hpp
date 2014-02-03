@@ -31,17 +31,36 @@ class Task : public TaskBase
     friend class TaskBase;
 protected:
 
+    //Configurable parameters
+    base::JointLimits limits;       //The limits for the joints
+    double cycle_time;              //Cycle time in seconds
+
+    bool override_input_position;   //Set output position as input for next cycle
+    bool override_input_speed;      //Set output speed as input for next cycle
+    bool override_input_effort;     //Set output effort as input for next cycle
+
+    double override_output_speed;   //Set output speed to fixed value every time
+    double override_output_effort;  //Set output effort to fixed value every time
+    double override_target_velocity;
+
+
+    //For internal use
     ReflexxesAPI *RML;
     RMLPositionInputParameters *IP;
     RMLPositionOutputParameters *OP;
     RMLPositionFlags Flags;
 
     base::JointsTrajectory trajectory;
+    base::commands::Joints position_target;
     size_t current_step;
     bool update_target;
 
-    base::samples::Joints status, command;
-    base::JointLimits limits;
+    base::samples::Joints j_state_full, command, desired_reflexes;
+    base::Time prev_time;
+
+    bool first_it;
+    double diff_sum;
+    int sample_ctn;
 
 public:
     /** TaskContext constructor for Task

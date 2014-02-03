@@ -1,31 +1,47 @@
 name "trajectory_generation"
 
-import_types_from "trajectory_generationTypes.hpp"
 import_types_from "base"
 using_library "reflexxes"
 
 task_context "Task" do
-    cycle_time = 0.01
+    cycle_time = 0.02
 
     needs_configuration
     runtime_states 'FOLLOWING', 'REACHED'
 
-    property("limits", "/base/JointLimits").
-	doc("The limits for the joints")
+    property('limits', 'base/JointLimits').
+        doc('The limits for the joints')
+    property('cycle_time', 'double').
+        doc('Cycle time in seconds')
 
-    property("cycle_time", "double", cycle_time).
-        doc("Cycle time in seconds")
+    property('override_input_position', 'bool', false).
+        doc('Set output position as input for next cycle')
+    property('override_input_speed', 'bool', false).
+        doc('Set output speed as input for next cycle')
+    property('override_input_effort', 'bool', true).
+        doc('Set output effort as input for next cycle')
 
-    input_port("target", "/base/JointsTrajectory").
+    property('override_output_speed', 'double').
+        doc('Set output speed to fixed value every time. Setting this value to NaN means no override.')
+    property('override_output_effort', 'double').
+        doc('Set output speed to fixed value every time. Setting this value to NaN means no override.')
+    property('override_target_velocity', 'double').
+        doc('Set target velocity forcefully to this value')
+
+
+    input_port("trajectory_target", "/base/JointsTrajectory").
 	doc("The target trajectory which should be followed")
+    input_port("position_target", "/base/commands/Joints").
+        doc("The target joint position")
 
     input_port("joint_state", "/base/samples/Joints").
 	doc("Current state measurement from the actuators")
 
     output_port("cmd", "/base/commands/Joints").
 	doc("Target values that are send to the actuators")
+    output_port("average_cycle_rate", "double")
 
-    periodic cycle_time
+    port_driven "joint_state"
 end
 
 task_context "TestPlant" do
@@ -39,6 +55,11 @@ task_context "TestPlant" do
    input_port("cmd", "/base/commands/Joints")
    output_port("joint_state", "/base/samples/Joints")
    
-   periodic 0.01
+
+   periodic 0.021172983273343216 #That's how fast artemis' joints update
 end
 
+deployment "plant_deployment" do
+    task 'plant', 'trajectory_generation::TestPlant'
+    add_default_logger
+end
