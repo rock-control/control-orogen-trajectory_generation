@@ -8,7 +8,59 @@
  * which case you do not need this file
  */
 
+#include <vector>
+
 namespace trajectory_generation {
+    struct RMLVelocityInputParams{   
+         RMLVelocityInputParams(){}
+         RMLVelocityInputParams(int nDOF){
+              NumberOfDOFs = nDOF;
+              CurrentPositionVector.resize(nDOF);
+              CurrentVelocityVector.resize(nDOF);
+              CurrentAccelerationVector.resize(nDOF);
+              TargetVelocityVector.resize(nDOF);
+              MaxAccelerationVector.resize(nDOF);
+              MaxJerkVector.resize(nDOF);
+              SelectionVector.resize(nDOF);
+              MinimumSynchronizationTime = 0;
+         }
+         int NumberOfDOFs;
+         std::vector<double> CurrentPositionVector;
+         std::vector<double> CurrentVelocityVector;
+         std::vector<double> CurrentAccelerationVector;
+         std::vector<double> TargetVelocityVector;
+         std::vector<double> MaxAccelerationVector;
+         std::vector<double> MaxJerkVector;
+         std::vector<int> SelectionVector;
+         double MinimumSynchronizationTime;
+    };
+
+    struct RMLVelocityOutputParams{
+         RMLVelocityOutputParams(){}
+         RMLVelocityOutputParams(int nDOF){
+              NumberOfDOFs = nDOF;
+              ExecutionTimes.resize(nDOF);
+              NewPositionVector.resize(nDOF);
+              NewVelocityVector.resize(nDOF);
+              NewAccelerationVector.resize(nDOF);
+              PositionValuesAtTargetVelocity.resize(nDOF);
+              ANewCalculationWasPerformed = 0;
+              DOFWithTheGreatestExecutionTime = -1;
+              SynchronizationTime = 0;
+              TrajectoryIsPhaseSynchronized = 0;
+         }   
+         int NumberOfDOFs;
+         int ANewCalculationWasPerformed;
+         int DOFWithTheGreatestExecutionTime;
+         std::vector<double> ExecutionTimes;
+         double SynchronizationTime;
+         int TrajectoryIsPhaseSynchronized;
+         
+         std::vector<double> NewPositionVector;
+         std::vector<double> NewVelocityVector;
+         std::vector<double> NewAccelerationVector;
+         std::vector<double> PositionValuesAtTargetVelocity;
+    };
 }
 
 #endif

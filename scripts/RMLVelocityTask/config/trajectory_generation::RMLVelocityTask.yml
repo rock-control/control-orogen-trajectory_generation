@@ -1,0 +1,26 @@
+--- name:default
+# Cycle time in seconds
+cycle_time: 0.01
+
+# The limits for the joints
+limits:
+  names: ["J_Foot"]
+  elements: 
+      - max: 
+          position: 1.0
+          speed: 1.0
+          effort: 1.0
+        min: 
+          position: -1.0
+
+# Set output effort as input for next cycle
+override_input_effort: false
+
+# Set output position as input for next cycle
+override_input_position: false
+
+# Set output speed as input for next cycle
+override_input_speed: false
+
+# The synchronization behavior of RML. See RMLFlags.h for info. 
+sync_behavior: 0
