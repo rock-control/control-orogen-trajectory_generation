@@ -49,14 +49,21 @@ task_context "RMLVelocityTask" do
     cycle_time = 0.01
 
     needs_configuration
-    runtime_states 'FOLLOWING', 'REACHED'
+    runtime_states 'FOLLOWING', 'REACHED', 'IN_LIMITS'
 
     property('limits', 'base/JointLimits').
-        doc('The limits for the joints')
+        doc('The limits for the joints. Note that min.speed and min.effort are not used.')
     property('cycle_time', 'double').
         doc('Cycle time in seconds')
-    property('sync_behavior', 'int', 0).
-        doc('The synchronization behavior of RML. See RMLFlags.h for info. ')
+
+    property('sync_behavior', 'int').
+        doc('The synchronization behavior of RML. Can be one of 0 = RMLFlags::PHASE_SYNCHRONIZATION_IF_POSSIBLE,
+             1 = RMLFlags::ONLY_TIME_SYNCHRONIZATION, 2 = RMLFlags::ONLY_PHASE_SYNCHRONIZATION, 3 = RMLFlags::NO_SYNCHRONIZATION')
+
+    property('positional_limits_behavior', 'int').
+        doc('Behavior when reaching positional limits. Can be one of 0 = RMLFlags::POSITIONAL_LIMITS_IGNORE,
+             1 = RMLFlags::POSITIONAL_LIMITS_ERROR_MSG_ONLY, 2 = RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT.
+             Only available for Reflexxes Type_IV ')
 
     property('override_input_position', 'bool', false).
         doc('Set output position as input for next cycle')

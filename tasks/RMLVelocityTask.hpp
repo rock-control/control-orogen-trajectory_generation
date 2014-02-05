@@ -34,7 +34,8 @@ protected:
     double cycle_time_;
     base::commands::Joints command_out_;
     base::commands::Joints command_in_;
-    bool is_initialized_, has_target_;
+    bool is_initialized_;
+    uint nDOF_;
 
     RMLVelocityInputParams input_params_;
     RMLVelocityOutputParams output_params_;

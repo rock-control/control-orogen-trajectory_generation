@@ -7,7 +7,8 @@ Orocos.initialize
 Orocos.conf.load_dir('config')
 
 Orocos.run 'trajectory_generation::RMLVelocityTask' => 'interpolator' do
-    
+   
+   Orocos.log_all 
    interpolator = Orocos.name_service.get 'interpolator'
    driver = Orocos.name_service.get 'driver'
 
@@ -18,7 +19,7 @@ Orocos.run 'trajectory_generation::RMLVelocityTask' => 'interpolator' do
 
    interpolator.configure
    interpolator.start
-  
+
    Vizkit.exec
     
 end

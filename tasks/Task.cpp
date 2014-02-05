@@ -86,7 +86,7 @@ bool Task::configureHook()
     j_state_full.resize(limits.size());
     j_state_full.names = limits.names;
 
-    const int NUMBER_OF_DOFS = limits.size();
+    const uint NUMBER_OF_DOFS = limits.size();
     if( NUMBER_OF_DOFS == 0 )
     {
         LOG_ERROR_S << "No joint limits have been configured" << std::endl;
@@ -100,7 +100,7 @@ bool Task::configureHook()
         }
     }
 
-    RML = new ReflexxesAPI( NUMBER_OF_DOFS, cycle_time );
+    RML = new ReflexxesAPI( NUMBER_OF_DOFS, cycle_time);
     IP  = new RMLPositionInputParameters( NUMBER_OF_DOFS );
     OP  = new RMLPositionOutputParameters( NUMBER_OF_DOFS );
     Flags.SynchronizationBehavior = RMLPositionFlags::ONLY_TIME_SYNCHRONIZATION;
