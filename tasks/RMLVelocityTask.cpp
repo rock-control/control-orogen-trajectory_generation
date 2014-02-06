@@ -2,7 +2,6 @@
 
 #include "RMLVelocityTask.hpp"
 #include <base/logging.h>
-
 using namespace trajectory_generation;
 using namespace std;
 
@@ -20,7 +19,6 @@ RMLVelocityTask::~RMLVelocityTask()
 {
 }
 
-
 bool RMLVelocityTask::configureHook()
 {
     if (! RMLVelocityTaskBase::configureHook())
@@ -33,10 +31,6 @@ bool RMLVelocityTask::configureHook()
     limits_ = _limits.get();
     cycle_time_ = _cycle_time.get();
     Vel_Flags_.SynchronizationBehavior = _sync_behavior.get();
-
-#ifdef REFLEXXES_TYPE_IV
-    Vel_Flags_.PositionalLimitsBehavior = _positional_limits_behavior.get();
-#endif
 
     nDOF_ = limits_.size();
 
@@ -52,10 +46,6 @@ bool RMLVelocityTask::configureHook()
 
     for(uint i = 0; i < nDOF_; i++)
     {
-#ifdef REFLEXXES_TYPE_IV
-        Vel_IP_->MaxPositionVector->VecData[i] = limits_[i].max.position;
-        Vel_IP_->MinPositionVector->VecData[i] = limits_[i].min.position;
-#endif
         if(limits_[i].max.effort <= 0 || limits_[i].max.speed <= 0){
             LOG_ERROR("Max Effort and max speed of limits property must be grater than zero");
             return false;
@@ -65,6 +55,15 @@ bool RMLVelocityTask::configureHook()
         Vel_IP_->MaxJerkVector->VecData[i] = 0.1; //TODO
         Vel_IP_->SelectionVector->VecData[i] = true;
     }
+
+#ifdef USING_REFLEXXES_TYPE_IV
+    Vel_Flags_.PositionalLimitsBehavior = _positional_limits_behavior.get();
+    for(uint i = 0; i < nDOF_; i++)
+    {
+        Vel_IP_->MaxPositionVector->VecData[i] = limits_[i].max.position;
+        Vel_IP_->MinPositionVector->VecData[i] = limits_[i].min.position;
+    }
+#endif
 
     is_initialized_ = false;
 
@@ -128,7 +127,7 @@ void RMLVelocityTask::updateHook()
             Vel_IP_->CurrentPositionVector->VecData[i] = Vel_OP_->NewPositionVector->VecData[i];
         }
         else{
-#ifdef REFLEXXES_TYPE_IV
+#ifdef USING_REFLEXXES_TYPE_IV
             //Prevent invalid input (RML with active Positonal Limits prevention has problems with positional input that is out of limits,
             //which may happen due to noisy position readings)
             if(Vel_Flags_.PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT)
@@ -143,6 +142,13 @@ void RMLVelocityTask::updateHook()
             Vel_IP_->CurrentVelocityVector->VecData[i] = Vel_OP_->NewVelocityVector->VecData[i];
         else
             Vel_IP_->CurrentVelocityVector->VecData[i] = status_[i].speed;
+
+#ifndef USING_REFLEXXES_TYPE_IV
+        // This is to fix a bug in the Reflexxes type II library. If current and target velocity are equal
+        // the output will be nan.
+        if(Vel_IP_->CurrentVelocityVector->VecData[i] == Vel_IP_->TargetVelocityVector->VecData[i])
+            Vel_IP_->CurrentVelocityVector->VecData[i] -= 1e-10;
+#endif
 
         ///Only use NewAccelerationVector from previous cycle if there has been a previous cycle (is_initialized_ == true)
         if(override_input_effort_ && is_initialized_)
@@ -164,16 +170,17 @@ void RMLVelocityTask::updateHook()
     case ReflexxesAPI::RML_FINAL_STATE_REACHED:
         state(REACHED);
         break;
-#ifdef REFLEXXES_TYPE_IV
+#ifdef USING_REFLEXXES_TYPE_IV
     case ReflexxesAPI::RML_ERROR_POSITIONAL_LIMITS:
         state(IN_LIMITS);
         break;
-#endif
     default:
-#ifdef REFLEXXES_TYPE_IV
         LOG_ERROR("Reflexxes returned error %s", Vel_OP_->GetErrorString());
-#endif
         throw std::runtime_error("Reflexxes runtime error");
+#else
+    default:
+        throw std::runtime_error("Reflexxes runtime error");
+#endif
     }
 
     //
@@ -196,6 +203,10 @@ void RMLVelocityTask::updateHook()
         input_params_.CurrentVelocityVector[i] = Vel_IP_->CurrentVelocityVector->VecData[i];
         input_params_.CurrentAccelerationVector[i] = Vel_IP_->CurrentAccelerationVector->VecData[i];
         input_params_.TargetVelocityVector[i] = Vel_IP_->TargetVelocityVector->VecData[i];
+#ifdef USING_REFLEXXES_TYPE_IV
+        input_params_.MinPositionVector[i] = Vel_IP_->MinPositionVector->VecData[i];
+        input_params_.MaxPositionVector[i] = Vel_IP_->MaxPositionVector->VecData[i];
+#endif
         input_params_.MaxAccelerationVector[i] = Vel_IP_->MaxAccelerationVector->VecData[i];
         input_params_.MaxJerkVector[i] = Vel_IP_->MaxJerkVector->VecData[i];
         input_params_.SelectionVector[i] = Vel_IP_->SelectionVector->VecData[i];
