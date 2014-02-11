@@ -51,37 +51,56 @@ task_context "RMLVelocityTask" do
     needs_configuration
     runtime_states 'FOLLOWING', 'REACHED', 'IN_LIMITS'
 
-    property('limits', 'base/JointLimits').
-        doc('The limits for the joints. Note that min.speed and min.effort are not used.')
-    property('cycle_time', 'double').
-        doc('Cycle time in seconds')
+    # The limits for the joints. Note: min.speed and min.effort are not used
+    property('limits', 'base/JointLimits') 
 
-    property('sync_behavior', 'int').
-        doc('The synchronization behavior of RML. Can be one of 0 = RMLFlags::PHASE_SYNCHRONIZATION_IF_POSSIBLE,
-             1 = RMLFlags::ONLY_TIME_SYNCHRONIZATION, 2 = RMLFlags::ONLY_PHASE_SYNCHRONIZATION, 3 = RMLFlags::NO_SYNCHRONIZATION')
+    # Maximum change of acceleration. Size has to be the same as limits
+    property('max_jerk', 'std/vector<double>')
 
-    property('positional_limits_behavior', 'int').
-        doc('Behavior when reaching positional limits. Can be one of 0 = RMLFlags::POSITIONAL_LIMITS_IGNORE,
-             1 = RMLFlags::POSITIONAL_LIMITS_ERROR_MSG_ONLY, 2 = RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT.
-             Only available for Reflexxes Type_IV ')
+    # Cycle time in seconds
+    property('cycle_time', 'double') 
+  
+    # The synchronization behavior of RML. Can be one of 0 = RMLFlags::PHASE_SYNCHRONIZATION_IF_POSSIBLE,
+    # 1 = RMLFlags::ONLY_TIME_SYNCHRONIZATION, 2 = RMLFlags::ONLY_PHASE_SYNCHRONIZATION, 3 = RMLFlags::NO_SYNCHRONIZATION
+    property('sync_behavior', 'int', 1)
+    
+    # Behavior when reaching positional limits. Can be one of 0 = RMLFlags::POSITIONAL_LIMITS_IGNORE,
+    # 1 = RMLFlags::POSITIONAL_LIMITS_ERROR_MSG_ONLY, 2 = RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT.
+    # Only available for Reflexxes Type_IV
+    property('positional_limits_behavior', 'int', 0)
 
-    property('override_input_position', 'bool', false).
-        doc('Set output position as input for next cycle')
-    property('override_input_speed', 'bool', false).
-        doc('Set output speed as input for next cycle')
-    property('override_input_effort', 'bool', false).
-        doc('Set output effort as input for next cycle')
+    # Scale all max effort values by this factor. Range: 0..1
+    property('max_effort_scale', 'double', 1.0)
 
-    input_port("velocity_target", "/base/commands/Joints").
-        doc("The target joint velocity")
+    # Scale all max jerk values by this factor. Range: 0..1 
+    property('max_jerk_scale', 'double', 1.0)
 
-    input_port("joint_state", "/base/samples/Joints").
-	doc("Current state measurement from the actuators")
+    # Set output position as input for next cycle
+    property('override_input_position', 'bool', false)
 
-    output_port("cmd", "/base/commands/Joints").
-	doc("Target values that are send to the actuators")
+    # Set output speed as input for next cycle
+    property('override_input_speed', 'bool', false)
+
+    # Set output effort as input for next cycle
+    property('override_input_effort', 'bool', false)
+
+  
+    # The target joint velocity
+    input_port("velocity_target", "/base/commands/Joints")
+
+    # Current state measurement from the actuators
+    input_port("joint_state", "/base/samples/Joints")
+
+    # Target values that are send to the actuators
+    output_port("cmd", "/base/commands/Joints")
+
+    # Debug Port: Current cycle time
     output_port("actual_cycle_time", "double")
+
+    # Debug Port: Input values of the rml algorithm
     output_port("rml_input_params", "trajectory_generation/RMLVelocityInputParams")
+
+    # Debug Port: Output values of the rml algorithm
     output_port("rml_output_params", "trajectory_generation/RMLVelocityOutputParams")
 
     periodic cycle_time

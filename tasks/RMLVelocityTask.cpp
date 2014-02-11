@@ -31,6 +31,13 @@ bool RMLVelocityTask::configureHook()
     limits_ = _limits.get();
     cycle_time_ = _cycle_time.get();
     Vel_Flags_.SynchronizationBehavior = _sync_behavior.get();
+    std::vector<double> max_jerk = _max_jerk.get();
+
+    if(max_jerk.size() != limits_.size())
+    {
+        LOG_ERROR("No of joints of interpolator is %i but size of max_jerk is %i", limits_.size(), max_jerk.size());
+        return false;
+    }
 
     nDOF_ = limits_.size();
 
@@ -51,8 +58,8 @@ bool RMLVelocityTask::configureHook()
             return false;
         }
         command_out_[i].speed = command_out_[i].effort = 0;
-        Vel_IP_->MaxAccelerationVector->VecData[i] = limits_[i].max.effort;
-        Vel_IP_->MaxJerkVector->VecData[i] = 0.1; //TODO
+        Vel_IP_->MaxAccelerationVector->VecData[i] = limits_[i].max.effort * _max_effort_scale.get();
+        Vel_IP_->MaxJerkVector->VecData[i] = max_jerk[i] * _max_jerk_scale.get();
         Vel_IP_->SelectionVector->VecData[i] = true;
     }
 
