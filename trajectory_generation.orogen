@@ -92,7 +92,7 @@ task_context "RMLVelocityTask" do
     input_port("joint_state", "/base/samples/Joints")
 
     # Target values that are send to the actuators
-    output_port("cmd", "/base/commands/Joints")
+    output_port("command", "/base/commands/Joints")
 
     # Debug Port: Current cycle time
     output_port("actual_cycle_time", "double")

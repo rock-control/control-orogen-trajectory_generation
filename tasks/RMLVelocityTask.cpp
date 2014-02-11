@@ -197,7 +197,7 @@ void RMLVelocityTask::updateHook()
         command_out_[i].speed = Vel_OP_->NewVelocityVector->VecData[i];
         command_out_[i].effort = Vel_OP_->NewAccelerationVector->VecData[i];
     }
-    _cmd.write(command_out_);
+    _command.write(command_out_);
 
     //
     // Write debug Data
