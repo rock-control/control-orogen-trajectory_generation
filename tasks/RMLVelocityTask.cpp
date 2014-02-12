@@ -32,6 +32,8 @@ bool RMLVelocityTask::configureHook()
     cycle_time_ = _cycle_time.get();
     Vel_Flags_.SynchronizationBehavior = _sync_behavior.get();
     std::vector<double> max_jerk = _max_jerk.get();
+    max_effort_scale_ = _max_effort_scale.get();
+    max_jerk_scale_ = _max_jerk_scale.get();
 
     if(max_jerk.size() != limits_.size())
     {
@@ -58,8 +60,8 @@ bool RMLVelocityTask::configureHook()
             return false;
         }
         command_out_[i].speed = command_out_[i].effort = 0;
-        Vel_IP_->MaxAccelerationVector->VecData[i] = limits_[i].max.effort * _max_effort_scale.get();
-        Vel_IP_->MaxJerkVector->VecData[i] = max_jerk[i] * _max_jerk_scale.get();
+        Vel_IP_->MaxAccelerationVector->VecData[i] = limits_[i].max.effort * max_effort_scale_;
+        Vel_IP_->MaxJerkVector->VecData[i] = max_jerk[i] * max_jerk_scale_;
         Vel_IP_->SelectionVector->VecData[i] = true;
     }
 
@@ -135,10 +137,8 @@ void RMLVelocityTask::updateHook()
         uint joint_idx = 0;
         try{
             joint_idx = status_.mapNameToIndex(limits_.names[i]);
-            cout<<"Mapping joint "<<limits_.names[i]<<" to index "<<joint_idx<<endl;
         }
         catch(std::exception e){
-            cout<<"No such joint: "<<limits_.names[i]<<endl;
             continue;
         }
 
@@ -175,6 +175,29 @@ void RMLVelocityTask::updateHook()
             Vel_IP_->CurrentAccelerationVector->VecData[i] = Vel_OP_->NewAccelerationVector->VecData[i];
         else
             Vel_IP_->CurrentAccelerationVector->VecData[i] = status_[joint_idx].effort;
+    }
+
+    //
+    // Handle Reset commands
+    //
+    if(_reset.read(reset_command_) == RTT::NewData){
+        for(uint i = 0; i < reset_command_.size(); i++){
+            uint joint_idx;
+            try{
+                joint_idx = limits_.mapNameToIndex(reset_command_.names[i]);
+            }
+            catch(std::exception e){
+                continue;
+            }
+            if(reset_command_[i].hasPosition())
+                Vel_IP_->CurrentPositionVector->VecData[joint_idx] = reset_command_[i].position;
+            if(reset_command_[i].hasSpeed()){
+                Vel_IP_->CurrentVelocityVector->VecData[joint_idx] = reset_command_[i].speed;
+                Vel_IP_->TargetVelocityVector->VecData[joint_idx] = reset_command_[i].speed;
+            }
+            if(reset_command_[i].hasEffort())
+                Vel_IP_->CurrentAccelerationVector->VecData[joint_idx] = reset_command_[i].effort;
+        }
     }
 
     uint res = RML_->RMLVelocity(*Vel_IP_, Vel_OP_, Vel_Flags_);

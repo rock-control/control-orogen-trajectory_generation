@@ -91,6 +91,10 @@ task_context "RMLVelocityTask" do
     # Current state measurement from the actuators
     input_port("joint_state", "/base/samples/Joints")
 
+    # Reset specific joints to a certain state and target velocity to the given velocity. This can be used if actual 
+    # and internal interpolator state deviate and the override functionality is used.
+    input_port("reset", "/base/samples/Joints")
+
     # Target values that are send to the actuators
     output_port("command", "/base/commands/Joints")
 

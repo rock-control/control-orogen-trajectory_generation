@@ -36,6 +36,8 @@ protected:
     base::commands::Joints command_in_;
     bool is_initialized_;
     uint nDOF_;
+    double max_effort_scale_, max_jerk_scale_;
+    base::samples::Joints reset_command_;
 
     RMLVelocityInputParams input_params_;
     RMLVelocityOutputParams output_params_;
