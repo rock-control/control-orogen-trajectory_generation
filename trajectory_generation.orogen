@@ -72,6 +72,9 @@ task_context "RMLVelocityTask" do
     # Scale all max effort values by this factor. Range: 0..1
     property('max_effort_scale', 'double', 1.0)
 
+    # If no new command comes in for such a long time, set velocity to zero
+    property('timeout', 'double', 0.3)
+
     # Scale all max jerk values by this factor. Range: 0..1 
     property('max_jerk_scale', 'double', 1.0)
 

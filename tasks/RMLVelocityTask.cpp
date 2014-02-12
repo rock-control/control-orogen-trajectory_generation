@@ -34,6 +34,7 @@ bool RMLVelocityTask::configureHook()
     std::vector<double> max_jerk = _max_jerk.get();
     max_effort_scale_ = _max_effort_scale.get();
     max_jerk_scale_ = _max_jerk_scale.get();
+    timeout_ = _timeout.get();
 
     if(max_jerk.size() != limits_.size())
     {
@@ -83,6 +84,7 @@ bool RMLVelocityTask::startHook()
 {
     if (! RMLVelocityTaskBase::startHook())
         return false;
+    stamp_ = base::Time::now();
     return true;
 }
 
@@ -107,6 +109,7 @@ void RMLVelocityTask::updateHook()
     //
     while(_velocity_target.read(command_in_) == RTT::NewData){
 
+        stamp_ = base::Time::now();
         // Use name mapping to allow partial inputs.
         for(uint i = 0; i < command_in_.size(); i++){
 
@@ -129,6 +132,14 @@ void RMLVelocityTask::updateHook()
         }
     }
 
+    double difftime = (base::Time::now() - stamp_).toSeconds();
+    if(difftime > timeout_){
+        LOG_DEBUG("Watchdog: Last reference value arrived %f seconds ago, Timeout is %f. Setting reference to zero", difftime, timeout_);
+        stamp_ = base::Time::now();
+        for(uint i = 0; i < nDOF_; i++)
+            Vel_IP_->TargetVelocityVector->VecData[i] = 0;
+    }
+
     //
     // Compute next sample
     //
@@ -148,7 +159,7 @@ void RMLVelocityTask::updateHook()
         }
         else{
 #ifdef USING_REFLEXXES_TYPE_IV
-            //Prevent invalid input (RML with active Positonal Limits prevention has problems with positional input that is out of limits,
+            //Avoid invalid input here (RML with active Positonal Limits prevention has problems with positional input that is out of limits,
             //which may happen due to noisy position readings)
             if(Vel_Flags_.PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT)
                 Vel_IP_->CurrentPositionVector->VecData[i] = std::max(std::min(limits_[i].max.position, status_[joint_idx].position), limits_[i].min.position);
@@ -238,8 +249,7 @@ void RMLVelocityTask::updateHook()
     //
     // Write debug Data
     //
-    base::Time diff = base::Time::now() - start;
-    _actual_cycle_time.write(diff.toSeconds());
+    _actual_cycle_time.write((base::Time::now() - start).toSeconds());
 
     for(uint i = 0; i < nDOF_; i++){
         input_params_.CurrentPositionVector[i] = Vel_IP_->CurrentPositionVector->VecData[i];

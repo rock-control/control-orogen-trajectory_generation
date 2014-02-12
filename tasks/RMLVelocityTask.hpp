@@ -42,6 +42,9 @@ protected:
     RMLVelocityInputParams input_params_;
     RMLVelocityOutputParams output_params_;
 
+    base::Time stamp_;
+    double timeout_;
+
 public:
     RMLVelocityTask(std::string const& name = "trajectory_generation::RMLVelocityTask");
     RMLVelocityTask(std::string const& name, RTT::ExecutionEngine* engine);
