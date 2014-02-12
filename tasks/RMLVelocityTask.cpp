@@ -109,9 +109,12 @@ void RMLVelocityTask::updateHook()
         for(uint i = 0; i < command_in_.size(); i++){
 
             uint joint_idx = 0;
-
-            try{joint_idx = limits_.mapNameToIndex(command_in_.names[i]);}
-            catch(std::exception e){continue;}
+            try{
+                joint_idx = limits_.mapNameToIndex(command_in_.names[i]);
+            }
+            catch(std::exception e){
+                continue;
+            }
 
             if(command_in_[i].getMode() != base::JointState::SPEED){
                 LOG_ERROR("Supports only speed control mode, but input has control mode %i", command_in_[i].getMode());
@@ -129,6 +132,16 @@ void RMLVelocityTask::updateHook()
     //
     for(uint i = 0; i < nDOF_; i++){
 
+        uint joint_idx = 0;
+        try{
+            joint_idx = status_.mapNameToIndex(limits_.names[i]);
+            cout<<"Mapping joint "<<limits_.names[i]<<" to index "<<joint_idx<<endl;
+        }
+        catch(std::exception e){
+            cout<<"No such joint: "<<limits_.names[i]<<endl;
+            continue;
+        }
+
         //Only use NewPositionVector from previous cycle if there has been a previous cycle (is_initialized_ == true)
         if(override_input_position_ && is_initialized_){
             Vel_IP_->CurrentPositionVector->VecData[i] = Vel_OP_->NewPositionVector->VecData[i];
@@ -138,17 +151,17 @@ void RMLVelocityTask::updateHook()
             //Prevent invalid input (RML with active Positonal Limits prevention has problems with positional input that is out of limits,
             //which may happen due to noisy position readings)
             if(Vel_Flags_.PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT)
-                Vel_IP_->CurrentPositionVector->VecData[i] = std::max(std::min(limits_[i].max.position, status_[i].position), limits_[i].min.position);
+                Vel_IP_->CurrentPositionVector->VecData[i] = std::max(std::min(limits_[i].max.position, status_[joint_idx].position), limits_[i].min.position);
             else
 #endif
-                Vel_IP_->CurrentPositionVector->VecData[i] = status_[i].position;
+                Vel_IP_->CurrentPositionVector->VecData[i] = status_[joint_idx].position;
         }
 
         //Only use NewVelocityVector from previous cycle if there has been a previous cycle (is_initialized_ == true)
         if(override_input_speed_ && is_initialized_)
             Vel_IP_->CurrentVelocityVector->VecData[i] = Vel_OP_->NewVelocityVector->VecData[i];
         else
-            Vel_IP_->CurrentVelocityVector->VecData[i] = status_[i].speed;
+            Vel_IP_->CurrentVelocityVector->VecData[i] = status_[joint_idx].speed;
 
 #ifndef USING_REFLEXXES_TYPE_IV
         // This is to fix a bug in the Reflexxes type II library. If current and target velocity are equal
@@ -161,7 +174,7 @@ void RMLVelocityTask::updateHook()
         if(override_input_effort_ && is_initialized_)
             Vel_IP_->CurrentAccelerationVector->VecData[i] = Vel_OP_->NewAccelerationVector->VecData[i];
         else
-            Vel_IP_->CurrentAccelerationVector->VecData[i] = status_[i].effort;
+            Vel_IP_->CurrentAccelerationVector->VecData[i] = status_[joint_idx].effort;
     }
 
     uint res = RML_->RMLVelocity(*Vel_IP_, Vel_OP_, Vel_Flags_);
