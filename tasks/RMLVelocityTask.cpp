@@ -95,13 +95,8 @@ void RMLVelocityTask::updateHook()
     RMLVelocityTaskBase::updateHook();
 
     if(_joint_state.read(status_) == RTT::NoData){
-        LOG_DEBUG("No data on joint status port");
+        LOG_DEBUG("No data on joint state port");
         return;
-    }
-
-    if(status_.size() != nDOF_){
-        LOG_ERROR("Status should have size %i bus has size %i", nDOF_, status_.size());
-        throw std::invalid_argument("Invalid status size");
     }
 
     //
