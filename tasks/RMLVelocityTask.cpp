@@ -64,6 +64,7 @@ bool RMLVelocityTask::configureHook()
         Vel_IP_->MaxAccelerationVector->VecData[i] = limits_[i].max.effort * max_effort_scale_;
         Vel_IP_->MaxJerkVector->VecData[i] = max_jerk[i] * max_jerk_scale_;
         Vel_IP_->SelectionVector->VecData[i] = true;
+        Vel_IP_->TargetVelocityVector->VecData[i] = 0;
     }
 
 #ifdef USING_REFLEXXES_TYPE_IV
@@ -149,19 +150,17 @@ void RMLVelocityTask::updateHook()
         }
 
         //Only use NewPositionVector from previous cycle if there has been a previous cycle (is_initialized_ == true)
-        if(override_input_position_ && is_initialized_){
+        if(override_input_position_ && is_initialized_)
             Vel_IP_->CurrentPositionVector->VecData[i] = Vel_OP_->NewPositionVector->VecData[i];
-        }
-        else{
+        else
+            Vel_IP_->CurrentPositionVector->VecData[i] = status_[joint_idx].position;
+
 #ifdef USING_REFLEXXES_TYPE_IV
             //Avoid invalid input here (RML with active Positonal Limits prevention has problems with positional input that is out of limits,
             //which may happen due to noisy position readings)
             if(Vel_Flags_.PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT)
-                Vel_IP_->CurrentPositionVector->VecData[i] = std::max(std::min(limits_[i].max.position, status_[joint_idx].position), limits_[i].min.position);
-            else
+                Vel_IP_->CurrentPositionVector->VecData[i] = std::max(std::min(limits_[i].max.position, Vel_IP_->CurrentPositionVector->VecData[i]), limits_[i].min.position);
 #endif
-                Vel_IP_->CurrentPositionVector->VecData[i] = status_[joint_idx].position;
-        }
 
         //Only use NewVelocityVector from previous cycle if there has been a previous cycle (is_initialized_ == true)
         if(override_input_speed_ && is_initialized_)
