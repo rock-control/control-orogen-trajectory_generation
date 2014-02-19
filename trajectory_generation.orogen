@@ -110,6 +110,13 @@ task_context "RMLVelocityTask" do
     # Debug Port: Output values of the rml algorithm
     output_port("rml_output_params", "trajectory_generation/RMLVelocityOutputParams")
 
+    # Debug Port: Distance to upper limits
+    output_port("dist_upper", "base/VectorXd")
+
+    # Debug Port: Distance to lower limits
+    output_port("dist_lower", "base/VectorXd")
+
+
     periodic cycle_time
 end
 

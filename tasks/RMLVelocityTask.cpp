@@ -44,6 +44,9 @@ bool RMLVelocityTask::configureHook()
 
     nDOF_ = limits_.size();
 
+    dist_to_upper_.resize(nDOF_);
+    dist_to_lower_.resize(nDOF_);
+
     status_.resize(nDOF_);
     command_out_.resize(nDOF_);
     command_out_.names = limits_.names;
@@ -207,6 +210,16 @@ void RMLVelocityTask::updateHook()
 
     uint res = RML_->RMLVelocity(*Vel_IP_, Vel_OP_, Vel_Flags_);
     is_initialized_ = true;
+
+#ifdef USING_REFLEXXES_TYPE_IV
+    for(uint i = 0; i < nDOF_; i++)
+    {
+        dist_to_upper_(i) = limits_[i].max.position - status_[i].position;
+        dist_to_lower_(i) = status_[i].position - limits_[i].min.position;
+    }
+    _dist_lower.write(dist_to_lower_);
+    _dist_upper.write(dist_to_upper_);
+#endif
 
     //
     // Handle interpolation result

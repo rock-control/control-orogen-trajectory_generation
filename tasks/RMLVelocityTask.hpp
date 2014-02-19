@@ -38,6 +38,7 @@ protected:
     uint nDOF_;
     double max_effort_scale_, max_jerk_scale_;
     base::samples::Joints reset_command_;
+    base::VectorXd dist_to_upper_, dist_to_lower_;
 
     RMLVelocityInputParams input_params_;
     RMLVelocityOutputParams output_params_;
