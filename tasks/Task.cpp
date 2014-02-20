@@ -68,6 +68,12 @@ bool Task::configureHook()
         return false;
 
     limits = _limits.value();
+    max_jerk = _max_jerk.value();
+    if(max_jerk.size() != limits.size())
+    {
+        LOG_ERROR("Max Jerk vector should have size %i but has size %i", limits.size(), max_jerk.size());
+        return false;
+    }
     cycle_time = _cycle_time.get();
 
     override_input_position = _override_input_position.value();
@@ -103,7 +109,16 @@ bool Task::configureHook()
     RML = new ReflexxesAPI( NUMBER_OF_DOFS, cycle_time);
     IP  = new RMLPositionInputParameters( NUMBER_OF_DOFS );
     OP  = new RMLPositionOutputParameters( NUMBER_OF_DOFS );
-    Flags.SynchronizationBehavior = RMLPositionFlags::ONLY_TIME_SYNCHRONIZATION;
+    Flags.SynchronizationBehavior = _sync_behavior.get();
+
+#ifdef USING_REFLEXXES_TYPE_IV
+    Flags.PositionalLimitsBehavior = _positional_limits_behavior.get();
+    for(uint i = 0; i < NUMBER_OF_DOFS; i++)
+    {
+        IP->MaxPositionVector->VecData[i] = limits[i].max.position;
+        IP->MinPositionVector->VecData[i] = limits[i].min.position;
+    }
+#endif
 
     return true;
 }
@@ -244,11 +259,11 @@ void Task::updateHook()
                     continue;
                 }
 
-                //FIXME: Is this really necessary?position_target.names[i]
+                //FIXME: Is this really necessary? YES!!! If the override property is set, rml does not know the initial state otherwise
                 if(first_it){
                     desired_reflexes[j_idx_full].position = j_state_full[j_idx_full].position;
-                    desired_reflexes[j_idx_full].speed = 0.;
-                    desired_reflexes[j_idx_full].effort = j_state_full[j_idx_full].effort;
+                    desired_reflexes[j_idx_full].speed = 0;
+                    desired_reflexes[j_idx_full].effort = 0;
                 }
 
                 //Current system state
@@ -259,6 +274,14 @@ void Task::updateHook()
                 else{
                     IP->CurrentPositionVector->VecData[j_idx_full] = j_state_full[j_idx_full].position;
                 }
+
+#ifdef USING_REFLEXXES_TYPE_IV
+                //Avoid invalid input here (RML with active Positonal Limits prevention has problems with positional input that is out of limits,
+                //which may happen due to noisy position readings)
+                if(Flags.PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT)
+                    IP->CurrentPositionVector->VecData[i] = std::max(std::min(limits[i].max.position, IP->CurrentPositionVector->VecData[i]), limits[i].min.position);
+#endif
+
                 if(override_input_speed){
                     LOG_DEBUG("Overriding speed input for joint %d with %.4f", j_idx_full, desired_reflexes[j_idx_full].speed);
                     IP->CurrentVelocityVector->VecData[j_idx_full] = desired_reflexes[j_idx_full].speed;
@@ -277,7 +300,7 @@ void Task::updateHook()
                 //Constraints
                 IP->MaxVelocityVector->VecData[j_idx_full] = limits[j_idx_full].max.speed;
                 IP->MaxAccelerationVector->VecData[j_idx_full] = limits[j_idx_full].max.effort;
-                IP->MaxJerkVector->VecData[j_idx_full] = 1.0; //TODO have no idea what to put here
+                IP->MaxJerkVector->VecData[j_idx_full] = max_jerk[j_idx_full];
 
                 //
                 // Target system state
@@ -295,6 +318,9 @@ void Task::updateHook()
         int result = RML->RMLPosition( *IP, OP, Flags );
         switch(result){
         case ReflexxesAPI::RML_WORKING:
+#ifdef USING_REFLEXXES_TYPE_IV
+        case ReflexxesAPI::RML_ERROR_POSITIONAL_LIMITS:
+#endif
             // fill in output structure
             for( size_t i=0; i<command.size(); ++i )
             {

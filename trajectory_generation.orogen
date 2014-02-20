@@ -14,6 +14,15 @@ task_context "Task" do
         doc('The limits for the joints')
     property('cycle_time', 'double').
         doc('Cycle time in seconds')
+    property('positional_limits_behavior', 'int', 0).
+        doc("Behavior when reaching positional limits. Can be one of 0 = RMLFlags::POSITIONAL_LIMITS_IGNORE,
+             1 = RMLFlags::POSITIONAL_LIMITS_ERROR_MSG_ONLY, 2 = RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT.
+             Only available for Reflexxes Type_IV")
+    property('sync_behavior', 'int', 1).
+        doc("The synchronization behavior of RML. Can be one of 0 = RMLFlags::PHASE_SYNCHRONIZATION_IF_POSSIBLE,
+             1 = RMLFlags::ONLY_TIME_SYNCHRONIZATION, 2 = RMLFlags::ONLY_PHASE_SYNCHRONIZATION, 3 = RMLFlags::NO_SYNCHRONIZATION")
+    property('max_jerk', 'std/vector<double>').
+        doc("Maximum change of acceleration. Size has to be the same as limits")
 
     property('override_input_position', 'bool', false).
         doc('Set output position as input for next cycle')

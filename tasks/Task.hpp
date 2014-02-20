@@ -33,6 +33,7 @@ protected:
 
     //Configurable parameters
     base::JointLimits limits;       //The limits for the joints
+    std::vector<double> max_jerk;
     double cycle_time;              //Cycle time in seconds
 
     bool override_input_position;   //Set output position as input for next cycle
