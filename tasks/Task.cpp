@@ -28,30 +28,34 @@ double interpolate(double a, double b, double c){
 
 void set_speeds(base::JointsTrajectory& traj, double target_speed){
     double cur, prev, next, speed;
-    for(uint t=0; t<traj.size(); t++){
+    for(uint t=0; t<traj.getTimeSteps(); t++)
+    {
         double max_speed = 0;
-        for(uint j=0; j<traj[t].size(); j++){
-            cur = traj[t][j].position;
+        for(uint joint_idx=0; joint_idx<traj.size(); joint_idx++)
+        {
+            cur = traj[joint_idx][t].position;
             if(t==0)
                 prev = cur;
             else
-                prev = traj[t-1][j].position;
-            if(t==traj.size()-1)
+                prev = traj[joint_idx][t-1].position;
+
+            if(t==traj.getTimeSteps()-1)
                 next = cur;
             else
-                next = traj[t+1][j].position;
+                next = traj[joint_idx][t+1].position;
 
             speed = interpolate(prev, cur, next);
             if(fabs(speed) > max_speed){
                 max_speed = fabs(speed);
             }
-            LOG_INFO("Speed for joint %i in Wapoint %i to %f. Prev pos: %f, pos: %f, nect pos: %f",j, t, speed, prev, cur, next);
-            traj[t][j].speed = speed;
+            LOG_INFO("Speed for joint %i in Wapoint %i to %f. Prev pos: %f, pos: %f, next pos: %f",joint_idx, t, speed, prev, cur, next);
+            traj[joint_idx][t].speed = speed;
         }
         //Normalize speed to 1.0
-        for(uint j=0; j<traj[t].size(); j++){
-            traj[t][j].speed = (traj[t][j].speed/max_speed) * target_speed;
-            LOG_INFO("Speed for joint %i to %f. normalized to ",j, traj[t][j].speed);
+        for(uint joint_idx=0; joint_idx<traj.size(); joint_idx++)
+        {
+            traj[joint_idx][t].speed = (traj[joint_idx][t].speed/max_speed) * target_speed;
+            LOG_INFO("Speed for joint %i to %f. normalized to 1. Tareget speed: %f. Max Speed %f",joint_idx, traj[joint_idx][t].speed, target_speed, max_speed);
         }
         LOG_INFO("");
     }
@@ -104,6 +108,12 @@ bool Task::configureHook()
     IP  = new RMLPositionInputParameters( NUMBER_OF_DOFS );
     OP  = new RMLPositionOutputParameters( NUMBER_OF_DOFS );
     Flags.SynchronizationBehavior = RMLPositionFlags::ONLY_TIME_SYNCHRONIZATION;
+    for(uint i=0; i<limits.size(); i++){
+        //Constraints
+        IP->MaxVelocityVector->VecData[i] = limits[i].max.speed;
+        IP->MaxAccelerationVector->VecData[i] = limits[i].max.effort;
+        IP->MaxJerkVector->VecData[i] = 500.0; //TODO have no idea what to put here
+    }
 
     return true;
 }
@@ -133,7 +143,6 @@ void Task::updateHook()
     while( _trajectory_target.read( trajectory, false ) == RTT::NewData )
     {
         // got a new trajectory reading, reset the current index
-        LOG_INFO("Got new trajectory input");
         current_step = 0;
         update_target = true;
         state(FOLLOWING);
@@ -148,38 +157,42 @@ void Task::updateHook()
         }
 
         set_speeds(trajectory, override_target_velocity);
+
+        LOG_DEBUG("Trajectory: ");
+        for(size_t i = 0; i < trajectory.size(); i++)
+            for(uint j = 0; j < trajectory.getTimeSteps(); j++)
+                LOG_DEBUG("%f %f", trajectory[i][j].position, trajectory[i][j].speed);
+
     }
     while( _position_target.read( position_target, false ) == RTT::NewData )
     {
-        LOG_INFO("Got joint position target");
+        trajectory.resize(limits.size(), 1);
         trajectory.names = position_target.names;
-        trajectory.elements.resize(1);
-        trajectory.elements[0].resize(trajectory.names.size());
-        for(uint i=0; i<position_target.names.size(); i++){
-            trajectory.elements[0][i] = position_target.elements[i];
-            if(base::isNaN(position_target.elements[i].speed)){
-                trajectory.elements[0][i].speed = 0.0;
-            }
+
+        for(size_t i = 0; i < limits.size(); i++){
+            size_t idx;
             try{
-                base::JointLimitRange limit = limits.getElementByName(position_target.names[i]);
-                if(trajectory.elements[0][i].speed > limit.max.speed){
-                    LOG_DEBUG("Desired speed for joint %s is too high. Will set to it's max speed which is %f", limits.names[i].c_str(), limits[i].max.speed);
-                    trajectory.elements[0][i].speed = limits[i].max.speed;
-                }
-                if(trajectory.elements[0][i].speed < -limit.max.speed){
-                    LOG_DEBUG("Desired speed for joint %s is too low. Will set to it's max speed which is %f", limits.names[i].c_str(), -limits[i].max.speed);
-                    trajectory.elements[0][i].speed = -limits[i].max.speed;
-                }
+                idx = position_target.mapNameToIndex(limits.names[i]);
             }
-            catch( std::runtime_error ex){
-                LOG_ERROR("Joint %s is given in input trajectory, but is unknown to trajectory_genereation. Check configuration.", position_target.names[i].c_str());
+            catch(std::exception e){
+                LOG_DEBUG("Joint %s has been configured in joint limits, but is not in target vector", limits.names[i].c_str());
+                trajectory.elements[0][i].position = IP->CurrentPositionVector->VecData[i];
+                trajectory.elements[0][i].speed = 0;
                 continue;
             }
+
+            trajectory.elements[0][i].position = position_target[idx].position;
+            if(position_target[idx].hasSpeed())
+                trajectory.elements[0][i].speed = std::max(std::min(position_target[idx].speed, limits[i].max.speed), limits[i].min.speed);
+            else
+                trajectory.elements[0][i].speed = 0.0;
         }
         current_step = 0;
         update_target = true;
         state(FOLLOWING);
         first_it=true;
+
+
     }
 
     base::samples::Joints j_state_new;
@@ -195,7 +208,6 @@ void Task::updateHook()
             j_state_full[i].raw = base::unset<float>();
         }
 
-        LOG_DEBUG("Got new joint sample input");
         for(uint i=0; i<j_state_new.size(); i++){
             //Check if data is okay
             if(base::isInfinity(j_state_new[i].position) || base::isNaN(j_state_new[i].position)){
@@ -222,7 +234,6 @@ void Task::updateHook()
 
         if( update_target )
         {
-            LOG_DEBUG("status.size %d, limits.size: %d, trajectory.size: %d", j_state_full.size(), limits.size(), trajectory.size());
             std::string j_name;
             for(size_t i=0; i<limits.names.size(); i++){
                 IP->SelectionVector->VecData[i] = false;
@@ -253,38 +264,31 @@ void Task::updateHook()
 
                 //Current system state
                 if(override_input_position){
-                    LOG_DEBUG("Overriding position input for joint %d with %.4f", j_idx_full, desired_reflexes[j_idx_full].position);
                     IP->CurrentPositionVector->VecData[j_idx_full] = desired_reflexes[j_idx_full].position;
                 }
                 else{
                     IP->CurrentPositionVector->VecData[j_idx_full] = j_state_full[j_idx_full].position;
                 }
                 if(override_input_speed){
-                    LOG_DEBUG("Overriding speed input for joint %d with %.4f", j_idx_full, desired_reflexes[j_idx_full].speed);
                     IP->CurrentVelocityVector->VecData[j_idx_full] = desired_reflexes[j_idx_full].speed;
                 }
                 else{
                     IP->CurrentVelocityVector->VecData[j_idx_full] = j_state_full[j_idx_full].speed;
                 }
                 if(override_input_effort){
-                    LOG_DEBUG("Overriding acceleration input for joint %d with %.4f", j_idx_full, desired_reflexes[j_idx_full].effort);
                     IP->CurrentAccelerationVector->VecData[j_idx_full] = desired_reflexes[j_idx_full].effort;
                 }
                 else{
                     IP->CurrentAccelerationVector->VecData[j_idx_full] = j_state_full[j_idx_full].effort;
                 }
 
-                //Constraints
-                IP->MaxVelocityVector->VecData[j_idx_full] = limits[j_idx_full].max.speed;
-                IP->MaxAccelerationVector->VecData[j_idx_full] = limits[j_idx_full].max.effort;
-                IP->MaxJerkVector->VecData[j_idx_full] = 1.0; //TODO have no idea what to put here
 
                 //
                 // Target system state
                 //
                 //Just set posiiton
-                IP->TargetPositionVector->VecData[j_idx_full] = trajectory[current_step][i].position;
-                IP->TargetVelocityVector->VecData[j_idx_full] = trajectory[current_step][i].speed;
+                IP->TargetPositionVector->VecData[j_idx_full] = trajectory[i][current_step].position;
+                IP->TargetVelocityVector->VecData[j_idx_full] = trajectory[i][current_step].speed;
 
                 //Everything set, use this joint for control
                 IP->SelectionVector->VecData[j_idx_full] = true;
@@ -311,13 +315,10 @@ void Task::updateHook()
                     LOG_DEBUG("Skipping unknown joint '%s' from input trajectory", j_name.c_str());
                     continue;
                 }
-                LOG_INFO("Output position for joint %i(%i): %f. Current position: %f. Current target: %f",i, j_idx_full, desired_reflexes[i].position, j_state_full[i], trajectory[current_step][i].position);
-
                 if(base::isUnset(override_output_speed)){
                     command[i].speed =  OP->NewVelocityVector->VecData[i];
                 }
                 else{
-                    LOG_DEBUG("Overriding speed output for joint %d with %.4f", i, override_output_speed);
                     command[i].speed =  override_output_speed;
                 }
 
@@ -325,7 +326,6 @@ void Task::updateHook()
                     command[i].effort =  OP->NewAccelerationVector->VecData[i];
                 }
                 else{
-                    LOG_DEBUG("Overriding effort output for joint %d with %.4f", i, override_output_effort);
                     command[i].effort =  override_output_effort;
                 }
 
@@ -333,8 +333,8 @@ void Task::updateHook()
             }
             break;
         case ReflexxesAPI::RML_FINAL_STATE_REACHED:
-            LOG_WARN("Waypoint %d/%d reached", current_step, trajectory.getTimeSteps());
             current_step++;
+            LOG_WARN("Waypoint %d/%d reached", current_step, trajectory.getTimeSteps());
             update_target = true;
             if(current_step >= trajectory.getTimeSteps())
                 state(REACHED);
@@ -372,7 +372,7 @@ void Task::updateHook()
         _cmd.write( command );
 
         base::Time time = base::Time::now();
-        base::Time diff = time-prev_time;
+        /*base::Time diff = time-prev_time;
         diff_sum += diff.toSeconds();
         sample_ctn++;
         LOG_INFO_S << "Sample time:  "<<diff.toSeconds()<< " diff_sum: " << diff_sum << " Sample ctn: " << sample_ctn << " cycle_time: "<<cycle_time<<" 1/cycle_time: "<<1./cycle_time<<std::endl;
@@ -385,7 +385,7 @@ void Task::updateHook()
             _average_cycle_rate.write(avg_time);
             sample_ctn = 0;
             diff_sum = 0.0;
-        }
+        }*/
 
         prev_time = time;
     }
