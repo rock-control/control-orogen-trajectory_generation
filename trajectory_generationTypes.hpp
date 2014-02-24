@@ -11,13 +11,14 @@
 #include <vector>
 
 namespace trajectory_generation {
-    struct RMLVelocityInputParams{   
-         RMLVelocityInputParams(){}
-         RMLVelocityInputParams(int nDOF){
+    struct RMLInputParams{   
+         RMLInputParams(){}
+         RMLInputParams(int nDOF){
               NumberOfDOFs = nDOF;
               CurrentPositionVector.resize(nDOF);
               CurrentVelocityVector.resize(nDOF);
               CurrentAccelerationVector.resize(nDOF);
+              TargetPositionVector.resize(nDOF);
               TargetVelocityVector.resize(nDOF);
               MinPositionVector.resize(nDOF);
               MaxPositionVector.resize(nDOF);
@@ -31,6 +32,7 @@ namespace trajectory_generation {
          std::vector<double> CurrentVelocityVector;
          std::vector<double> CurrentAccelerationVector;
          std::vector<double> TargetVelocityVector;
+         std::vector<double> TargetPositionVector;
          std::vector<double> MinPositionVector;
          std::vector<double> MaxPositionVector;
          std::vector<double> MaxAccelerationVector;
@@ -39,9 +41,9 @@ namespace trajectory_generation {
          double MinimumSynchronizationTime;
     };
 
-    struct RMLVelocityOutputParams{
-         RMLVelocityOutputParams(){}
-         RMLVelocityOutputParams(int nDOF){
+    struct RMLOutputParams{
+         RMLOutputParams(){}
+         RMLOutputParams(int nDOF){
               NumberOfDOFs = nDOF;
               ExecutionTimes.resize(nDOF);
               NewPositionVector.resize(nDOF);

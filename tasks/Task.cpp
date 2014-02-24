@@ -91,8 +91,8 @@ bool Task::configureHook()
     desired_reflexes.resize(nDof);
     desired_reflexes.names = limits.names;
 
-    rml_input_params = RMLVelocityInputParams(nDof);
-    rml_output_params = RMLVelocityOutputParams(nDof);
+    rml_input_params = RMLInputParams(nDof);
+    rml_output_params = RMLOutputParams(nDof);
 
     //Resize trajectory to 1, so that it has correct size for position_target input
     trajectory.resize(nDof, 1);
@@ -411,6 +411,7 @@ void Task::updateHook()
         rml_input_params.CurrentPositionVector[i] = IP->CurrentPositionVector->VecData[i];
         rml_input_params.CurrentVelocityVector[i] = IP->CurrentVelocityVector->VecData[i];
         rml_input_params.CurrentAccelerationVector[i] = IP->CurrentAccelerationVector->VecData[i];
+        rml_input_params.TargetPositionVector[i] = IP->TargetPositionVector->VecData[i];
         rml_input_params.TargetVelocityVector[i] = IP->TargetVelocityVector->VecData[i];
         rml_input_params.MaxAccelerationVector[i] = IP->MaxAccelerationVector->VecData[i];
         rml_input_params.MaxJerkVector[i] = IP->MaxJerkVector->VecData[i];

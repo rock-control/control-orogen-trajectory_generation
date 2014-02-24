@@ -47,8 +47,8 @@ protected:
     base::VectorXd dist_to_upper, dist_to_lower;
     size_t nDof;
 
-    RMLVelocityInputParams rml_input_params;
-    RMLVelocityOutputParams rml_output_params;
+    RMLInputParams rml_input_params;
+    RMLOutputParams rml_output_params;
 
     //For internal use
     ReflexxesAPI *RML;

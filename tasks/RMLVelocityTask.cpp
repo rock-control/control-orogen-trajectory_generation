@@ -50,8 +50,8 @@ bool RMLVelocityTask::configureHook()
     status_.resize(nDOF_);
     command_out_.resize(nDOF_);
     command_out_.names = limits_.names;
-    input_params_ = RMLVelocityInputParams(nDOF_);
-    output_params_ = RMLVelocityOutputParams(nDOF_);
+    input_params_ = RMLInputParams(nDOF_);
+    output_params_ = RMLOutputParams(nDOF_);
 
     RML_ = new ReflexxesAPI(nDOF_, cycle_time_);
     Vel_IP_ = new RMLVelocityInputParameters(nDOF_);

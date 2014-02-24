@@ -4,17 +4,16 @@ cycle_time: 0.02
 
 # The limits for the joints
 limits:
-  names: ["J_Foot"]
-  elements: 
-       - max: 
-          position: 10.0
-          speed: 1.0
-          effort: 1.0
-         min: 
-          position: -10.0
+  names: ["J_Shoulder1_l", "J_Shoulder2_l", "J_UpperArm_l", "J_Elbow_l", "J_Forearm_l"]
+  elements: [{max: {position: 1.74532925,  speed: 1.0, effort: 2.0}, min: {position: -0.872664625}}, # J_Shoulder1_l
+             {max: {position: 0.087266462, speed: 1.0, effort: 2.0}, min: {position: -1.483529862}}, # J_Shoulder2_l
+             {max: {position: 1.919862175, speed: 1.0, effort: 2.0}, min: {position: -1.919862175}}, # J_UpperArm_l
+             {max: {position: 0.087266462, speed: 1.0, effort: 2.0}, min: {position: -1.832595712}}, # J_Elbow_l
+             {max: {position: 1.570796325, speed: 1.0, effort: 2.0}, min: {position: -1.919862175}}] # J_Forearm_l
+
 
 # Maximum change of acceleration. Size has to be the same as limits
-max_jerk: [1.0]
+max_jerk: [5,5,5,5,5]
 
 # Set output effort as input for next cycle
 override_input_effort: true

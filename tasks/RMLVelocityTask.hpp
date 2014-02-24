@@ -40,8 +40,8 @@ protected:
     base::samples::Joints reset_command_;
     base::VectorXd dist_to_upper_, dist_to_lower_;
 
-    RMLVelocityInputParams input_params_;
-    RMLVelocityOutputParams output_params_;
+    RMLInputParams input_params_;
+    RMLOutputParams output_params_;
 
     bool has_target_;
     base::Time stamp_;

@@ -50,8 +50,8 @@ task_context "Task" do
     # Debug ports
 
     output_port("average_cycle_rate", "double")
-    output_port("rml_input_params", "trajectory_generation/RMLVelocityInputParams")
-    output_port("rml_output_params", "trajectory_generation/RMLVelocityOutputParams")
+    output_port("rml_input_params", "trajectory_generation/RMLInputParams")
+    output_port("rml_output_params", "trajectory_generation/RMLOutputParams")
     output_port("dist_upper_limit", "base/VectorXd")
     output_port("dist_lower_limit", "base/VectorXd")
 
@@ -118,10 +118,10 @@ task_context "RMLVelocityTask" do
     output_port("actual_cycle_time", "double")
 
     # Debug Port: Input values of the rml algorithm
-    output_port("rml_input_params", "trajectory_generation/RMLVelocityInputParams")
+    output_port("rml_input_params", "trajectory_generation/RMLInputParams")
 
     # Debug Port: Output values of the rml algorithm
-    output_port("rml_output_params", "trajectory_generation/RMLVelocityOutputParams")
+    output_port("rml_output_params", "trajectory_generation/RMLOutputParams")
 
     # Debug Port: Distance to upper limits
     output_port("dist_upper", "base/VectorXd")
