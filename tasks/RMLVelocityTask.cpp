@@ -57,7 +57,7 @@ bool RMLVelocityTask::configureHook()
     Vel_IP_ = new RMLVelocityInputParameters(nDOF_);
     Vel_OP_ = new RMLVelocityOutputParameters(nDOF_);
 
-    for(uint i = 0; i < nDOF_; i++)
+    for(size_t i = 0; i < nDOF_; i++)
     {
         if(limits_[i].max.effort <= 0 || limits_[i].max.speed <= 0){
             LOG_ERROR("Max Effort and max speed of limits property must be grater than zero");
@@ -66,20 +66,17 @@ bool RMLVelocityTask::configureHook()
         command_out_[i].speed = command_out_[i].effort = 0;
         Vel_IP_->MaxAccelerationVector->VecData[i] = limits_[i].max.effort * max_effort_scale_;
         Vel_IP_->MaxJerkVector->VecData[i] = max_jerk[i] * max_jerk_scale_;
-        Vel_IP_->SelectionVector->VecData[i] = true;
         Vel_IP_->TargetVelocityVector->VecData[i] = 0;
     }
 
 #ifdef USING_REFLEXXES_TYPE_IV
     Vel_Flags_.PositionalLimitsBehavior = _positional_limits_behavior.get();
-    for(uint i = 0; i < nDOF_; i++)
+    for(size_t i = 0; i < nDOF_; i++)
     {
         Vel_IP_->MaxPositionVector->VecData[i] = limits_[i].max.position;
         Vel_IP_->MinPositionVector->VecData[i] = limits_[i].min.position;
     }
 #endif
-
-    is_initialized_ = false;
 
     return true;
 }
@@ -89,6 +86,8 @@ bool RMLVelocityTask::startHook()
     if (! RMLVelocityTaskBase::startHook())
         return false;
     stamp_ = base::Time::now();
+    has_target_ = false;
+    is_initialized_ = false;
     return true;
 }
 
@@ -108,11 +107,14 @@ void RMLVelocityTask::updateHook()
     //
     while(_velocity_target.read(command_in_) == RTT::NewData){
 
+        for(size_t i = 0; i < nDOF_; i++)
+            Vel_IP_->SelectionVector->VecData[i] = false;
+
         stamp_ = base::Time::now();
         // Use name mapping to allow partial inputs.
-        for(uint i = 0; i < command_in_.size(); i++){
+        for(size_t i = 0; i < command_in_.size(); i++){
 
-            uint joint_idx = 0;
+            size_t joint_idx = 0;
             try{
                 joint_idx = limits_.mapNameToIndex(command_in_.names[i]);
             }
@@ -128,23 +130,27 @@ void RMLVelocityTask::updateHook()
             //Actively avoid speed limits here:
             Vel_IP_->TargetVelocityVector->VecData[joint_idx] =
                     std::max(std::min(limits_[joint_idx].max.speed, command_in_[i].speed), -limits_[joint_idx].max.speed);
+
+            Vel_IP_->SelectionVector->VecData[joint_idx] = true;
         }
+
+        has_target_ = true;
     }
 
     double difftime = (base::Time::now() - stamp_).toSeconds();
     if(difftime > timeout_){
         LOG_DEBUG("Watchdog: Last reference value arrived %f seconds ago, Timeout is %f. Setting reference to zero", difftime, timeout_);
         stamp_ = base::Time::now();
-        for(uint i = 0; i < nDOF_; i++)
+        for(size_t i = 0; i < nDOF_; i++)
             Vel_IP_->TargetVelocityVector->VecData[i] = 0;
     }
 
     //
     // Compute next sample
     //
-    for(uint i = 0; i < nDOF_; i++){
+    for(size_t i = 0; i < nDOF_; i++){
 
-        uint joint_idx = 0;
+        size_t joint_idx = 0;
         try{
             joint_idx = status_.mapNameToIndex(limits_.names[i]);
         }
@@ -159,10 +165,10 @@ void RMLVelocityTask::updateHook()
             Vel_IP_->CurrentPositionVector->VecData[i] = status_[joint_idx].position;
 
 #ifdef USING_REFLEXXES_TYPE_IV
-            //Avoid invalid input here (RML with active Positonal Limits prevention has problems with positional input that is out of limits,
-            //which may happen due to noisy position readings)
-            if(Vel_Flags_.PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT)
-                Vel_IP_->CurrentPositionVector->VecData[i] = std::max(std::min(limits_[i].max.position, Vel_IP_->CurrentPositionVector->VecData[i]), limits_[i].min.position);
+        //Avoid invalid input here (RML with active Positonal Limits prevention has problems with positional input that is out of limits,
+        //which may happen due to noisy position readings)
+        if(Vel_Flags_.PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT)
+            Vel_IP_->CurrentPositionVector->VecData[i] = std::max(std::min(limits_[i].max.position, Vel_IP_->CurrentPositionVector->VecData[i]), limits_[i].min.position);
 #endif
 
         //Only use NewVelocityVector from previous cycle if there has been a previous cycle (is_initialized_ == true)
@@ -183,14 +189,15 @@ void RMLVelocityTask::updateHook()
             Vel_IP_->CurrentAccelerationVector->VecData[i] = Vel_OP_->NewAccelerationVector->VecData[i];
         else
             Vel_IP_->CurrentAccelerationVector->VecData[i] = status_[joint_idx].effort;
+
     }
 
     //
     // Handle Reset commands
     //
     if(_reset.read(reset_command_) == RTT::NewData){
-        for(uint i = 0; i < reset_command_.size(); i++){
-            uint joint_idx;
+        for(size_t i = 0; i < reset_command_.size(); i++){
+            size_t joint_idx;
             try{
                 joint_idx = limits_.mapNameToIndex(reset_command_.names[i]);
             }
@@ -208,65 +215,53 @@ void RMLVelocityTask::updateHook()
         }
     }
 
-    uint res = RML_->RMLVelocity(*Vel_IP_, Vel_OP_, Vel_Flags_);
-    is_initialized_ = true;
+    if(has_target_){
+        int res = RML_->RMLVelocity(*Vel_IP_, Vel_OP_, Vel_Flags_);
+        is_initialized_ = true;
 
+        //
+        // Handle interpolation result
+        //
+        switch(res){
+        case ReflexxesAPI::RML_WORKING:
+            state(FOLLOWING);
+            break;
+        case ReflexxesAPI::RML_FINAL_STATE_REACHED:
+            state(REACHED);
+            break;
 #ifdef USING_REFLEXXES_TYPE_IV
-    for(uint i = 0; i < nDOF_; i++)
-    {
-        dist_to_upper_(i) = limits_[i].max.position - Vel_IP_->CurrentPositionVector->VecData[i];
-        dist_to_lower_(i) = Vel_IP_->CurrentPositionVector->VecData[i] - limits_[i].min.position;
-    }
-    _dist_lower.write(dist_to_lower_);
-    _dist_upper.write(dist_to_upper_);
-#endif
-
-    //
-    // Handle interpolation result
-    //
-    switch(res){
-    case ReflexxesAPI::RML_WORKING:
-        state(FOLLOWING);
-        break;
-    case ReflexxesAPI::RML_FINAL_STATE_REACHED:
-        state(REACHED);
-        break;
-#ifdef USING_REFLEXXES_TYPE_IV
-    case ReflexxesAPI::RML_ERROR_POSITIONAL_LIMITS:
-        state(IN_LIMITS);
-        break;
-    default:
-        LOG_ERROR("Reflexxes returned error %s", Vel_OP_->GetErrorString());
-        throw std::runtime_error("Reflexxes runtime error");
+        case ReflexxesAPI::RML_ERROR_POSITIONAL_LIMITS:
+            state(IN_LIMITS);
+            break;
+        default:
+            LOG_ERROR("Reflexxes returned error %s", Vel_OP_->GetErrorString());
+            throw std::runtime_error("Reflexxes runtime error");
 #else
-    default:
-        throw std::runtime_error("Reflexxes runtime error");
+        default:
+            throw std::runtime_error("Reflexxes runtime error");
 #endif
-    }
+        }
 
-    //
-    // Write Output
-    //
-    for(uint i = 0; i < command_out_.size(); i++){
-        command_out_[i].speed = Vel_OP_->NewVelocityVector->VecData[i];
-        command_out_[i].effort = Vel_OP_->NewAccelerationVector->VecData[i];
+        //
+        // Write Output
+        //
+        for(size_t i = 0; i < command_out_.size(); i++){
+            command_out_[i].speed = Vel_OP_->NewVelocityVector->VecData[i];
+            command_out_[i].effort = Vel_OP_->NewAccelerationVector->VecData[i];
+        }
+        _command.write(command_out_);
     }
-    _command.write(command_out_);
 
     //
     // Write debug Data
     //
     _actual_cycle_time.write((base::Time::now() - start).toSeconds());
 
-    for(uint i = 0; i < nDOF_; i++){
+    for(size_t i = 0; i < nDOF_; i++){
         input_params_.CurrentPositionVector[i] = Vel_IP_->CurrentPositionVector->VecData[i];
         input_params_.CurrentVelocityVector[i] = Vel_IP_->CurrentVelocityVector->VecData[i];
         input_params_.CurrentAccelerationVector[i] = Vel_IP_->CurrentAccelerationVector->VecData[i];
         input_params_.TargetVelocityVector[i] = Vel_IP_->TargetVelocityVector->VecData[i];
-#ifdef USING_REFLEXXES_TYPE_IV
-        input_params_.MinPositionVector[i] = Vel_IP_->MinPositionVector->VecData[i];
-        input_params_.MaxPositionVector[i] = Vel_IP_->MaxPositionVector->VecData[i];
-#endif
         input_params_.MaxAccelerationVector[i] = Vel_IP_->MaxAccelerationVector->VecData[i];
         input_params_.MaxJerkVector[i] = Vel_IP_->MaxJerkVector->VecData[i];
         input_params_.SelectionVector[i] = Vel_IP_->SelectionVector->VecData[i];
@@ -285,8 +280,21 @@ void RMLVelocityTask::updateHook()
     output_params_.SynchronizationTime = Vel_OP_->SynchronizationTime;
     output_params_.TrajectoryIsPhaseSynchronized = Vel_OP_->TrajectoryIsPhaseSynchronized;
 
+#ifdef USING_REFLEXXES_TYPE_IV
+    for(size_t i = 0; i < nDOF_; i++)
+    {
+        input_params_.MinPositionVector[i] = Vel_IP_->MinPositionVector->VecData[i];
+        input_params_.MaxPositionVector[i] = Vel_IP_->MaxPositionVector->VecData[i];
+        dist_to_upper_(i) = limits_[i].max.position - Vel_IP_->CurrentPositionVector->VecData[i];
+        dist_to_lower_(i) = Vel_IP_->CurrentPositionVector->VecData[i] - limits_[i].min.position;
+    }
+    _dist_lower.write(dist_to_lower_);
+    _dist_upper.write(dist_to_upper_);
+#endif
+
     _rml_input_params.write(input_params_);
     _rml_output_params.write(output_params_);
+
 
 }
 

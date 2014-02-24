@@ -118,6 +118,12 @@ bool Task::configureHook()
     IP  = new RMLPositionInputParameters( nDof );
     OP  = new RMLPositionOutputParameters( nDof );
     Flags.SynchronizationBehavior = _sync_behavior.value();
+    std::vector<double> max_jerk = _max_jerk.get();
+    if(max_jerk.size() != limits.size())
+    {
+        LOG_ERROR("Size of max jerk property is %i, but size of joint limits is %i", max_jerk.size(), limits.size());
+        return false;
+    }
     for(uint i=0; i<nDof; i++){
         //Constraints
         IP->MaxVelocityVector->VecData[i] = limits[i].max.speed;

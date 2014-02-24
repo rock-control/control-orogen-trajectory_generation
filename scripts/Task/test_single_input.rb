@@ -20,6 +20,7 @@ Orocos.run 'trajectory_generation::Task' => 'interpolator' do
    interpolator = Orocos.name_service.get 'interpolator'
    driver = Orocos.name_service.get driver_task
    Orocos.conf.apply(interpolator, ['default'])
+
    
    driver.joint_state.connect_to interpolator.joint_state
    driver.command.connect_to interpolator.cmd

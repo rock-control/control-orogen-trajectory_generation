@@ -35,7 +35,7 @@ protected:
     base::commands::Joints command_out_;
     base::commands::Joints command_in_;
     bool is_initialized_;
-    uint nDOF_;
+    size_t nDOF_;
     double max_effort_scale_, max_jerk_scale_;
     base::samples::Joints reset_command_;
     base::VectorXd dist_to_upper_, dist_to_lower_;
@@ -43,6 +43,7 @@ protected:
     RMLVelocityInputParams input_params_;
     RMLVelocityOutputParams output_params_;
 
+    bool has_target_;
     base::Time stamp_;
     double timeout_;
 
