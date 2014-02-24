@@ -44,6 +44,11 @@ protected:
     double override_output_effort;  //Set output effort to fixed value every time
     double override_target_velocity;
 
+    base::VectorXd dist_to_upper, dist_to_lower;
+    size_t nDof;
+
+    RMLVelocityInputParams rml_input_params;
+    RMLVelocityOutputParams rml_output_params;
 
     //For internal use
     ReflexxesAPI *RML;
@@ -51,15 +56,15 @@ protected:
     RMLPositionOutputParameters *OP;
     RMLPositionFlags Flags;
 
-    base::JointsTrajectory trajectory;
+    base::JointsTrajectory trajectory, trajectory_from_port;
     base::commands::Joints position_target;
     size_t current_step;
-    bool update_target;
+    bool has_target;
 
-    base::samples::Joints j_state_full, command, desired_reflexes;
+    base::samples::Joints j_state, command, desired_reflexes;
     base::Time prev_time;
 
-    bool first_it;
+    bool has_rml_been_called_once;
     double diff_sum;
     int sample_ctn;
 

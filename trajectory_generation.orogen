@@ -8,19 +8,16 @@ task_context "Task" do
     cycle_time = 0.02
 
     needs_configuration
-    runtime_states 'FOLLOWING', 'REACHED'
+    runtime_states 'FOLLOWING', 'REACHED', 'IN_LIMITS'
 
     property('limits', 'base/JointLimits').
         doc('The limits for the joints')
     property('cycle_time', 'double').
         doc('Cycle time in seconds')
     property('positional_limits_behavior', 'int', 0).
-        doc("Behavior when reaching positional limits. Can be one of 0 = RMLFlags::POSITIONAL_LIMITS_IGNORE,
-             1 = RMLFlags::POSITIONAL_LIMITS_ERROR_MSG_ONLY, 2 = RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT.
-             Only available for Reflexxes Type_IV")
+        doc("Behavior when reaching positional limits. Can be one of 0 = RMLFlags::POSITIONAL_LIMITS_IGNORE,1 = RMLFlags::POSITIONAL_LIMITS_ERROR_MSG_ONLY, 2 = RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT. Only available for Reflexxes Type_IV")
     property('sync_behavior', 'int', 1).
-        doc("The synchronization behavior of RML. Can be one of 0 = RMLFlags::PHASE_SYNCHRONIZATION_IF_POSSIBLE,
-             1 = RMLFlags::ONLY_TIME_SYNCHRONIZATION, 2 = RMLFlags::ONLY_PHASE_SYNCHRONIZATION, 3 = RMLFlags::NO_SYNCHRONIZATION")
+        doc("The synchronization behavior of RML. Can be one of 0 = RMLFlags::PHASE_SYNCHRONIZATION_IF_POSSIBLE, 1 = RMLFlags::ONLY_TIME_SYNCHRONIZATION, 2 = RMLFlags::ONLY_PHASE_SYNCHRONIZATION, 3 = RMLFlags::NO_SYNCHRONIZATION")
     property('max_jerk', 'std/vector<double>').
         doc("Maximum change of acceleration. Size has to be the same as limits")
 
@@ -49,7 +46,14 @@ task_context "Task" do
 
     output_port("cmd", "/base/commands/Joints").
 	doc("Target values that are send to the actuators")
+
+    # Debug ports
+
     output_port("average_cycle_rate", "double")
+    output_port("rml_input_params", "trajectory_generation/RMLVelocityInputParams")
+    output_port("rml_output_params", "trajectory_generation/RMLVelocityOutputParams")
+    output_port("dist_upper_limit", "base/VectorXd")
+    output_port("dist_lower_limit", "base/VectorXd")
 
     port_driven "joint_state"
 end

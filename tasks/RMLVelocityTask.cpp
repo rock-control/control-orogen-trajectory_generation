@@ -214,8 +214,8 @@ void RMLVelocityTask::updateHook()
 #ifdef USING_REFLEXXES_TYPE_IV
     for(uint i = 0; i < nDOF_; i++)
     {
-        dist_to_upper_(i) = limits_[i].max.position - status_[i].position;
-        dist_to_lower_(i) = status_[i].position - limits_[i].min.position;
+        dist_to_upper_(i) = limits_[i].max.position - Vel_IP_->CurrentPositionVector->VecData[i];
+        dist_to_lower_(i) = Vel_IP_->CurrentPositionVector->VecData[i] - limits_[i].min.position;
     }
     _dist_lower.write(dist_to_lower_);
     _dist_upper.write(dist_to_upper_);
