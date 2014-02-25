@@ -123,7 +123,7 @@ void RMLVelocityTask::updateHook()
             }
 
             if(command_in_[i].getMode() != base::JointState::SPEED){
-                LOG_ERROR("Supports only speed control mode, but input has control mode %i", command_in_[i].getMode());
+                LOG_ERROR("RMLVelocity supports only speed control mode, but input has control mode %i", command_in_[i].getMode());
                 throw std::invalid_argument("Invalid control mode");
             }
 
@@ -252,10 +252,23 @@ void RMLVelocityTask::updateHook()
         _command.write(command_out_);
     }
 
+
     //
-    // Write debug Data
+    // Write debug data
     //
-    _actual_cycle_time.write((base::Time::now() - start).toSeconds());
+
+    base::Time time = base::Time::now();
+    base::Time diff = time-prev_time_;
+    diff_sum_ += diff.toSeconds();
+    sample_ctn_++;
+    if(sample_ctn_ >= 1./cycle_time_){
+        double avg_time = diff_sum_/sample_ctn_;
+        _average_cycle_rate.write(avg_time);
+        sample_ctn_ = 0;
+        diff_sum_ = 0.0;
+    }
+
+    prev_time_ = time;
 
     for(size_t i = 0; i < nDOF_; i++){
         input_params_.CurrentPositionVector[i] = Vel_IP_->CurrentPositionVector->VecData[i];

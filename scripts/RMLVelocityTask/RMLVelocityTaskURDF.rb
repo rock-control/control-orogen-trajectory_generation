@@ -8,17 +8,22 @@ Orocos.conf.load_dir('config')
 
 Orocos.run 'trajectory_generation::RMLVelocityTask' => 'interpolator' do
    
-   Orocos.log_all 
-  
    robot_model = Orocos.name_service.get 'robot_model'
    interpolator = Orocos.name_service.get 'interpolator'
    driver = Orocos.name_service.get 'driver'
 
    Orocos.conf.apply(interpolator, ['default'])
-   interpolator.limits = robot_model.GetJointLimits()
+   limits = robot_model.GetJointLimits()
+   interpolator.limits = limits
 
-   driver.joint_status.connect_to interpolator.joint_state
-   interpolator.cmd.connect_to driver.command
+   driver.joint_state.connect_to interpolator.joint_state
+   interpolator.command.connect_to driver.command
+
+   max_jerk = []
+   for i in 0..(limits.elements.length-1)
+       max_jerk << 1    
+   end
+   interpolator.max_jerk = max_jerk
 
    interpolator.configure
    interpolator.start

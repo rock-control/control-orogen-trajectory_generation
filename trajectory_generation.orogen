@@ -115,7 +115,7 @@ task_context "RMLVelocityTask" do
     output_port("command", "/base/commands/Joints")
 
     # Debug Port: Current cycle time
-    output_port("actual_cycle_time", "double")
+    output_port("average_cycle_rate", "double")
 
     # Debug Port: Input values of the rml algorithm
     output_port("rml_input_params", "trajectory_generation/RMLInputParams")

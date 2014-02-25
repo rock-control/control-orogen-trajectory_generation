@@ -46,6 +46,9 @@ protected:
     bool has_target_;
     base::Time stamp_;
     double timeout_;
+    base::Time prev_time_;
+    double diff_sum_;
+    int sample_ctn_;
 
 public:
     RMLVelocityTask(std::string const& name = "trajectory_generation::RMLVelocityTask");
