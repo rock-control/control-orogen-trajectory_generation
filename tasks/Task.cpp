@@ -152,8 +152,6 @@ bool Task::startHook()
 
     current_step = 0;
     has_rml_been_called_once = has_target = false;
-    diff_sum = 0;
-    sample_ctn = 0;
     prev_time = base::Time::now();
 
     return true;
@@ -398,15 +396,7 @@ void Task::updateHook()
 
     base::Time time = base::Time::now();
     base::Time diff = time-prev_time;
-    diff_sum += diff.toSeconds();
-    sample_ctn++;
-    if(sample_ctn >= 1./cycle_time){
-        double avg_time = diff_sum/sample_ctn;
-        _average_cycle_rate.write(avg_time);
-        sample_ctn = 0;
-        diff_sum = 0.0;
-    }
-
+    _actual_cycle_time.write(diff.toSeconds());
     prev_time = time;
 
     for(uint i = 0; i < nDof; i++){

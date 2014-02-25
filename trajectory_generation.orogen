@@ -49,7 +49,7 @@ task_context "Task" do
 
     # Debug ports
 
-    output_port("average_cycle_rate", "double")
+    output_port("actual_cycle_time", "double")
     output_port("rml_input_params", "trajectory_generation/RMLInputParams")
     output_port("rml_output_params", "trajectory_generation/RMLOutputParams")
     output_port("dist_upper_limit", "base/VectorXd")
@@ -115,7 +115,7 @@ task_context "RMLVelocityTask" do
     output_port("command", "/base/commands/Joints")
 
     # Debug Port: Current cycle time
-    output_port("average_cycle_rate", "double")
+    output_port("actual_cycle_time", "double")
 
     # Debug Port: Input values of the rml algorithm
     output_port("rml_input_params", "trajectory_generation/RMLInputParams")

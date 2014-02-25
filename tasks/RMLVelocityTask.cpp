@@ -259,15 +259,7 @@ void RMLVelocityTask::updateHook()
 
     base::Time time = base::Time::now();
     base::Time diff = time-prev_time_;
-    diff_sum_ += diff.toSeconds();
-    sample_ctn_++;
-    if(sample_ctn_ >= 1./cycle_time_){
-        double avg_time = diff_sum_/sample_ctn_;
-        _average_cycle_rate.write(avg_time);
-        sample_ctn_ = 0;
-        diff_sum_ = 0.0;
-    }
-
+    _actual_cycle_time.write(diff.toSeconds());
     prev_time_ = time;
 
     for(size_t i = 0; i < nDOF_; i++){

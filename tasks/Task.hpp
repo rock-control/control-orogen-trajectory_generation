@@ -65,8 +65,6 @@ protected:
     base::Time prev_time;
 
     bool has_rml_been_called_once;
-    double diff_sum;
-    int sample_ctn;
 
 public:
     /** TaskContext constructor for Task
