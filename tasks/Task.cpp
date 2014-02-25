@@ -133,10 +133,12 @@ bool Task::configureHook()
 
 #ifdef USING_REFLEXXES_TYPE_IV
     Flags.PositionalLimitsBehavior = _positional_limits_behavior.get();
+    LOG_DEBUG("Joint Limits are: ");
     for(uint i = 0; i < nDof; i++)
     {
         IP->MaxPositionVector->VecData[i] = limits[i].max.position;
         IP->MinPositionVector->VecData[i] = limits[i].min.position;
+        LOG_DEBUG("%s: Max %f Min %f", limits.names[i].c_str(), limits[i].max.position, limits[i].min.position);
     }
 #endif
 
@@ -267,7 +269,7 @@ void Task::updateHook()
     //
     while( _position_target.read( position_target, false ) == RTT::NewData )
     {
-        for(size_t i=0; i<limits.names.size(); i++)
+        for(size_t i=0; i<limits.size(); i++)
             IP->SelectionVector->VecData[i] = false;
 
         if(trajectory.getTimeSteps() != 1)
@@ -280,24 +282,24 @@ void Task::updateHook()
             trajectory[i][0].speed = trajectory[i][0].effort = 0;
         }
 
-        for(size_t i = 0; i < position_target.size(); i++){
+        for(size_t i = 0; i < limits.size(); i++){
             size_t idx;
             //This allows partial input, i.e. not all joints that have been configured in joint limits, have to be passed here
             //Also, redundant inputs are ok. They will be ignored, but a warning will be written
             try{
-                idx = limits.mapNameToIndex(position_target.names[i]);
+                idx = position_target.mapNameToIndex(limits.names[i]);
             }
             catch(std::exception e){
-                LOG_WARN("Joint %s has been given in position target, but is not in joint limits. This joint will be ignored", position_target.names[i].c_str());
+                IP->SelectionVector->VecData[i] = false;
                 continue;
             }
 
-            trajectory.elements[0][idx].position = position_target[i].position;
-            if(position_target[i].hasSpeed())//Check min/max speed for input:
-                trajectory.elements[0][idx].speed = std::max(std::min(position_target[i].speed, limits[idx].max.speed), limits[idx].min.speed);
+            trajectory.elements[i][0].position = position_target[idx].position;
+            if(position_target[idx].hasSpeed())//Check min/max speed for input:
+                trajectory.elements[i][0].speed = std::max(std::min(position_target[idx].speed, limits[i].max.speed), limits[i].min.speed);
 
             //Enable only joints that are in input trajectory
-            IP->SelectionVector->VecData[idx] = true;
+            IP->SelectionVector->VecData[i] = true;
 
         }
         current_step = 0;
