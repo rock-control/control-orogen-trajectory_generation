@@ -84,6 +84,8 @@ bool Task::configureHook()
 
     override_output_speed = _override_output_speed.value();
     override_output_effort = _override_output_effort.value();
+    override_speed_value = _override_speed_value.value();
+    override_effort_value = _override_effort_value.value();
 
     command.resize( nDof );
     command.names = limits.names;
@@ -326,15 +328,16 @@ void Task::updateHook()
         {
             command[i].position = OP->NewPositionVector->VecData[i];
 
-            if(base::isUnset(override_output_speed))
+            if(override_output_speed)
+                command[i].speed =  override_speed_value;
+            else
                 command[i].speed =  OP->NewVelocityVector->VecData[i];
-            else
-                command[i].speed =  override_output_speed;
 
-            if(base::isUnset(override_output_effort))
-                command[i].effort =  OP->NewAccelerationVector->VecData[i];
+            if(override_output_effort)
+                command[i].effort =  override_effort_value;
             else
-                command[i].effort =  override_output_effort;
+                command[i].effort =  OP->NewAccelerationVector->VecData[i];
+
 
             command.time = base::Time::now();
         }

@@ -28,10 +28,15 @@ task_context "Task" do
     property('override_input_effort', 'bool', true).
         doc('Set output effort as input for next cycle')
 
-    property('override_output_speed', 'double').
-        doc('Set output speed to fixed value every time. Setting this value to NaN means no override.')
-    property('override_output_effort', 'double').
-        doc('Set output speed to fixed value every time. Setting this value to NaN means no override.')
+    property('override_output_speed', 'bool', false).
+        doc('Override the output speed.')
+    property('override_output_effort', 'bool', false).
+        doc('Override the output effort.')
+    property('override_speed_value', 'double').
+        doc('Set output speed to this value every time.')
+    property('override_effort_value', 'double').
+        doc('Set output effort to this value every time.')
+
     property('override_target_velocity', 'double').
         doc('Set target velocity forcefully to this value')
 

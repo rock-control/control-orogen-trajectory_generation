@@ -40,8 +40,10 @@ protected:
     bool override_input_speed;      //Set output speed as input for next cycle
     bool override_input_effort;     //Set output effort as input for next cycle
 
-    double override_output_speed;   //Set output speed to fixed value every time
-    double override_output_effort;  //Set output effort to fixed value every time
+    bool override_output_speed;   //Set output speed to fixed value every time
+    bool override_output_effort;  //Set output effort to fixed value every time
+    double override_speed_value;
+    double override_effort_value;
     double override_target_velocity;
 
     base::VectorXd dist_to_upper, dist_to_lower;
