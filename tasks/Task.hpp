@@ -60,6 +60,7 @@ protected:
 
     base::JointsTrajectory trajectory, trajectory_from_port;
     base::commands::Joints position_target;
+    base::samples::Joints reset_command;
     size_t current_step;
     bool has_target;
 

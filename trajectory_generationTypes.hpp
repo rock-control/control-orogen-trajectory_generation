@@ -22,6 +22,7 @@ namespace trajectory_generation {
               TargetVelocityVector.resize(nDOF);
               MinPositionVector.resize(nDOF);
               MaxPositionVector.resize(nDOF);
+              MaxVelocityVector.resize(nDOF);
               MaxAccelerationVector.resize(nDOF);
               MaxJerkVector.resize(nDOF);
               SelectionVector.resize(nDOF);
@@ -35,6 +36,7 @@ namespace trajectory_generation {
          std::vector<double> TargetPositionVector;
          std::vector<double> MinPositionVector;
          std::vector<double> MaxPositionVector;
+         std::vector<double> MaxVelocityVector;
          std::vector<double> MaxAccelerationVector;
          std::vector<double> MaxJerkVector;
          std::vector<int> SelectionVector;

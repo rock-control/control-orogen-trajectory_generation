@@ -46,6 +46,10 @@ task_context "Task" do
     input_port("position_target", "/base/commands/Joints").
         doc("The target joint position")
 
+    # Reset specific joints to a certain state and target velocity to the given velocity. This can be used if actual
+    # and internal interpolator state deviate and the override functionality is used.
+    input_port("reset", "/base/samples/Joints")
+
     input_port("joint_state", "/base/samples/Joints").
 	doc("Current state measurement from the actuators")
 

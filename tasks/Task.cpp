@@ -306,9 +306,6 @@ void Task::updateHook()
         has_target = true;
     }
 
-    //
-    // Sample point
-    //
     if( current_step < trajectory.getTimeSteps() )
     {
         for( size_t i=0; i<limits.names.size(); i++ )
@@ -318,9 +315,40 @@ void Task::updateHook()
         }
     }
 
+    //
+    // Handle Reset commands
+    //
+    if(_reset.read(reset_command) == RTT::NewData){
+        for(size_t i = 0; i < reset_command.size(); i++){
+            size_t joint_idx;
+            try{
+                joint_idx = limits.mapNameToIndex(reset_command.names[i]);
+            }
+            catch(std::exception e){
+                continue;
+            }
+            if(reset_command[i].hasPosition()){
+                IP->CurrentPositionVector->VecData[joint_idx] = reset_command[i].position;
+                IP->TargetPositionVector->VecData[joint_idx] = reset_command[i].position;
+            }
+            if(reset_command[i].hasSpeed()){
+                IP->CurrentVelocityVector->VecData[joint_idx] = reset_command[i].speed;
+                IP->TargetVelocityVector->VecData[joint_idx] = reset_command[i].speed;
+            }
+            if(reset_command[i].hasEffort())
+                IP->CurrentAccelerationVector->VecData[joint_idx] = reset_command[i].effort;
+
+        }
+    }
+
+    //
+    // Sample point
+    //
+
     //Only start sampling after the first input command has arrived
     if(has_target)
     {
+        IP->Echo();
         int result = RML->RMLPosition( *IP, OP, Flags );
         has_rml_been_called_once = true;
 
@@ -408,6 +436,7 @@ void Task::updateHook()
         rml_input_params.CurrentAccelerationVector[i] = IP->CurrentAccelerationVector->VecData[i];
         rml_input_params.TargetPositionVector[i] = IP->TargetPositionVector->VecData[i];
         rml_input_params.TargetVelocityVector[i] = IP->TargetVelocityVector->VecData[i];
+        rml_input_params.MaxVelocityVector[i] = IP->MaxVelocityVector->VecData[i];
         rml_input_params.MaxAccelerationVector[i] = IP->MaxAccelerationVector->VecData[i];
         rml_input_params.MaxJerkVector[i] = IP->MaxJerkVector->VecData[i];
         rml_input_params.SelectionVector[i] = IP->SelectionVector->VecData[i];
