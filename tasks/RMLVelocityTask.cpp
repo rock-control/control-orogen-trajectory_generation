@@ -93,8 +93,6 @@ bool RMLVelocityTask::startHook()
 
 void RMLVelocityTask::updateHook()
 {
-    base::Time start = base::Time::now();
-
     RMLVelocityTaskBase::updateHook();
 
     if(_joint_state.read(status_) == RTT::NoData){
@@ -134,88 +132,92 @@ void RMLVelocityTask::updateHook()
             Vel_IP_->SelectionVector->VecData[joint_idx] = true;
         }
 
+        //Init timestamp here, if this was the first target. Like this the velocity watchdog will not bark immediately!
+        if(!has_target_)
+                stamp_ = base::Time::now();
+
         has_target_ = true;
     }
 
-    double difftime = (base::Time::now() - stamp_).toSeconds();
-    if(difftime > timeout_){
-        LOG_DEBUG("Watchdog: Last reference value arrived %f seconds ago, Timeout is %f. Setting reference to zero", difftime, timeout_);
-        stamp_ = base::Time::now();
-        for(size_t i = 0; i < nDOF_; i++)
-            Vel_IP_->TargetVelocityVector->VecData[i] = 0;
-    }
-
-    //
-    // Compute next sample
-    //
-    for(size_t i = 0; i < nDOF_; i++){
-
-        size_t joint_idx = 0;
-        try{
-            joint_idx = status_.mapNameToIndex(limits_.names[i]);
-        }
-        catch(std::exception e){
-            continue;
+    if(has_target_){
+        double difftime = (base::Time::now() - stamp_).toSeconds();
+        if(difftime > timeout_){
+            LOG_DEBUG("Watchdog: Last reference value arrived %f seconds ago, Timeout is %f. Setting reference to zero", difftime, timeout_);
+            stamp_ = base::Time::now();
+            for(size_t i = 0; i < nDOF_; i++)
+                Vel_IP_->TargetVelocityVector->VecData[i] = 0;
         }
 
-        //Only use NewPositionVector from previous cycle if there has been a previous cycle (is_initialized_ == true)
-        if(override_input_position_ && is_initialized_)
-            Vel_IP_->CurrentPositionVector->VecData[i] = Vel_OP_->NewPositionVector->VecData[i];
-        else
-            Vel_IP_->CurrentPositionVector->VecData[i] = status_[joint_idx].position;
+        //
+        // Compute next sample
+        //
+        for(size_t i = 0; i < nDOF_; i++){
 
-#ifdef USING_REFLEXXES_TYPE_IV
-        //Avoid invalid input here (RML with active Positonal Limits prevention has problems with positional input that is out of limits,
-        //which may happen due to noisy position readings)
-        if(Vel_Flags_.PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT)
-            Vel_IP_->CurrentPositionVector->VecData[i] = std::max(std::min(limits_[i].max.position, Vel_IP_->CurrentPositionVector->VecData[i]), limits_[i].min.position);
-#endif
-
-        //Only use NewVelocityVector from previous cycle if there has been a previous cycle (is_initialized_ == true)
-        if(override_input_speed_ && is_initialized_)
-            Vel_IP_->CurrentVelocityVector->VecData[i] = Vel_OP_->NewVelocityVector->VecData[i];
-        else
-            Vel_IP_->CurrentVelocityVector->VecData[i] = status_[joint_idx].speed;
-
-#ifndef USING_REFLEXXES_TYPE_IV
-        // This is to fix a bug in the Reflexxes type II library. If current and target velocity are equal
-        // the output will be nan.
-        if(Vel_IP_->CurrentVelocityVector->VecData[i] == Vel_IP_->TargetVelocityVector->VecData[i])
-            Vel_IP_->CurrentVelocityVector->VecData[i] -= 1e-10;
-#endif
-
-        ///Only use NewAccelerationVector from previous cycle if there has been a previous cycle (is_initialized_ == true)
-        if(override_input_effort_ && is_initialized_)
-            Vel_IP_->CurrentAccelerationVector->VecData[i] = Vel_OP_->NewAccelerationVector->VecData[i];
-        else
-            Vel_IP_->CurrentAccelerationVector->VecData[i] = status_[joint_idx].effort;
-
-    }
-
-    //
-    // Handle Reset commands
-    //
-    if(_reset.read(reset_command_) == RTT::NewData){
-        for(size_t i = 0; i < reset_command_.size(); i++){
-            size_t joint_idx;
+            size_t joint_idx = 0;
             try{
-                joint_idx = limits_.mapNameToIndex(reset_command_.names[i]);
+                joint_idx = status_.mapNameToIndex(limits_.names[i]);
             }
             catch(std::exception e){
                 continue;
             }
-            if(reset_command_[i].hasPosition())
-                Vel_IP_->CurrentPositionVector->VecData[joint_idx] = reset_command_[i].position;
-            if(reset_command_[i].hasSpeed()){
-                Vel_IP_->CurrentVelocityVector->VecData[joint_idx] = reset_command_[i].speed;
-                Vel_IP_->TargetVelocityVector->VecData[joint_idx] = reset_command_[i].speed;
-            }
-            if(reset_command_[i].hasEffort())
-                Vel_IP_->CurrentAccelerationVector->VecData[joint_idx] = reset_command_[i].effort;
-        }
-    }
 
-    if(has_target_){
+            //Only use NewPositionVector from previous cycle if there has been a previous cycle (is_initialized_ == true)
+            if(override_input_position_ && is_initialized_)
+                Vel_IP_->CurrentPositionVector->VecData[i] = Vel_OP_->NewPositionVector->VecData[i];
+            else
+                Vel_IP_->CurrentPositionVector->VecData[i] = status_[joint_idx].position;
+
+#ifdef USING_REFLEXXES_TYPE_IV
+            //Avoid invalid input here (RML with active Positonal Limits prevention has problems with positional input that is out of limits,
+            //which may happen due to noisy position readings)
+            if(Vel_Flags_.PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT)
+                Vel_IP_->CurrentPositionVector->VecData[i] = std::max(std::min(limits_[i].max.position, Vel_IP_->CurrentPositionVector->VecData[i]), limits_[i].min.position);
+#endif
+
+            //Only use NewVelocityVector from previous cycle if there has been a previous cycle (is_initialized_ == true)
+            if(override_input_speed_ && is_initialized_)
+                Vel_IP_->CurrentVelocityVector->VecData[i] = Vel_OP_->NewVelocityVector->VecData[i];
+            else
+                Vel_IP_->CurrentVelocityVector->VecData[i] = status_[joint_idx].speed;
+
+#ifndef USING_REFLEXXES_TYPE_IV
+            // This is to fix a bug in the Reflexxes type II library. If current and target velocity are equal
+            // the output will be nan.
+            if(Vel_IP_->CurrentVelocityVector->VecData[i] == Vel_IP_->TargetVelocityVector->VecData[i])
+                Vel_IP_->CurrentVelocityVector->VecData[i] -= 1e-10;
+#endif
+
+            ///Only use NewAccelerationVector from previous cycle if there has been a previous cycle (is_initialized_ == true)
+            if(override_input_effort_ && is_initialized_)
+                Vel_IP_->CurrentAccelerationVector->VecData[i] = Vel_OP_->NewAccelerationVector->VecData[i];
+            else
+                Vel_IP_->CurrentAccelerationVector->VecData[i] = status_[joint_idx].effort;
+
+        }
+
+        //
+        // Handle Reset commands
+        //
+        if(_reset.read(reset_command_) == RTT::NewData){
+            for(size_t i = 0; i < reset_command_.size(); i++){
+                size_t joint_idx;
+                try{
+                    joint_idx = limits_.mapNameToIndex(reset_command_.names[i]);
+                }
+                catch(std::exception e){
+                    continue;
+                }
+                if(reset_command_[i].hasPosition())
+                    Vel_IP_->CurrentPositionVector->VecData[joint_idx] = reset_command_[i].position;
+                if(reset_command_[i].hasSpeed()){
+                    Vel_IP_->CurrentVelocityVector->VecData[joint_idx] = reset_command_[i].speed;
+                    Vel_IP_->TargetVelocityVector->VecData[joint_idx] = reset_command_[i].speed;
+                }
+                if(reset_command_[i].hasEffort())
+                    Vel_IP_->CurrentAccelerationVector->VecData[joint_idx] = reset_command_[i].effort;
+            }
+        }
+
         int res = RML_->RMLVelocity(*Vel_IP_, Vel_OP_, Vel_Flags_);
         is_initialized_ = true;
 
