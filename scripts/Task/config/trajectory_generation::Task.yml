@@ -25,13 +25,13 @@ override_input_position: true
 override_input_speed: true
 
 # Set output speed to fixed value every time. Setting this value to NaN means no override.
-override_output_effort: .nan
+override_output_effort: false
 
 # Set output speed to fixed value every time. Setting this value to NaN means no override.
-override_output_speed: .nan
+override_output_speed: false
 
 # Set target velocity forcefully to this value
-override_target_velocity: 0.5
+override_target_velocity: .nan
 
 # Behavior when reaching positional limits. Can be one of 0 = RMLFlags::POSITIONAL_LIMITS_IGNORE,
 # 1 = RMLFlags::POSITIONAL_LIMITS_ERROR_MSG_ONLY, 2 = RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT.

@@ -348,7 +348,6 @@ void Task::updateHook()
     //Only start sampling after the first input command has arrived
     if(has_target)
     {
-        IP->Echo();
         int result = RML->RMLPosition( *IP, OP, Flags );
         has_rml_been_called_once = true;
 
