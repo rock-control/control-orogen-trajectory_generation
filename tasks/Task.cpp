@@ -79,13 +79,14 @@ bool Task::configureHook()
 
     override_input_position = _override_input_position.value();
     override_input_speed = _override_input_speed.value();
-    override_input_effort = _override_input_effort.value();
+    override_input_acceleration = _override_input_acceleration.value();
+    treat_effort_as_acceleration = _treat_effort_as_acceleration.value();
     override_target_velocity = _override_target_velocity.value();
 
     override_output_speed = _override_output_speed.value();
     override_output_effort = _override_output_effort.value();
     override_speed_value = _override_speed_value.value();
-    override_effort_value = _override_effort_value.value();
+    override_acceleration_value = _override_acceleration_value.value();
 
     command.resize( nDof );
     command.names = limits.names;
@@ -175,8 +176,9 @@ void Task::updateHook()
     for(size_t i = 0; i < limits.names.size(); i++)
     {
         size_t idx;
+        std::string joint_name = limits.names[i];
         try{
-            idx = j_state.mapNameToIndex(limits.names[i]);
+            idx = j_state.mapNameToIndex(joint_name);
         }
         catch(std::exception e){ //Only catch exception to write more explicit error msgs
             LOG_ERROR("Joint %s is configured in joint limits, but not available in joint state", limits.names[i].c_str());
@@ -194,16 +196,32 @@ void Task::updateHook()
         if(Flags.PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT)
             IP->CurrentPositionVector->VecData[i] = std::max(std::min(limits[i].max.position, IP->CurrentPositionVector->VecData[i]), limits[i].min.position);
 #endif
-
-        if(override_input_speed && has_rml_been_called_once)
+        //Only use NewVelocityVector from previous cycle if there has been a previous cycle (is_initialized_ == true)
+        if(override_input_speed && has_rml_been_called_once){
             IP->CurrentVelocityVector->VecData[i] = OP->NewVelocityVector->VecData[i];
+            LOG_DEBUG("Overide current velocity for joint %s to %f", joint_name.c_str(), IP->CurrentVelocityVector->VecData[i]);
+        }
         else
             IP->CurrentVelocityVector->VecData[i] = j_state[idx].speed;
 
-        if(override_input_effort && has_rml_been_called_once)
-            IP->CurrentAccelerationVector->VecData[i] = OP->NewAccelerationVector->VecData[i];
-        else
+        //We can only use 'real' acceleration values from joint status if we treat the effort field as acceleration and don't want to override effort
+        if(treat_effort_as_acceleration && !override_input_acceleration){
+            //Effort field from joint status is treaded as accerlation and 'real' state should be used. Set it accordingly.
             IP->CurrentAccelerationVector->VecData[i] = j_state[idx].effort;
+        }
+        //Otherwise we must check whether there was a reference generated before. If so use it, otherwise assume 0
+        else{
+            if(!has_rml_been_called_once){
+                //No reference acceleration was genereated before. Assume zero.
+                IP->CurrentAccelerationVector->VecData[i] = 0;
+                LOG_DEBUG("Overide current acceleration for joint %s to %f (first cycle)", joint_name.c_str(), IP->CurrentAccelerationVector->VecData[i]);
+            }
+            else{
+                //Override with reference from previous cycle
+                IP->CurrentAccelerationVector->VecData[i] = OP->NewAccelerationVector->VecData[i];
+                LOG_DEBUG("Overide current acceleration for joint %s to %f", joint_name.c_str(), IP->CurrentAccelerationVector->VecData[i]);
+            }
+        }
     }
 
     //
@@ -227,7 +245,11 @@ void Task::updateHook()
             for(size_t t = 0; t < trajectory.getTimeSteps(); t++)
             {
                 trajectory[i][t].position = IP->CurrentPositionVector->VecData[i];
-                trajectory[i][t].speed = trajectory[i][t].effort = 0;
+                trajectory[i][t].speed = 0;
+                if(treat_effort_as_acceleration)
+                    trajectory[i][t].effort = 0;
+                else
+                    trajectory[i][t].effort = base::unset<float>();
             }
         }
 
@@ -279,7 +301,11 @@ void Task::updateHook()
         for(size_t i = 0; i < trajectory.size(); i++)
         {
             trajectory[i][0].position = IP->CurrentPositionVector->VecData[i];
-            trajectory[i][0].speed = trajectory[i][0].effort = 0;
+            trajectory[i][0].speed = 0;
+            if(treat_effort_as_acceleration)
+                trajectory[i][0].effort = 0;
+            else
+                trajectory[i][0].effort = base::unset<float>();
         }
 
         for(size_t i = 0; i < limits.size(); i++){
@@ -321,8 +347,9 @@ void Task::updateHook()
     if(_reset.read(reset_command) == RTT::NewData){
         for(size_t i = 0; i < reset_command.size(); i++){
             size_t joint_idx;
+            std::string joint_name = reset_command.names[i];
             try{
-                joint_idx = limits.mapNameToIndex(reset_command.names[i]);
+                joint_idx = limits.mapNameToIndex(joint_name);
             }
             catch(std::exception e){
                 continue;
@@ -335,8 +362,15 @@ void Task::updateHook()
                 IP->CurrentVelocityVector->VecData[joint_idx] = reset_command[i].speed;
                 IP->TargetVelocityVector->VecData[joint_idx] = reset_command[i].speed;
             }
-            if(reset_command[i].hasEffort())
+            if(treat_effort_as_acceleration && reset_command[i].hasEffort()){
                 IP->CurrentAccelerationVector->VecData[joint_idx] = reset_command[i].effort;
+                LOG_DEBUG("Reset current acceleration of joint %s to %f", joint_name.c_str(), IP->CurrentAccelerationVector->VecData[joint_idx]);
+            }
+            else{
+                //We dont have acceleration information. Assume zero.
+                // FIXME: Is this really better than assuming previous reference? I think so, but not sure.
+                IP->CurrentAccelerationVector->VecData[joint_idx] = 0;
+            }
 
         }
     }
@@ -360,11 +394,15 @@ void Task::updateHook()
             else
                 command[i].speed =  OP->NewVelocityVector->VecData[i];
 
-            if(override_output_effort)
-                command[i].effort =  override_effort_value;
-            else
-                command[i].effort =  OP->NewAccelerationVector->VecData[i];
-
+            if(treat_effort_as_acceleration){
+                if(override_output_effort)
+                    command[i].effort =  override_acceleration_value;
+                else
+                    command[i].effort =  OP->NewAccelerationVector->VecData[i];
+            }
+            else{
+                command[i].effort = base::unset<float>();
+            }
 
             command.time = base::Time::now();
         }

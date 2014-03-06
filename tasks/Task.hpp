@@ -38,12 +38,14 @@ protected:
 
     bool override_input_position;   //Set output position as input for next cycle
     bool override_input_speed;      //Set output speed as input for next cycle
-    bool override_input_effort;     //Set output effort as input for next cycle
+    bool treat_effort_as_acceleration; //Use the effort field from JointState type for acceleration.
+    bool override_input_acceleration;     //Set output acceleration as input for next cycle. When treat_effort_as_acceleration == false, input acceleration is always overriden. In this case, acceleration is always assumed to zero at first sample.
+
 
     bool override_output_speed;   //Set output speed to fixed value every time
     bool override_output_effort;  //Set output effort to fixed value every time
     double override_speed_value;
-    double override_effort_value;
+    double override_acceleration_value;
     double override_target_velocity;
 
     base::VectorXd dist_to_upper, dist_to_lower;

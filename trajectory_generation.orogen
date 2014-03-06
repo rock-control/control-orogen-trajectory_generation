@@ -25,8 +25,10 @@ task_context "Task" do
         doc('Set output position as input for next cycle')
     property('override_input_speed', 'bool', false).
         doc('Set output speed as input for next cycle')
-    property('override_input_effort', 'bool', true).
-        doc('Set output effort as input for next cycle')
+    property('treat_effort_as_acceleration', 'bool', false).
+        doc('Use the effort field from JointState type for acceleration.')
+    property('override_input_acceleration', 'bool', true).
+        doc('Set output acceleration as input for next cycle. When treat_effort_as_acceleration == false, input acceleration is always overriden. In this case, acceleration is always assumed to zero at first sample.')
 
     property('override_output_speed', 'bool', false).
         doc('Override the output speed.')
@@ -34,8 +36,8 @@ task_context "Task" do
         doc('Override the output effort.')
     property('override_speed_value', 'double').
         doc('Set output speed to this value every time.')
-    property('override_effort_value', 'double').
-        doc('Set output effort to this value every time.')
+    property('override_acceleration_value', 'double').
+        doc('Set output acceleration to this value every time. If treat_effort_as_acceleration = false, this property has no effect.')
 
     property('override_target_velocity', 'double').
         doc('Set target velocity forcefully to this value')
@@ -73,7 +75,7 @@ task_context "RMLVelocityTask" do
     needs_configuration
     runtime_states 'FOLLOWING', 'REACHED', 'IN_LIMITS'
 
-    # The limits for the joints. Note: min.speed and min.effort are not used
+    # The limits for the joints. Note: min.speed and min.effort are not used. Effort limit is used as acceleration limit.
     property('limits', 'base/JointLimits') 
 
     # Maximum change of acceleration. Size has to be the same as limits
@@ -91,8 +93,8 @@ task_context "RMLVelocityTask" do
     # Only available for Reflexxes Type_IV
     property('positional_limits_behavior', 'int', 0)
 
-    # Scale all max effort values by this factor. Range: 0..1
-    property('max_effort_scale', 'double', 1.0)
+    # Scale all max acceleration values by this factor. Range: 0..1
+    property('max_acceleration_scale', 'double', 1.0)
 
     # If no new command comes in for such a long time, set velocity to zero
     property('timeout', 'double', 0.3)
@@ -106,8 +108,10 @@ task_context "RMLVelocityTask" do
     # Set output speed as input for next cycle
     property('override_input_speed', 'bool', false)
 
-    # Set output effort as input for next cycle
-    property('override_input_effort', 'bool', false)
+    # Use the effort field from JointState type for acceleration.
+    property('treat_effort_as_acceleration', 'bool', false)
+    # Set output acceleration as input for next cycle. When treat_effort_as_acceleration == false, input acceleration is always overriden. In this case, acceleration is always assumed to zero at first sample.
+    property('override_input_acceleration', 'bool', false)
 
   
     # The target joint velocity

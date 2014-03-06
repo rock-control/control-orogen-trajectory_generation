@@ -27,7 +27,8 @@ protected:
 
     bool override_input_position_;   //Set output position as input for next cycle
     bool override_input_speed_;      //Set output speed as input for next cycle
-    bool override_input_effort_;     //Set output effort as input for next cycle
+    bool treat_effort_as_acceleration_; //Use the effort field from JointState type for acceleration.
+    bool override_input_acceleration_;     //Set output acceleration as input for next cycle. When treat_effort_as_acceleration == false, input acceleration is always overriden. In this case, acceleration is always assumed to zero at first sample.
 
     base::JointLimits limits_;
     base::samples::Joints status_;
@@ -36,7 +37,7 @@ protected:
     base::commands::Joints command_in_;
     bool is_initialized_;
     size_t nDOF_;
-    double max_effort_scale_, max_jerk_scale_;
+    double max_acceleration_scale_, max_jerk_scale_;
     base::samples::Joints reset_command_;
     base::VectorXd dist_to_upper_, dist_to_lower_;
 

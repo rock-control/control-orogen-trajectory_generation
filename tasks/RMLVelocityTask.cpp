@@ -26,13 +26,14 @@ bool RMLVelocityTask::configureHook()
 
     override_input_position_ = _override_input_position.value();
     override_input_speed_ = _override_input_speed.value();
-    override_input_effort_ = _override_input_effort.value();
+    treat_effort_as_acceleration_ = _treat_effort_as_acceleration.value();
+    override_input_acceleration_ = _override_input_acceleration.value();
 
     limits_ = _limits.get();
     cycle_time_ = _cycle_time.get();
     Vel_Flags_.SynchronizationBehavior = _sync_behavior.get();
     std::vector<double> max_jerk = _max_jerk.get();
-    max_effort_scale_ = _max_effort_scale.get();
+    max_acceleration_scale_ = _max_acceleration_scale.get();
     max_jerk_scale_ = _max_jerk_scale.get();
     timeout_ = _timeout.get();
 
@@ -64,7 +65,7 @@ bool RMLVelocityTask::configureHook()
             return false;
         }
         command_out_[i].speed = command_out_[i].effort = 0;
-        Vel_IP_->MaxAccelerationVector->VecData[i] = limits_[i].max.effort * max_effort_scale_;
+        Vel_IP_->MaxAccelerationVector->VecData[i] = limits_[i].max.effort * max_acceleration_scale_;
         Vel_IP_->MaxJerkVector->VecData[i] = max_jerk[i] * max_jerk_scale_;
         Vel_IP_->TargetVelocityVector->VecData[i] = 0;
     }
@@ -200,17 +201,23 @@ void RMLVelocityTask::updateHook()
                 Vel_IP_->CurrentVelocityVector->VecData[i] -= 1e-10;
 #endif
 
-            ///Only use NewAccelerationVector from previous cycle if there has been a previous cycle (is_initialized_ == true)
-            if(override_input_effort_ && is_initialized_){
-                Vel_IP_->CurrentAccelerationVector->VecData[i] = Vel_OP_->NewAccelerationVector->VecData[i];
-                LOG_DEBUG("Overide current acceleration for joint %s to %f", joint_name.c_str(), Vel_IP_->CurrentAccelerationVector->VecData[i]);
-            }
-            else
+            //We can only use 'real' acceleration values from joint status if we treat the effort field as acceleration and don't want to override effort
+            if(treat_effort_as_acceleration_ && !override_input_acceleration_){
+                //Effort field from joint status is treaded as accerlation and 'real' state should be used. Set it accordingly.
                 Vel_IP_->CurrentAccelerationVector->VecData[i] = status_[joint_idx].effort;
-
-            if(override_input_effort_ && !is_initialized_){
-                Vel_IP_->CurrentAccelerationVector->VecData[i] = 0;
-                LOG_DEBUG("Overide current acceleration for joint %s to %f (first cycle)", joint_name.c_str(), Vel_IP_->CurrentAccelerationVector->VecData[i]);
+            }
+            //Otherwise we must check whether there was a reference generated before. If so use it, otherwise assume 0
+            else{
+                if(!is_initialized_){
+                    //No reference acceleration was genereated before. Assume zero.
+                    Vel_IP_->CurrentAccelerationVector->VecData[i] = 0;
+                    LOG_DEBUG("Overide current acceleration for joint %s to %f (first cycle)", joint_name.c_str(), Vel_IP_->CurrentAccelerationVector->VecData[i]);
+                }
+                else{
+                    //Override with reference from previous cycle
+                    Vel_IP_->CurrentAccelerationVector->VecData[i] = Vel_OP_->NewAccelerationVector->VecData[i];
+                    LOG_DEBUG("Overide current acceleration for joint %s to %f", joint_name.c_str(), Vel_IP_->CurrentAccelerationVector->VecData[i]);
+                }
             }
 
         }
@@ -238,10 +245,16 @@ void RMLVelocityTask::updateHook()
                     Vel_IP_->TargetVelocityVector->VecData[joint_idx] = reset_command_[i].speed;
                     LOG_DEBUG("Reset target velocity of joint %s to %f", joint_name.c_str(), Vel_IP_->TargetVelocityVector->VecData[joint_idx]);
                 }
-                if(reset_command_[i].hasEffort()){
+                if(treat_effort_as_acceleration_ && reset_command_[i].hasEffort()){
                     Vel_IP_->CurrentAccelerationVector->VecData[joint_idx] = reset_command_[i].effort;
                     LOG_DEBUG("Reset current acceleration of joint %s to %f", joint_name.c_str(), Vel_IP_->CurrentAccelerationVector->VecData[joint_idx]);
                 }
+                else{
+                    //We dont have acceleration information. Assume zero.
+                    // FIXME: Is this really better than assuming previous reference? I think so, but not sure.
+                    Vel_IP_->CurrentAccelerationVector->VecData[joint_idx] = 0;
+                }
+
             }
         }
 
@@ -279,7 +292,12 @@ void RMLVelocityTask::updateHook()
             LOG_DEBUG("New velocity for joint %s is %f", joint_name.c_str(), Vel_OP_->NewVelocityVector->VecData[i]);
             LOG_DEBUG("New acceleration for joint %s is %f", joint_name.c_str(), Vel_OP_->NewAccelerationVector->VecData[i])
             command_out_[i].speed = Vel_OP_->NewVelocityVector->VecData[i];
-            command_out_[i].effort = Vel_OP_->NewAccelerationVector->VecData[i];
+            if(treat_effort_as_acceleration_){
+                command_out_[i].effort = Vel_OP_->NewAccelerationVector->VecData[i];
+            }
+            else{
+                command_out_[i].effort = base::unknown<float>();
+            }
         }
         command_out_.time = base::Time::now();
         _command.write(command_out_);
