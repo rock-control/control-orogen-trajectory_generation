@@ -115,8 +115,10 @@ void RMLVelocityTask::updateHook()
             size_t joint_idx = 0;
             try{
                 joint_idx = limits_.mapNameToIndex(command_in_.names[i]);
+                LOG_DEBUG("Mapped joint with name '%s' to index %d", command_in_.names[i].c_str(), joint_idx);
             }
             catch(std::exception e){
+                LOG_DEBUG("Joint '%s' that is mentioned in command was not configured to be used. Will ignore command for this joint.", command_in_.names[i].c_str());
                 continue;
             }
 
@@ -128,6 +130,7 @@ void RMLVelocityTask::updateHook()
             //Actively avoid speed limits here:
             Vel_IP_->TargetVelocityVector->VecData[joint_idx] =
                     std::max(std::min(limits_[joint_idx].max.speed, command_in_[i].speed), -limits_[joint_idx].max.speed);
+            LOG_DEBUG("Modified target velocity if joint %s from %f to %f, due to velocity limits.", command_in_.names[i].c_str(), command_in_[i].speed, Vel_IP_->TargetVelocityVector->VecData[joint_idx]);
 
             Vel_IP_->SelectionVector->VecData[joint_idx] = true;
         }
@@ -152,31 +155,41 @@ void RMLVelocityTask::updateHook()
         // Compute next sample
         //
         for(size_t i = 0; i < nDOF_; i++){
-
+            std::string joint_name = limits_.names[i];
             size_t joint_idx = 0;
             try{
-                joint_idx = status_.mapNameToIndex(limits_.names[i]);
+                joint_idx = status_.mapNameToIndex(joint_name);
             }
             catch(std::exception e){
                 continue;
             }
 
             //Only use NewPositionVector from previous cycle if there has been a previous cycle (is_initialized_ == true)
-            if(override_input_position_ && is_initialized_)
+            if(override_input_position_ && is_initialized_){
                 Vel_IP_->CurrentPositionVector->VecData[i] = Vel_OP_->NewPositionVector->VecData[i];
-            else
+                LOG_DEBUG("Override current position of joint %s to %f", joint_name.c_str(), Vel_OP_->NewPositionVector->VecData[i])
+            }
+            else{
                 Vel_IP_->CurrentPositionVector->VecData[i] = status_[joint_idx].position;
+                LOG_DEBUG("Set current position of joint %s to %f (else)", joint_name.c_str(), Vel_IP_->CurrentPositionVector->VecData[i])
+            }
 
 #ifdef USING_REFLEXXES_TYPE_IV
             //Avoid invalid input here (RML with active Positonal Limits prevention has problems with positional input that is out of limits,
             //which may happen due to noisy position readings)
-            if(Vel_Flags_.PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT)
-                Vel_IP_->CurrentPositionVector->VecData[i] = std::max(std::min(limits_[i].max.position, Vel_IP_->CurrentPositionVector->VecData[i]), limits_[i].min.position);
+            if(Vel_Flags_.PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT){
+                double new_position = std::max(std::min(limits_[i].max.position, Vel_IP_->CurrentPositionVector->VecData[i]), limits_[i].min.position);
+                LOG_DEBUG("Override current position for jpint %s from %f to %f due to position limits violation.", joint_name.c_str(),
+                          Vel_IP_->CurrentPositionVector->VecData[i], new_position);
+                Vel_IP_->CurrentPositionVector->VecData[i] = new_position;
+            }
 #endif
 
             //Only use NewVelocityVector from previous cycle if there has been a previous cycle (is_initialized_ == true)
-            if(override_input_speed_ && is_initialized_)
+            if(override_input_speed_ && is_initialized_){
                 Vel_IP_->CurrentVelocityVector->VecData[i] = Vel_OP_->NewVelocityVector->VecData[i];
+                LOG_DEBUG("Overide current velocity for joint %s to %f", joint_name.c_str(), Vel_IP_->CurrentVelocityVector->VecData[i]);
+            }
             else
                 Vel_IP_->CurrentVelocityVector->VecData[i] = status_[joint_idx].speed;
 
@@ -188,8 +201,10 @@ void RMLVelocityTask::updateHook()
 #endif
 
             ///Only use NewAccelerationVector from previous cycle if there has been a previous cycle (is_initialized_ == true)
-            if(override_input_effort_ && is_initialized_)
+            if(override_input_effort_ && is_initialized_){
                 Vel_IP_->CurrentAccelerationVector->VecData[i] = Vel_OP_->NewAccelerationVector->VecData[i];
+                LOG_DEBUG("Overide current acceleration for joint %s to %f", joint_name.c_str(), Vel_IP_->CurrentAccelerationVector->VecData[i]);
+            }
             else
                 Vel_IP_->CurrentAccelerationVector->VecData[i] = status_[joint_idx].effort;
 
@@ -201,20 +216,27 @@ void RMLVelocityTask::updateHook()
         if(_reset.read(reset_command_) == RTT::NewData){
             for(size_t i = 0; i < reset_command_.size(); i++){
                 size_t joint_idx;
+                std::string joint_name = reset_command_.names[i];
                 try{
-                    joint_idx = limits_.mapNameToIndex(reset_command_.names[i]);
+                    joint_idx = limits_.mapNameToIndex(joint_name);
                 }
                 catch(std::exception e){
                     continue;
                 }
-                if(reset_command_[i].hasPosition())
+                if(reset_command_[i].hasPosition()){
                     Vel_IP_->CurrentPositionVector->VecData[joint_idx] = reset_command_[i].position;
+                    LOG_DEBUG("Reset current position of joint %s to %f", joint_name.c_str(), Vel_IP_->CurrentPositionVector->VecData[joint_idx]);
+                }
                 if(reset_command_[i].hasSpeed()){
                     Vel_IP_->CurrentVelocityVector->VecData[joint_idx] = reset_command_[i].speed;
+                    LOG_DEBUG("Reset current velocity of joint %s to %f", joint_name.c_str(), Vel_IP_->CurrentVelocityVector->VecData[joint_idx]);
                     Vel_IP_->TargetVelocityVector->VecData[joint_idx] = reset_command_[i].speed;
+                    LOG_DEBUG("Reset target velocity of joint %s to %f", joint_name.c_str(), Vel_IP_->TargetVelocityVector->VecData[joint_idx]);
                 }
-                if(reset_command_[i].hasEffort())
+                if(reset_command_[i].hasEffort()){
                     Vel_IP_->CurrentAccelerationVector->VecData[joint_idx] = reset_command_[i].effort;
+                    LOG_DEBUG("Reset current acceleration of joint %s to %f", joint_name.c_str(), Vel_IP_->CurrentAccelerationVector->VecData[joint_idx]);
+                }
             }
         }
 
@@ -248,6 +270,9 @@ void RMLVelocityTask::updateHook()
         // Write Output
         //
         for(size_t i = 0; i < command_out_.size(); i++){
+            std::string joint_name = command_out_.names[i].c_str();
+            LOG_DEBUG("New velocity for joint %s is %f", joint_name.c_str(), Vel_OP_->NewVelocityVector->VecData[i]);
+            LOG_DEBUG("New acceleration for joint %s is %f", joint_name.c_str(), Vel_OP_->NewAccelerationVector->VecData[i])
             command_out_[i].speed = Vel_OP_->NewVelocityVector->VecData[i];
             command_out_[i].effort = Vel_OP_->NewAccelerationVector->VecData[i];
         }
