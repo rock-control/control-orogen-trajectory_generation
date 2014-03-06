@@ -208,6 +208,11 @@ void RMLVelocityTask::updateHook()
             else
                 Vel_IP_->CurrentAccelerationVector->VecData[i] = status_[joint_idx].effort;
 
+            if(override_input_effort_ && !is_initialized_){
+                Vel_IP_->CurrentAccelerationVector->VecData[i] = 0;
+                LOG_DEBUG("Overide current acceleration for joint %s to %f (first cycle)", joint_name.c_str(), Vel_IP_->CurrentAccelerationVector->VecData[i]);
+            }
+
         }
 
         //
