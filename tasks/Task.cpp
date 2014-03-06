@@ -50,7 +50,10 @@ void set_speeds(base::JointsTrajectory& traj, double target_speed){
 
             traj[joint_idx][t].speed = speed;
         }
-        //Normalize speed to 1.0
+        if(base::isUnknown(target_speed)){
+            target_speed = max_speed;
+        }
+        //Normalize speed to 1.0 and scale to target speed
         for(uint joint_idx=0; joint_idx<traj.size(); joint_idx++)
         {
             if(max_speed == 0)
