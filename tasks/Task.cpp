@@ -271,6 +271,10 @@ void Task::updateHook()
                     continue;
                 }
 
+                if(base::isNaN<double>(trajectory_from_port[i][t].position)){
+                    LOG_ERROR("Received invalid goal. Joint %d is invalid in timepoint %d",i,t);
+                    error();
+                }
                 trajectory[idx][t].position = trajectory_from_port[i][t].position;
 
                 if(trajectory_from_port[i][t].hasSpeed())//Check min/max speed for input:
@@ -322,7 +326,11 @@ void Task::updateHook()
                 IP->SelectionVector->VecData[i] = false;
                 continue;
             }
-
+            if(base::isNaN<double>(position_target[idx].position)){
+                LOG_ERROR("Received invalid goal. Joint %d(%s)",i,limits.names[i].c_str());
+                error();
+                return;
+            }
             trajectory.elements[i][0].position = position_target[idx].position;
             if(position_target[idx].hasSpeed())//Check min/max speed for input:
                 trajectory.elements[i][0].speed = std::max(std::min(position_target[idx].speed, limits[i].max.speed), limits[i].min.speed);
@@ -390,6 +398,12 @@ void Task::updateHook()
 
         for( size_t i=0; i<command.size(); ++i )
         {
+            if(base::isNaN<double>(OP->NewPositionVector->VecData[i])){
+                LOG_ERROR_S << "Relexxes calculated reference position as NaN!";
+                IP->Echo();
+                OP->Echo();
+            }
+
             command[i].position = OP->NewPositionVector->VecData[i];
 
             if(override_output_speed)
@@ -424,32 +438,58 @@ void Task::updateHook()
             }
             break;
         case ReflexxesAPI::RML_ERROR:
-            LOG_ERROR("Should not happen");
+            LOG_ERROR("RML_ERROR");
+            IP->Echo();
+            OP->Echo();
+            error();
             break;
         case ReflexxesAPI::RML_ERROR_INVALID_INPUT_VALUES:
             LOG_ERROR("RML_ERROR_INVALID_INPUT_VALUES");
             IP->Echo();
+            OP->Echo();
+            error();
             break;
         case ReflexxesAPI::RML_ERROR_EXECUTION_TIME_CALCULATION:
             LOG_ERROR("RML_ERROR_EXECUTION_TIME_CALCULATION");
+            IP->Echo();
+            OP->Echo();
+            error();
             break;
         case ReflexxesAPI::RML_ERROR_SYNCHRONIZATION:
             LOG_ERROR("RML_ERROR_SYNCHRONIZATION");
+            IP->Echo();
+            OP->Echo();
+            error();
             break;
         case ReflexxesAPI::RML_ERROR_NUMBER_OF_DOFS:
             LOG_ERROR("RML_ERROR_NUMBER_OF_DOFS");
+            IP->Echo();
+            OP->Echo();
+            error();
             break;
         case ReflexxesAPI::RML_ERROR_NO_PHASE_SYNCHRONIZATION:
             LOG_ERROR("RML_ERROR_NO_PHASE_SYNCHRONIZATION");
+            IP->Echo();
+            OP->Echo();
+            error();
             break;
         case ReflexxesAPI::RML_ERROR_NULL_POINTER:
             LOG_ERROR("RML_ERROR_NULL_POINTER");
+            IP->Echo();
+            OP->Echo();
+            error();
             break;
         case ReflexxesAPI::RML_ERROR_EXECUTION_TIME_TOO_BIG:
             LOG_ERROR("RML_ERROR_EXECUTION_TIME_TOO_BIG");
+            IP->Echo();
+            OP->Echo();
+            error();
             break;
         case ReflexxesAPI::RML_ERROR_USER_TIME_OUT_OF_RANGE:
             LOG_ERROR("RML_ERROR_USER_TIME_OUT_OF_RANGE");
+            IP->Echo();
+            OP->Echo();
+            error();
             break;
 #ifdef USING_REFLEXXES_TYPE_IV
         case ReflexxesAPI::RML_ERROR_POSITIONAL_LIMITS:
