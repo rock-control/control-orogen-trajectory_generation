@@ -49,6 +49,8 @@ bool RMLVelocityTask::configureHook()
     dist_to_lower_.resize(nDOF_);
 
     status_.resize(nDOF_);
+    state_estimate_.resize(nDOF_);
+    state_estimate_.names = limits_.names;
     command_out_.resize(nDOF_);
     command_out_.names = limits_.names;
     input_params_ = RMLInputParams(nDOF_);
@@ -99,6 +101,21 @@ void RMLVelocityTask::updateHook()
     if(_joint_state.read(status_) == RTT::NoData){
         LOG_DEBUG("No data on joint state port");
         return;
+    }
+
+    for(size_t i = 0; i < nDOF_; i++){
+        std::string joint_name = limits_.names[i];
+        size_t joint_idx = 0;
+        try{
+            joint_idx = status_.mapNameToIndex(joint_name);
+        }
+        catch(std::exception e){
+            continue;
+        }
+
+        state_estimate_[i].position = status_[joint_idx].position;
+        state_estimate_[i].speed = status_[joint_idx].speed;
+        state_estimate_[i].effort= status_[joint_idx].effort;
     }
 
     //
@@ -298,11 +315,18 @@ void RMLVelocityTask::updateHook()
             else{
                 command_out_[i].effort = base::unknown<float>();
             }
+
+            state_estimate_[i].position = Vel_OP_->NewPositionVector->VecData[i];
+            state_estimate_[i].speed = Vel_OP_->NewVelocityVector->VecData[i];
+            state_estimate_[i].effort = Vel_OP_->NewAccelerationVector->VecData[i];
+
         }
         command_out_.time = base::Time::now();
         _command.write(command_out_);
-    }
+    }//if has target
 
+    state_estimate_.time = base::Time::now();
+    _state_estimate.write(state_estimate_);
 
     //
     // Write debug data

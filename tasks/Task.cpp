@@ -96,6 +96,8 @@ bool Task::configureHook()
 
     desired_reflexes.resize(nDof);
     desired_reflexes.names = limits.names;
+    state_estimate.resize(nDof);
+    state_estimate.names = limits.names;
 
     rml_input_params = RMLInputParams(nDof);
     rml_output_params = RMLOutputParams(nDof);
@@ -187,6 +189,10 @@ void Task::updateHook()
             LOG_ERROR("Joint %s is configured in joint limits, but not available in joint state", limits.names[i].c_str());
             throw e;
         }
+
+        state_estimate[i].position = j_state[idx].position;
+        state_estimate[i].speed = j_state[idx].speed;
+        state_estimate[i].effort= j_state[idx].effort;
 
         if(override_input_position && has_rml_been_called_once)
             IP->CurrentPositionVector->VecData[i] = OP->NewPositionVector->VecData[i];
@@ -500,6 +506,8 @@ void Task::updateHook()
 
         _cmd.write( command );
     }
+
+    _state_estimate.write(state_estimate);
 
     //
     // Write debug data
