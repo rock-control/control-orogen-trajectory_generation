@@ -38,7 +38,7 @@ protected:
     bool is_initialized_;
     size_t nDOF_;
     double max_acceleration_scale_, max_jerk_scale_;
-    base::samples::Joints reset_command_, state_estimate_;
+    base::samples::Joints reset_command_, output_sample_;
     base::VectorXd dist_to_upper_, dist_to_lower_;
 
     RMLInputParams input_params_;

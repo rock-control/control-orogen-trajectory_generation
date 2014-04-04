@@ -96,8 +96,8 @@ bool Task::configureHook()
 
     desired_reflexes.resize(nDof);
     desired_reflexes.names = limits.names;
-    state_estimate.resize(nDof);
-    state_estimate.names = limits.names;
+    output_sample.resize(nDof);
+    output_sample.names = limits.names;
 
     rml_input_params = RMLInputParams(nDof);
     rml_output_params = RMLOutputParams(nDof);
@@ -190,9 +190,9 @@ void Task::updateHook()
             throw e;
         }
 
-        state_estimate[i].position = j_state[idx].position;
-        state_estimate[i].speed = j_state[idx].speed;
-        state_estimate[i].effort= j_state[idx].effort;
+        output_sample[i].position = j_state[idx].position;
+        output_sample[i].speed = j_state[idx].speed;
+        output_sample[i].effort= j_state[idx].effort;
 
         if(override_input_position && has_rml_been_called_once)
             IP->CurrentPositionVector->VecData[i] = OP->NewPositionVector->VecData[i];
@@ -404,6 +404,12 @@ void Task::updateHook()
 
         for( size_t i=0; i<command.size(); ++i )
         {
+
+
+            output_sample[i].position = OP->NewPositionVector->VecData[i];
+            output_sample[i].speed = OP->NewVelocityVector->VecData[i];
+            output_sample[i].effort= OP->NewAccelerationVector->VecData[i];
+
             if(base::isNaN<double>(OP->NewPositionVector->VecData[i])){
                 LOG_ERROR_S << "Relexxes calculated reference position as NaN!";
                 IP->Echo();
@@ -507,7 +513,7 @@ void Task::updateHook()
         _cmd.write( command );
     }
 
-    _state_estimate.write(state_estimate);
+    _output_sample.write(output_sample);
 
     //
     // Write debug data

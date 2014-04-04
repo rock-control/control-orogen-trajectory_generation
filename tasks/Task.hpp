@@ -62,7 +62,7 @@ protected:
 
     base::JointsTrajectory trajectory, trajectory_from_port;
     base::commands::Joints position_target;
-    base::samples::Joints reset_command, state_estimate;
+    base::samples::Joints reset_command, output_sample;
     size_t current_step;
     bool has_target;
 

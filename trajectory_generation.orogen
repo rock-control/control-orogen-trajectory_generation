@@ -59,7 +59,7 @@ task_context "Task" do
 	doc("Target values that are send to the actuators")
 
     # Estimated next robot state. Equals the full interpolator output
-    output_port("state_estimate", "/base/samples/Joints")
+    output_port("output_sample", "/base/samples/Joints")
 
     # Debug ports
 
@@ -131,7 +131,7 @@ task_context "RMLVelocityTask" do
     output_port("command", "/base/commands/Joints")
 
     # Estimated next robot state. Equals the full interpolator output
-    output_port("state_estimate", "/base/samples/Joints")
+    output_port("output_sample", "/base/samples/Joints")
 
     # Debug Port: Current cycle time
     output_port("actual_cycle_time", "double")
