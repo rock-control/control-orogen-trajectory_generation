@@ -240,38 +240,62 @@ void RMLVelocityTask::updateHook()
         }
 
         //
-        // Handle Reset commands
+        // Handle dont_allow_positive and dont_allow_negative commands
         //
-        if(_reset.read(reset_command_) == RTT::NewData){
-            for(size_t i = 0; i < reset_command_.size(); i++){
-                size_t joint_idx;
-                std::string joint_name = reset_command_.names[i];
-                try{
-                    joint_idx = limits_.mapNameToIndex(joint_name);
-                }
-                catch(std::exception e){
-                    continue;
-                }
-                if(reset_command_[i].hasPosition()){
-                    Vel_IP_->CurrentPositionVector->VecData[joint_idx] = reset_command_[i].position;
-                    LOG_DEBUG("Reset current position of joint %s to %f", joint_name.c_str(), Vel_IP_->CurrentPositionVector->VecData[joint_idx]);
-                }
-                if(reset_command_[i].hasSpeed()){
-                    Vel_IP_->CurrentVelocityVector->VecData[joint_idx] = reset_command_[i].speed;
-                    LOG_DEBUG("Reset current velocity of joint %s to %f", joint_name.c_str(), Vel_IP_->CurrentVelocityVector->VecData[joint_idx]);
-                    Vel_IP_->TargetVelocityVector->VecData[joint_idx] = reset_command_[i].speed;
-                    LOG_DEBUG("Reset target velocity of joint %s to %f", joint_name.c_str(), Vel_IP_->TargetVelocityVector->VecData[joint_idx]);
-                }
-                if(treat_effort_as_acceleration_ && reset_command_[i].hasEffort()){
-                    Vel_IP_->CurrentAccelerationVector->VecData[joint_idx] = reset_command_[i].effort;
-                    LOG_DEBUG("Reset current acceleration of joint %s to %f", joint_name.c_str(), Vel_IP_->CurrentAccelerationVector->VecData[joint_idx]);
-                }
-                else{
-                    //We dont have acceleration information. Assume zero.
-                    // FIXME: Is this really better than assuming previous reference? I think so, but not sure.
-                    Vel_IP_->CurrentAccelerationVector->VecData[joint_idx] = 0;
-                }
+        _dont_allow_positive.read(dont_allow_positive_);
+        _dont_allow_negative.read(dont_allow_negative_);
 
+        for(uint i = 0; i <dont_allow_positive_.size(); i++)
+        {
+            size_t idx;
+            try{
+                idx = limits_.mapNameToIndex(dont_allow_positive_[i]);
+            }
+            catch(std::exception e){
+                continue;
+            }
+
+            base::JointState state;
+            try{
+                state = status_.getElementByName(dont_allow_positive_[i]);
+            }
+            catch(std::exception e){
+                LOG_ERROR("Dont allow positive contains element %s, but this joint is not in joint state", dont_allow_positive_[i].c_str());
+                throw std::invalid_argument("Invalid input");
+            }
+
+            if(Vel_IP_->TargetVelocityVector->VecData[idx] > 0){
+                Vel_IP_->CurrentPositionVector->VecData[idx] = state.position;
+                Vel_IP_->CurrentVelocityVector->VecData[idx] = 0;
+                Vel_IP_->CurrentAccelerationVector->VecData[idx] = 0;
+                Vel_IP_->TargetVelocityVector->VecData[idx] = 0;
+            }
+        }
+
+        for(uint i = 0; i <dont_allow_negative_.size(); i++)
+        {
+            size_t idx;
+            try{
+                idx = limits_.mapNameToIndex(dont_allow_negative_[i]);
+            }
+            catch(std::exception e){
+                continue;
+            }
+
+            base::JointState state;
+            try{
+                state = status_.getElementByName(dont_allow_negative_[i]);
+            }
+            catch(std::exception e){
+                LOG_ERROR("Dont allow negative contains element %s, but this joint is not in joint state", dont_allow_negative_[i].c_str());
+                throw std::invalid_argument("Invalid input");
+            }
+
+            if(Vel_IP_->TargetVelocityVector->VecData[idx] < 0){
+                Vel_IP_->CurrentPositionVector->VecData[idx] = state.position;
+                Vel_IP_->CurrentVelocityVector->VecData[idx] = 0;
+                Vel_IP_->CurrentAccelerationVector->VecData[idx] = 0;
+                Vel_IP_->TargetVelocityVector->VecData[idx] = 0;
             }
         }
 

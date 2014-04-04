@@ -38,8 +38,9 @@ protected:
     bool is_initialized_;
     size_t nDOF_;
     double max_acceleration_scale_, max_jerk_scale_;
-    base::samples::Joints reset_command_, output_sample_;
+    base::samples::Joints output_sample_;
     base::VectorXd dist_to_upper_, dist_to_lower_;
+    std::vector<std::string> dont_allow_positive_, dont_allow_negative_;
 
     RMLInputParams input_params_;
     RMLOutputParams output_params_;

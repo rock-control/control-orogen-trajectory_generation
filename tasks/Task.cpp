@@ -175,6 +175,7 @@ void Task::updateHook()
         return;
     }
 
+
     //
     // Update current state
     //
@@ -232,6 +233,7 @@ void Task::updateHook()
             }
         }
     }
+
 
     //
     // Get Trajectory input
@@ -359,36 +361,64 @@ void Task::updateHook()
     }
 
     //
-    // Handle Reset commands
+    // Handle dont_allow_positive and dont_allow_negative commands
     //
-    if(_reset.read(reset_command) == RTT::NewData){
-        for(size_t i = 0; i < reset_command.size(); i++){
-            size_t joint_idx;
-            std::string joint_name = reset_command.names[i];
-            try{
-                joint_idx = limits.mapNameToIndex(joint_name);
-            }
-            catch(std::exception e){
-                continue;
-            }
-            if(reset_command[i].hasPosition()){
-                IP->CurrentPositionVector->VecData[joint_idx] = reset_command[i].position;
-                IP->TargetPositionVector->VecData[joint_idx] = reset_command[i].position;
-            }
-            if(reset_command[i].hasSpeed()){
-                IP->CurrentVelocityVector->VecData[joint_idx] = reset_command[i].speed;
-                IP->TargetVelocityVector->VecData[joint_idx] = reset_command[i].speed;
-            }
-            if(treat_effort_as_acceleration && reset_command[i].hasEffort()){
-                IP->CurrentAccelerationVector->VecData[joint_idx] = reset_command[i].effort;
-                LOG_DEBUG("Reset current acceleration of joint %s to %f", joint_name.c_str(), IP->CurrentAccelerationVector->VecData[joint_idx]);
-            }
-            else{
-                //We dont have acceleration information. Assume zero.
-                // FIXME: Is this really better than assuming previous reference? I think so, but not sure.
-                IP->CurrentAccelerationVector->VecData[joint_idx] = 0;
-            }
+    _dont_allow_positive.read(dont_allow_positive_);
+    _dont_allow_negative.read(dont_allow_negative_);
 
+    for(uint i = 0; i <dont_allow_positive_.size(); i++)
+    {
+        size_t idx;
+        try{
+            idx = limits.mapNameToIndex(dont_allow_positive_[i]);
+        }
+        catch(std::exception e){
+            continue;
+        }
+
+        base::JointState state;
+        try{
+            state = j_state.getElementByName(dont_allow_positive_[i]);
+        }
+        catch(std::exception e){
+            LOG_ERROR("Dont allow positive contains element %s, but this joint is not in joint state", dont_allow_positive_[i].c_str());
+            throw std::invalid_argument("Invalid input");
+        }
+
+        if(IP->TargetPositionVector->VecData[idx] > IP->CurrentPositionVector->VecData[idx]){
+            IP->CurrentPositionVector->VecData[idx] = state.position;
+            IP->CurrentVelocityVector->VecData[idx] = 0;
+            IP->CurrentAccelerationVector->VecData[idx] = 0;
+            IP->TargetPositionVector->VecData[idx] = state.position;
+            IP->TargetVelocityVector->VecData[idx] = 0;
+        }
+    }
+
+    for(uint i = 0; i <dont_allow_negative_.size(); i++)
+    {
+        size_t idx;
+        try{
+            idx = limits.mapNameToIndex(dont_allow_negative_[i]);
+        }
+        catch(std::exception e){
+            continue;
+        }
+
+        base::JointState state;
+        try{
+            state = j_state.getElementByName(dont_allow_negative_[i]);
+        }
+        catch(std::exception e){
+            LOG_ERROR("Dont allow negative contains element %s, but this joint is not in joint state", dont_allow_negative_[i].c_str());
+            throw std::invalid_argument("Invalid input");
+        }
+
+        if(IP->TargetPositionVector->VecData[idx] < IP->CurrentPositionVector->VecData[idx]){
+            IP->CurrentPositionVector->VecData[idx] = state.position;
+            IP->CurrentVelocityVector->VecData[idx] = 0;
+            IP->CurrentAccelerationVector->VecData[idx] = 0;
+            IP->TargetPositionVector->VecData[idx] = state.position;
+            IP->TargetVelocityVector->VecData[idx] = 0;
         }
     }
 

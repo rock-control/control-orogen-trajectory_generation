@@ -62,11 +62,11 @@ protected:
 
     base::JointsTrajectory trajectory, trajectory_from_port;
     base::commands::Joints position_target;
-    base::samples::Joints reset_command, output_sample;
+    std::vector<std::string> dont_allow_positive_, dont_allow_negative_;
     size_t current_step;
     bool has_target;
 
-    base::samples::Joints j_state, command, desired_reflexes;
+    base::samples::Joints j_state, command, desired_reflexes, output_sample;
     base::Time prev_time;
 
     bool has_rml_been_called_once;
