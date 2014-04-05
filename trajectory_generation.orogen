@@ -3,6 +3,12 @@ name "trajectory_generation"
 import_types_from "base"
 using_library "reflexxes"
 import_types_from "trajectory_generationTypes.hpp"
+import_types_from "ConstrainedJointsTrajectory.hpp"
+
+typekit do
+    export_types '/trajectory_generation/JointMotionConstraints'
+    export_types '/trajectory_generation/ConstrainedJointsTrajectory'
+end
 
 task_context "Task" do
     cycle_time = 0.02
@@ -10,14 +16,18 @@ task_context "Task" do
     needs_configuration
     runtime_states 'FOLLOWING', 'REACHED', 'IN_LIMITS'
 
+    #TODO: Convert this property to trajectory_generation::JointsMotionConstraints
     property('limits', 'base/JointLimits').
         doc('The limits for the joints')
     property('cycle_time', 'double').
         doc('Cycle time in seconds')
+    property('write_debug_data', 'bool').
+        doc('Write additional debug data to port or not')
     property('positional_limits_behavior', 'int', 0).
         doc("Behavior when reaching positional limits. Can be one of 0 = RMLFlags::POSITIONAL_LIMITS_IGNORE,1 = RMLFlags::POSITIONAL_LIMITS_ERROR_MSG_ONLY, 2 = RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT. Only available for Reflexxes Type_IV")
     property('sync_behavior', 'int', 1).
         doc("The synchronization behavior of RML. Can be one of 0 = RMLFlags::PHASE_SYNCHRONIZATION_IF_POSSIBLE, 1 = RMLFlags::ONLY_TIME_SYNCHRONIZATION, 2 = RMLFlags::ONLY_PHASE_SYNCHRONIZATION, 3 = RMLFlags::NO_SYNCHRONIZATION")
+    #TODO: Remove this property. It is to be treated within limits-property
     property('max_jerk', 'std/vector<double>').
         doc("Maximum change of acceleration. Size has to be the same as limits")
 
@@ -44,9 +54,14 @@ task_context "Task" do
 
 
     input_port("trajectory_target", "/base/JointsTrajectory").
-	doc("The target trajectory which should be followed")
+        doc("The target trajectory which should be followed")
     input_port("position_target", "/base/commands/Joints").
-        doc("The target joint position")
+        doc("Alternative input port to define a target trajectory. Joint
+             commands are treated as a trajectory with one via point.")
+    input_port("constrained_trajectory_target", "/trajectory_generation/ConstrainedJointsTrajectory").
+        doc("Alternative input port to define a target trajectory. The
+             contraints given in the ConstrainedJointsTrajectory will override
+             the corresponding configured properties temporary.")
 
     # Forbid certain joints to move in a positive direction
     input_port("dont_allow_positive", "/std/vector<std/string>")
@@ -81,9 +96,11 @@ task_context "RMLVelocityTask" do
     runtime_states 'FOLLOWING', 'REACHED', 'IN_LIMITS'
 
     # The limits for the joints. Note: min.speed and min.effort are not used. Effort limit is used as acceleration limit.
+    #TODO: Convert this property to trajectory_generation::JointsMotionConstraints
     property('limits', 'base/JointLimits') 
 
     # Maximum change of acceleration. Size has to be the same as limits
+    #TODO: Remove this property. It is to be treated within limits-property
     property('max_jerk', 'std/vector<double>')
 
     # Cycle time in seconds
