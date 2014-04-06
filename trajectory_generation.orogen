@@ -87,7 +87,7 @@ task_context "Task" do
     output_port("dist_upper_limit", "base/VectorXd")
     output_port("dist_lower_limit", "base/VectorXd")
 
-    port_driven "joint_state"
+    periodic cycle_time
 end
 
 task_context "RMLVelocityTask" do
@@ -186,7 +186,7 @@ task_context "TestPlant" do
    output_port("joint_state", "/base/samples/Joints")
    
 
-   periodic 0.021172983273343216 #That's how fast artemis' joints update
+   periodic 0.02
 end
 
 deployment "plant_deployment" do
