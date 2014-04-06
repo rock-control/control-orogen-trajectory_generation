@@ -11,6 +11,10 @@ namespace trajectory_generation {
 struct JointMotionConstraints
         : public  base::JointLimitRange
 {
+    JointMotionConstraints(){
+        max_jerk = base::unset<float>();
+    }
+
     float max_jerk;
 };
 
