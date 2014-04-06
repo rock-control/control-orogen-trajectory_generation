@@ -209,24 +209,31 @@ void Task::set_active_joints(const std::vector<std::string> &joint_names)
     //Go throu all known joints and test if it is also in the joint_names vector.
     //If so, set corresponding joint as active. If not set corresponding joint as
     //inactive.
-    std::vector<std::string>::iterator it;
     for(uint i=0; i<limits.size(); i++){
         if(std::find(joint_names.begin(), joint_names.end(), limits.names[i]) == joint_names.end())
-            IP_static->SelectionVector->VecData[i] = false;
+            IP_active->SetSelectionVectorElement(false, i);
         else
-            IP_static->SelectionVector->VecData[i] = true;
+            IP_active->SetSelectionVectorElement(true, i);
     }
 }
 
 void Task::set_active_motion_constraints(const JointsMotionConstraints& motion_constraints)
 {
     //Preinitialize with configured default values
-    IP_active->MaxVelocityVector = IP_static->MaxVelocityVector;
-    IP_active->MaxJerkVector = IP_static->MaxJerkVector;
-    IP_active->MaxAccelerationVector = IP_static->MaxAccelerationVector;
+    IP_active->SetMaxVelocityVector(*IP_static->MaxVelocityVector);
+    IP_active->SetMaxJerkVector(*IP_static->MaxJerkVector);
+    IP_active->SetMaxAccelerationVector(*IP_static->MaxAccelerationVector);
+
+    assert(IP_active->MaxVelocityVector->GetVecDim() == nDof);
+    assert(IP_active->MaxJerkVector->GetVecDim() == nDof);
+    assert(IP_active->MaxAccelerationVector->GetVecDim() == nDof);
+    assert(motion_constraints.size() == nDof);
+
 #ifdef USING_REFLEXXES_TYPE_IV
-    IP_active->MaxPositionVector = IP_static->MaxPositionVector;
-    IP_active->MinPositionVector = IP_static->MinPositionVector;
+    IP_active->SetMaxPositionVector(*IP_static->MaxPositionVector);
+    IP_active->SetMinPositionVector(*IP_static->MinPositionVector);
+    assert(IP_active->MinPositionVector->GetVecDim() == nDof);
+    assert(IP_active->MaxPositionVector->GetVecDim() == nDof);
 #endif
 
     //Override if new constraints are set
@@ -236,22 +243,23 @@ void Task::set_active_motion_constraints(const JointsMotionConstraints& motion_c
 #ifdef USING_REFLEXXES_TYPE_IV
         //Only override position constraint, if a valid value is set
         if(!base::isNaN<double>(motion_constraints[i].min.position))
-            IP_active->MinPositionVector[idx] = motion_constraints[i].min.position;
+            IP_active->SetMinPositionVectorElement(motion_constraints[i].min.position, idx);
+
         if(!base::isNaN<double>(motion_constraints[i].max.position))
-            IP_active->MaxPositionVector[idx] = motion_constraints[i].max.position;
+            IP_active->SetMaxPositionVectorElement(motion_constraints[i].max.position, idx);
 #endif
 
         //Only override velocity constraint, if a valid value is set
         if(!base::isNaN<float>(motion_constraints[i].max.speed))
-            IP_active->MaxVelocityVector[idx] = motion_constraints[i].max.speed;
+            IP_active->SetMaxVelocityVectorElement(motion_constraints[i].max.speed, idx);
 
         //Only override acceleration constraint, if a valid value is set
         if(!base::isNaN<float>(motion_constraints[i].max.effort))
-            IP_active->MaxAccelerationVector[idx] = motion_constraints[i].max.effort;
+            IP_active->SetMaxAccelerationVectorElement(motion_constraints[i].max.effort, idx);
 
         //Only override jerk constraint, if a valid value is set
         if(!base::isNaN<float>(motion_constraints[i].max_jerk))
-            IP_active->MaxJerkVector[idx] = motion_constraints[i].max_jerk;
+            IP_active->SetMaxJerkVectorElement(motion_constraints[i].max_jerk, idx);
     }
 }
 
@@ -384,28 +392,33 @@ void Task::set_current_joint_state(const base::samples::Joints& sample)
                 LOG_ERROR("Joint %s does not have a position value.", joint_name.c_str());
                 throw(std::runtime_error("Invalid joint sample"));
             }
-            IP_active->CurrentPositionVector->VecData[internal_index] = sample[index_in_sample].position;
+            IP_active->SetCurrentPositionVectorElement(sample[index_in_sample].position, internal_index);
         }
 
 #ifdef USING_REFLEXXES_TYPE_IV
         //Avoid invalid input here (RML with active Positonal Limits prevention has problems with positional input that is out of limits,
         //which may happen due to noisy position readings)
         //FIXME: What exactly is this 'problem'? Is it a crash or undesired behavior? If the second, what make the behavior undesireable?
-        if(Flags.PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT)
-            IP_active->CurrentPositionVector->VecData[internal_index] = std::max(std::min(limits[internal_index].max.position,
-                                                                                          IP_active->CurrentPositionVector->VecData[internal_index]),
-                                                                                 limits[internal_index].min.position);
+        if(Flags.PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT){
+            double inbounds = IP_active->GetCurrentPositionVectorElement(internal_index);
+            if(inbounds > limits[internal_index].max.position){
+                inbounds = limits[internal_index].max.position;
+            }
+            if(inbounds < limits[internal_index].min.position){
+                inbounds = limits[internal_index].min.position;
+            }
+            IP_active->SetCurrentPositionVectorElement(inbounds, internal_index);
+        }
 #endif
         //Only use NewVelocityVector from previous cycle if there has been a previous cycle
         if(override_input_speed && has_rml_been_called_once){
-            IP_active->CurrentVelocityVector->VecData[internal_index] = OP->NewVelocityVector->VecData[internal_index];
-            LOG_DEBUG("Overide current velocity for joint %s to %f", joint_name.c_str(), IP_static->CurrentVelocityVector->VecData[internal_index]);
+            IP_active->SetCurrentVelocityVectorElement(OP->NewVelocityVector->VecData[internal_index], internal_index);
         }
         else{
             if(input_joint_state[internal_index].hasSpeed())
-                IP_active->CurrentVelocityVector->VecData[internal_index] = input_joint_state[index_in_sample].speed;
+                IP_active->SetCurrentVelocityVectorElement(input_joint_state[index_in_sample].speed, internal_index);
             else{
-                IP_active->CurrentVelocityVector->VecData[internal_index] = 0.0;
+                IP_active->SetCurrentVelocityVectorElement(0.0, internal_index);
                 if(!override_input_speed){
                     throw(std::runtime_error("override_input_speed was configured to false, but not all joints have a speed measurement."));
                 }
@@ -415,7 +428,7 @@ void Task::set_current_joint_state(const base::samples::Joints& sample)
         //We can only use 'real' acceleration values from joint status if we treat the effort field as acceleration and don't want to override effort
         if(treat_effort_as_acceleration && !override_input_acceleration){
             //Effort field from joint status is treaded as accerlation and 'real' state should be used. Set it accordingly.
-            IP_active->CurrentAccelerationVector->VecData[internal_index] = input_joint_state[index_in_sample].effort;
+            IP_active->SetCurrentAccelerationVectorElement(input_joint_state[index_in_sample].effort, internal_index);
             if(!input_joint_state[index_in_sample].hasEffort()){
                 throw(std::runtime_error("override_input_acceleration was configured to false, but not all joints have a acceleration measurement on effort field."));
             }
@@ -424,15 +437,11 @@ void Task::set_current_joint_state(const base::samples::Joints& sample)
         else{
             if(!has_rml_been_called_once){
                 //No reference acceleration was genereated before. Assume zero.
-                IP_active->CurrentAccelerationVector->VecData[internal_index] = 0;
-                LOG_DEBUG("Overide current acceleration for joint %s to %f (first cycle)", joint_name.c_str(),
-                          IP_static->CurrentAccelerationVector->VecData[internal_index]);
+                IP_active->SetCurrentAccelerationVectorElement(0, internal_index);
             }
             else{
                 //Override with reference from previous cycle
-                IP_active->CurrentAccelerationVector->VecData[internal_index] = OP->NewAccelerationVector->VecData[internal_index];
-                LOG_DEBUG("Overide current acceleration for joint %s to %f", joint_name.c_str(),
-                          IP_static->CurrentAccelerationVector->VecData[internal_index]);
+                IP_active->SetCurrentAccelerationVectorElement(OP->NewAccelerationVector->VecData[internal_index], internal_index);
             }
         }
     }
@@ -513,11 +522,19 @@ void Task::handle_reflexxes_result_value(const int& result)
         OP->Echo();
         error();
         break;
-#ifdef USING_REFLEXXES_TYPE_IV
+        //#ifdef USING_REFLEXXES_TYPE_IV
     case ReflexxesAPI::RML_ERROR_POSITIONAL_LIMITS:
-        state(IN_LIMITS);
+        IP_active->Echo();
+        for(size_t i=0; i<nDof; i++){
+            LOG_INFO("(Joint %d) Current %.5f, Target %.f  --  Limits [%.5f, %.5f]", i, IP_active->GetCurrentPositionVectorElement(i), IP_active->GetTargetPositionVectorElement(i), IP_active->GetMinPositionVectorElement(i), IP_active->GetMaxPositionVectorElement(i));
+        }
+        std::cout<<std::endl;
+        if(state() != IN_LIMITS){
+            LOG_WARN("At least one joint is in position joint limits");
+            state(IN_LIMITS);
+        }
         break;
-#endif
+        //#endif
     }
 }
 
@@ -601,9 +618,9 @@ void Task::updateHook()
         }
 
         //Copy data to base type
-        output_command[i].position = OP->NewPositionVector->VecData[i];
-        output_command[i].speed = OP->NewVelocityVector->VecData[i];
-        output_command[i].effort= OP->NewAccelerationVector->VecData[i];
+        output_command[i].position = OP->GetNewPositionVectorElement(i);
+        output_command[i].speed = OP->GetNewVelocityVectorElement(i);
+        output_command[i].effort= OP->GetNewAccelerationVectorElement(i);
         output_command.time = base::Time::now();
 
         if(write_debug_data){
