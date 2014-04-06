@@ -32,6 +32,10 @@ double interpolate(double a, double b, double c){
 }
 
 void set_speeds(base::JointsTrajectory& traj, double target_speed){
+    // TODO:
+    // Caution: This currently might result in a infeasible trajectory which will only be detected during execution.
+    // This behviour comes because feasibility check is only a check for joint limits.
+    // During execution it is check if e.g. max jerk is high enough to avoid joint limits.
     double cur, prev, next, speed;
     for(size_t t=0; t<traj.getTimeSteps(); t++)
     {
@@ -55,9 +59,7 @@ void set_speeds(base::JointsTrajectory& traj, double target_speed){
 
             traj[joint_idx][t].speed = speed;
         }
-        if(base::isUnknown(target_speed)){
-            target_speed = max_speed;
-        }
+
         //Normalize speed to 1.0 and scale to target speed
         for(size_t joint_idx=0; joint_idx<traj.size(); joint_idx++)
         {
@@ -119,10 +121,22 @@ bool Task::configureHook()
         return false;
     }
 
-    for(uint i=0; i<nDof; i++){
-        if(limits[i].max.speed < override_target_velocity){
-            LOG_ERROR("override_target_velocity too high. Joint %s has a max speed of %f. override_target_velocity must be lower than that value.",limits.names[i].c_str(), limits[i].max.speed);
-            return false;
+    //Verify Override:target_velcoity. If it is n ot set, set it to max velcoity of slowest joint. Otherwise checkt, that it fullfills beforementioned constraint
+    if(base::isNaN<double>(override_target_velocity)){
+        double slowest = 9999999999;
+        for(uint i=0; i<nDof; i++){
+            if(limits[i].max.speed < slowest)
+                slowest = limits[i].max.speed;
+        }
+        override_target_velocity = slowest;
+        LOG_INFO("override_target_velocity was not set. Set it to max velocity of the slowest joint. The new value is %f", override_target_velocity);
+    }
+    else{
+        for(uint i=0; i<nDof; i++){
+            if(limits[i].max.speed < override_target_velocity){
+                LOG_ERROR("override_target_velocity too high. Joint %s has a max speed of %f. override_target_velocity must be lower than that value.",limits.names[i].c_str(), limits[i].max.speed);
+                return false;
+            }
         }
     }
 
@@ -133,7 +147,7 @@ bool Task::configureHook()
     IP_static  = new RMLPositionInputParameters( nDof );
     OP  = new RMLPositionOutputParameters( nDof );
     Flags.SynchronizationBehavior = _sync_behavior.value();
-    std::vector<double> max_jerk = _max_jerk.get();
+    max_jerk = _max_jerk.get();
     if(max_jerk.size() != limits.size())
     {
         LOG_ERROR("Size of max jerk property is %i, but size of joint limits is %i", max_jerk.size(), limits.size());
@@ -141,9 +155,9 @@ bool Task::configureHook()
     }
     for(size_t i=0; i<nDof; i++){
         //Constraints
-        IP_static->MaxVelocityVector->VecData[i] = limits[i].max.speed;
-        IP_static->MaxAccelerationVector->VecData[i] = limits[i].max.effort;
-        IP_static->MaxJerkVector->VecData[i] = _max_jerk.value()[i];
+        IP_static->SetMaxVelocityVectorElement(limits[i].max.speed, i);
+        IP_static->SetMaxAccelerationVectorElement(limits[i].max.effort, i);
+        IP_static->SetMaxJerkVectorElement(max_jerk[i], i);
     }
 
 #ifdef USING_REFLEXXES_TYPE_IV
@@ -151,14 +165,24 @@ bool Task::configureHook()
     LOG_DEBUG("Joint Limits are: ");
     for(uint i = 0; i < nDof; i++)
     {
-        IP_static->MaxPositionVector->VecData[i] = limits[i].max.position;
-        IP_static->MinPositionVector->VecData[i] = limits[i].min.position;
+        IP_static->SetMaxPositionVectorElement(limits[i].max.position, i);
+        IP_static->SetMinPositionVectorElement(limits[i].min.position, i);
         LOG_DEBUG("%s: Max %f Min %f", limits.names[i].c_str(), limits[i].max.position, limits[i].min.position);
     }
 #endif
 
     //Create copy for per-sample change of properties
     IP_active  = new RMLPositionInputParameters( nDof );
+    current_motion_constraints.resize(nDof);
+    current_motion_constraints.names = limits.names;
+
+    assert(limits.size() == nDof);
+    assert(max_jerk.size() == nDof);
+    assert(current_motion_constraints.size() == nDof);
+    assert(output_command.size() == nDof);
+    assert(current_trajectory.getNumberOfJoints() == nDof);
+    if(write_debug_data)
+        assert(debug_output_command_unmodified.size() == nDof);
 
     return true;
 }
@@ -252,6 +276,14 @@ void Task::get_default_motion_constraints(const std::string &joint_name, JointMo
 
 bool Task::make_feasible(ConstrainedJointsTrajectory& sample)
 {
+    //Check if velocities have been set. If not, guess them
+    base::samples::Joints first_sample;
+    sample.getJointsAtTimeStep(0, first_sample);
+    if(!first_sample.elements[0].hasSpeed()){
+        LOG_DEBUG("Trajectory has no velocities set. Will gues them.");
+        set_speeds(sample, override_target_velocity);
+    }
+
     //Check if all samples are withing the constraints boundaries and correct if necessary
     bool was_feasible = sample.makeFeasible();
     if(!was_feasible){
@@ -261,6 +293,7 @@ bool Task::make_feasible(ConstrainedJointsTrajectory& sample)
             throw(std::runtime_error("Input was infeasible. Check input data against position limits."));
 
     }
+
     return was_feasible;
 }
 
