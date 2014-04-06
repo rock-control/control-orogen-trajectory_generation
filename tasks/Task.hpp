@@ -50,6 +50,8 @@ protected:
 
     //! Flag that specifies wheter to write debug data to port s or not
     bool write_debug_data;
+    //! Should an exception be thrown if input was infeasible?
+    bool throw_on_infeasible_input;
 
     base::VectorXd dist_to_upper, dist_to_lower;
     size_t nDof;

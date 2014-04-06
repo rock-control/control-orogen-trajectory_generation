@@ -10,11 +10,15 @@ using namespace trajectory_generation;
 Task::Task(std::string const& name)
     : TaskBase(name), current_step(0)
 {
+    LOG_CONFIGURE(DEBUG, stdout);
+    throw_on_infeasible_input = true;
 }
 
 Task::Task(std::string const& name, RTT::ExecutionEngine* engine)
     : TaskBase(name, engine), current_step(0)
 {
+    LOG_CONFIGURE(DEBUG, stdout);
+    throw_on_infeasible_input = true;
 }
 
 Task::~Task()
@@ -248,9 +252,14 @@ void Task::get_default_motion_constraints(const std::string &joint_name, JointMo
 
 bool Task::make_feasible(ConstrainedJointsTrajectory& sample)
 {
+    //Check if all samples are withing the constraints boundaries and correct if necessary
     bool was_feasible = sample.makeFeasible();
     if(!was_feasible){
-        LOG_INFO_S << "The trajectory was not within its constraints. It had to be corrected.";
+        LOG_ERROR_S << "The trajectory was not within its constraints.";
+
+        if(throw_on_infeasible_input)
+            throw(std::runtime_error("Input was infeasible. Check input data against position limits."));
+
     }
     return was_feasible;
 }
