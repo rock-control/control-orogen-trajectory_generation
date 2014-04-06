@@ -130,6 +130,7 @@ struct ConstrainedJointsTrajectory
                     sample.speed = constraint.max.speed;
                     all_feasible = false;
                 }
+                /*
                 //Constriants for speed and effort might be defined only by its max value which value is
                 //then valid for both, positive and megative direction.
                 if(constraint.min.hasSpeed()){
@@ -144,12 +145,14 @@ struct ConstrainedJointsTrajectory
                         all_feasible = false;
                     }
                 }
+                */
 
                 //Check effort and make feasible
                 if(constraint.max.hasEffort() && sample.effort > constraint.max.effort){
                     sample.effort = constraint.max.effort;
                     all_feasible = false;
                 }
+                /*
                 //Constriants for speed and effort might be defined only by its max value which value is
                 //then valid for both, positive and megative direction.
                 if(constraint.min.hasEffort()){
@@ -164,12 +167,14 @@ struct ConstrainedJointsTrajectory
                         all_feasible = false;
                     }
                 }
+                */
 
                 //Check raw and make feasible
                 if(constraint.max.hasRaw() && sample.raw > constraint.max.raw){
                     sample.raw = constraint.max.raw;
                     all_feasible = false;
                 }
+                /*
                 //Constriants for speed and effort might be defined only by its max value which value is
                 //then valid for both, positive and megative direction.
                 if(constraint.min.hasRaw()){
@@ -184,6 +189,7 @@ struct ConstrainedJointsTrajectory
                         all_feasible = false;
                     }
                 }
+                */
             }
         }
         return all_feasible;
