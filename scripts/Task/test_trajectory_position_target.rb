@@ -23,30 +23,18 @@ Orocos.run 'trajectory_generation::TestPlant' => 'driver' do
    driver.joint_state.connect_to interpolator.joint_state
    driver.cmd.connect_to interpolator.cmd
 
-   writer = interpolator.trajectory_target.writer
-   traj = Types::Base::JointsTrajectory.new
-   single_traj = Types::Base::JointTrajectory.new
-   traj.names << "J_Shoulder1_l"
+   writer = interpolator.position_target.writer
+   joint_command = Types::Base::Samples::Joints.new
+   joint_command.names << "J_Shoulder1_l"
    state = Types::Base::JointState.new
    state.position = 0.5
-   single_traj << state
-   state.position = -0.0
-   single_traj << state
-   state.position = 0.2
-   single_traj << state
-   state.position = -0.02
-   single_traj << state
-   state.position = 1.0
-   single_traj << state
-   state.position = 0.2
-   single_traj << state
-   traj.elements << single_traj
+   joint_command.elements << state
     
    interpolator.configure
    interpolator.start
 
    sleep(1)
-   writer.write(traj)
+   writer.write(joint_command)
 
    Vizkit.exec
     

@@ -16,16 +16,13 @@ limits:
 max_jerk: [5,5,5,5,5]
 
 # Set output effort as input for next cycle
-override_input_effort: true
+override_input_acceleration: true
 
 # Set output position as input for next cycle
 override_input_position: true
 
 # Set output speed as input for next cycle
 override_input_speed: true
-
-# Set output speed to fixed value every time. Setting this value to NaN means no override.
-override_output_effort: false
 
 # Set output speed to fixed value every time. Setting this value to NaN means no override.
 override_output_speed: false

@@ -54,6 +54,18 @@ bool TestPlant::configureHook()
     base::JointLimits limits = _limits.get();
     noise_mean = _noise_mean.get();
     noise_variance = _noise_variance.get();
+    if(!noise_mean.hasPosition())
+        noise_mean.position = 0;
+    if(!noise_mean.hasSpeed())
+        noise_mean.speed = 0;
+    if(!noise_mean.hasEffort())
+        noise_mean.effort = 0;
+    if(!noise_variance.hasPosition())
+        noise_variance.position = 0;
+    if(!noise_variance.hasSpeed())
+        noise_variance.speed = 0;
+    if(!noise_variance.hasEffort())
+        noise_variance.effort = 0;
 
     j_cmd.resize(limits.size());
     j_state.resize(limits.size());

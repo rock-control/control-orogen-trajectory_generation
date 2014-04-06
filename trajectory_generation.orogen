@@ -15,6 +15,7 @@ task_context "Task" do
 
     needs_configuration
     runtime_states 'FOLLOWING', 'REACHED', 'IN_LIMITS'
+    error_states 'NO_JOINT_STATE_INPUT'
 
     #TODO: Convert this property to trajectory_generation::JointsMotionConstraints
     property('limits', 'base/JointLimits').

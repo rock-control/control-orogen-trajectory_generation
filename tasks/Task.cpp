@@ -82,7 +82,6 @@ bool Task::configureHook()
         return false;
 
     limits = _limits.value();
-
     nDof = limits.size();
 
     cycle_time = _cycle_time.get();
@@ -334,9 +333,9 @@ bool Task::handle_trajectory_target(const base::JointsTrajectory& sample)
     set_active_joints(sample.names);
 
     size_t internal_joint_idx;
-    for(size_t joint_idx=0; joint_idx<sample.size(); joint_idx++){
+    for(size_t joint_idx=0; joint_idx<sample.getNumberOfJoints(); joint_idx++){
         internal_joint_idx = map_joint_name_to_index(sample.names[joint_idx]);
-        for(size_t time_idx=0; time_idx<sample.size(); time_idx++){
+        for(size_t time_idx=0; time_idx<sample.getTimeSteps(); time_idx++){
             get_default_motion_constraints(internal_joint_idx, current_trajectory.motion_constraints[internal_joint_idx][time_idx]);
             current_trajectory.elements[internal_joint_idx][time_idx] = sample[joint_idx][time_idx];
         }
@@ -355,9 +354,9 @@ bool Task::handle_constrained_trajectory_target(const ConstrainedJointsTrajector
     set_active_joints(sample.names);
 
     size_t internal_joint_idx;
-    for(size_t joint_idx=0; joint_idx<sample.size(); joint_idx++){
+    for(size_t joint_idx=0; joint_idx<sample.getNumberOfJoints(); joint_idx++){
         internal_joint_idx = map_joint_name_to_index(sample.names[joint_idx]);
-        for(size_t time_idx=0; time_idx<sample.size(); time_idx++){
+        for(size_t time_idx=0; time_idx<sample.getTimeSteps(); time_idx++){
             current_trajectory.motion_constraints[internal_joint_idx][time_idx] = sample.motion_constraints[joint_idx][time_idx];
             current_trajectory.elements[internal_joint_idx][time_idx] = sample[joint_idx][time_idx];
         }
@@ -457,7 +456,8 @@ void Task::handle_reflexxes_result_value(const int& result)
 {
     switch(result){
     case ReflexxesAPI::RML_WORKING:
-        state(FOLLOWING);
+        if(state() != FOLLOWING)
+            state(FOLLOWING);
         break;
     case ReflexxesAPI::RML_FINAL_STATE_REACHED:
         if(state() != REACHED)
@@ -470,55 +470,57 @@ void Task::handle_reflexxes_result_value(const int& result)
         break;
     case ReflexxesAPI::RML_ERROR:
         LOG_ERROR("RML_ERROR");
-        IP_static->Echo();
+        IP_active->Echo();
         OP->Echo();
         error();
         break;
     case ReflexxesAPI::RML_ERROR_INVALID_INPUT_VALUES:
         LOG_ERROR("RML_ERROR_INVALID_INPUT_VALUES");
-        IP_static->Echo();
+        IP_active->Echo();
         OP->Echo();
+        std::cout<<std::endl;
         error();
         break;
     case ReflexxesAPI::RML_ERROR_EXECUTION_TIME_CALCULATION:
         LOG_ERROR("RML_ERROR_EXECUTION_TIME_CALCULATION");
-        IP_static->Echo();
+        IP_active->Echo();
         OP->Echo();
         error();
         break;
     case ReflexxesAPI::RML_ERROR_SYNCHRONIZATION:
         LOG_ERROR("RML_ERROR_SYNCHRONIZATION");
-        IP_static->Echo();
+        IP_active->Echo();
         OP->Echo();
         error();
         break;
     case ReflexxesAPI::RML_ERROR_NUMBER_OF_DOFS:
         LOG_ERROR("RML_ERROR_NUMBER_OF_DOFS");
-        IP_static->Echo();
+        IP_active->Echo();
         OP->Echo();
         error();
         break;
     case ReflexxesAPI::RML_ERROR_NO_PHASE_SYNCHRONIZATION:
         LOG_ERROR("RML_ERROR_NO_PHASE_SYNCHRONIZATION");
-        IP_static->Echo();
+        IP_active->Echo();
         OP->Echo();
         error();
         break;
     case ReflexxesAPI::RML_ERROR_NULL_POINTER:
         LOG_ERROR("RML_ERROR_NULL_POINTER");
-        IP_static->Echo();
+        IP_active->Echo();
         OP->Echo();
         error();
+
         break;
     case ReflexxesAPI::RML_ERROR_EXECUTION_TIME_TOO_BIG:
         LOG_ERROR("RML_ERROR_EXECUTION_TIME_TOO_BIG");
-        IP_static->Echo();
+        IP_active->Echo();
         OP->Echo();
         error();
         break;
     case ReflexxesAPI::RML_ERROR_USER_TIME_OUT_OF_RANGE:
         LOG_ERROR("RML_ERROR_USER_TIME_OUT_OF_RANGE");
-        IP_static->Echo();
+        IP_active->Echo();
         OP->Echo();
         error();
         break;
@@ -542,17 +544,12 @@ void Task::updateHook()
 {
     TaskBase::updateHook();
 
-    //Read from differen input ports
+    //Read from all the input ports. Notice, that we have implicitly a priorization here:
+    //If there is data on _position_target, it will be preferred over the other two ports
     if(_trajectory_target.readNewest(input_trajectory_target, false) == RTT::NewData){
         LOG_DEBUG("Received a new target on trajectory input port");
         reset_for_new_command();
         handle_trajectory_target(input_trajectory_target);
-    }
-
-    if(_position_target.read( input_position_target, false ) == RTT::NewData){
-        LOG_DEBUG("Received a new target on trajectory input port");
-        reset_for_new_command();
-        handle_position_target(input_position_target);
     }
 
     if(_constrained_trajectory_target.read( input_constrained_trajectory_target, false) == RTT::NewData){
@@ -561,13 +558,23 @@ void Task::updateHook()
         handle_constrained_trajectory_target(input_constrained_trajectory_target);
     }
 
+    if(_position_target.read( input_position_target, false ) == RTT::NewData){
+        LOG_DEBUG("Received a new target on trajectory input port");
+        reset_for_new_command();
+        handle_position_target(input_position_target);
+    }
+
 
     //If no joint state is avaliable, don't do anything. RML will be uninitialized otherwise
     if(_joint_state.readNewest(input_joint_state) == RTT::NoData){
-        LOG_DEBUG("No data on joint state port");
+        if(has_target)
+            LOG_ERROR("No data on joint state port");
+        if(!state() == NO_JOINT_STATE_INPUT)
+            error(NO_JOINT_STATE_INPUT);
         return;
     }
     else{
+        assert(output_command.size() == nDof);
         //Set current joint state from sample
         set_current_joint_state(input_joint_state);
 
@@ -602,11 +609,12 @@ void Task::updateHook()
     //       It seems rather hacky, what was it for? I don't think it should be here.
 
     //Perform control step with reflexxes
-    int result = RML->RMLPosition( *IP_static, OP, Flags );
+    int result = RML->RMLPosition( *IP_active, OP, Flags );
     has_rml_been_called_once = true;
     handle_reflexxes_result_value(result);
 
     //Prepare output
+    assert(output_command.size() == nDof);
     for( size_t i=0; i<output_command.size(); ++i )
     {
         //Check if command is okay
