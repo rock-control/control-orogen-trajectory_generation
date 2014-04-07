@@ -75,12 +75,14 @@ task_context "Task" do
 
     output_port("cmd", "/base/commands/Joints").
 	doc("Target values that are send to the actuators")
+	
+	output_port("time_until_via_point", "double")
+	output_port("via_point_reached", "int")
 
     # Estimated next robot state. Equals the full interpolator output
     output_port("output_sample", "/base/samples/Joints")
 
     # Debug ports
-
     output_port("actual_cycle_time", "double")
     output_port("rml_input_params", "trajectory_generation/RMLInputParams")
     output_port("rml_output_params", "trajectory_generation/RMLOutputParams")
