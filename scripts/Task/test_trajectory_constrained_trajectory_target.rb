@@ -15,7 +15,7 @@ def empty_constraint
     constr
 end
 
-Orocos.run 'trajectory_generation::TestPlant' => 'driver' do
+Orocos.run 'trajectory_generation::Task' => 'interpolator', :wait => true 'trajectory_generation::TestPlant' => 'driver', :wait=>true do
     
    interpolator = Orocos.name_service.get_provides 'trajectory_generation::Task'
    driver = Orocos.name_service.get 'driver'
