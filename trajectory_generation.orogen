@@ -97,12 +97,7 @@ task_context "RMLVelocityTask" do
     runtime_states 'FOLLOWING', 'REACHED', 'IN_LIMITS'
 
     # The limits for the joints. Note: min.speed and min.effort are not used. Effort limit is used as acceleration limit.
-    #TODO: Convert this property to trajectory_generation::JointsMotionConstraints
-    property('limits', 'base/JointLimits') 
-
-    # Maximum change of acceleration. Size has to be the same as limits
-    #TODO: Remove this property. It is to be treated within limits-property
-    property('max_jerk', 'std/vector<double>')
+    property('initial_motion_constraints', 'trajectory_generation/JointsMotionConstraints')
 
     # Cycle time in seconds
     property('cycle_time', 'double') 
@@ -116,14 +111,8 @@ task_context "RMLVelocityTask" do
     # Only available for Reflexxes Type_IV
     property('positional_limits_behavior', 'int', 0)
 
-    # Scale all max acceleration values by this factor. Range: 0..1
-    property('max_acceleration_scale', 'double', 1.0)
-
     # If no new command comes in for such a long time, set velocity to zero
     property('timeout', 'double', 0.3)
-
-    # Scale all max jerk values by this factor. Range: 0..1 
-    property('max_jerk_scale', 'double', 1.0)
 
     # Set output position as input for next cycle
     property('override_input_position', 'bool', false)
@@ -133,21 +122,20 @@ task_context "RMLVelocityTask" do
 
     # Use the effort field from JointState type for acceleration.
     property('treat_effort_as_acceleration', 'bool', false)
+
     # Set output acceleration as input for next cycle. When treat_effort_as_acceleration == false, input acceleration is always overriden. In this case, acceleration is always assumed to zero at first sample.
     property('override_input_acceleration', 'bool', false)
 
-  
+
+    # Optionally set the motion constraints online. If an input is .nan the constraints will fallback to the initial ones
+    input_port("motion_constraints", "trajectory_generation/JointsMotionConstraints")
+
     # The target joint velocity
     input_port("velocity_target", "/base/commands/Joints")
 
     # Current state measurement from the actuators
     input_port("joint_state", "/base/samples/Joints")
 
-    # Forbid certain joints to move in a positive direction
-    input_port("dont_allow_positive", "/std/vector<std/string>")
-
-    # Forbid certain joints to move in a negative direction
-    input_port("dont_allow_negative", "/std/vector<std/string>")
 
     # Target values that are send to the actuators
     output_port("command", "/base/commands/Joints")
@@ -163,12 +151,6 @@ task_context "RMLVelocityTask" do
 
     # Debug Port: Output values of the rml algorithm
     output_port("rml_output_params", "trajectory_generation/RMLOutputParams")
-
-    # Debug Port: Distance to upper limits
-    output_port("dist_upper", "base/VectorXd")
-
-    # Debug Port: Distance to lower limits
-    output_port("dist_lower", "base/VectorXd")
 
 
     periodic cycle_time

@@ -11,6 +11,7 @@
 #include <RMLVelocityOutputParameters.h>
 #include <base/commands/joints.h>
 #include <trajectory_generation/trajectory_generationTypes.hpp>
+#include <trajectory_generation/ConstrainedJointsTrajectory.hpp>
 
 
 namespace trajectory_generation {
@@ -30,7 +31,8 @@ protected:
     bool treat_effort_as_acceleration_; //Use the effort field from JointState type for acceleration.
     bool override_input_acceleration_;     //Set output acceleration as input for next cycle. When treat_effort_as_acceleration == false, input acceleration is always overriden. In this case, acceleration is always assumed to zero at first sample.
 
-    base::JointLimits limits_;
+    std::vector<float> max_velocity_;
+    trajectory_generation::JointsMotionConstraints initial_motion_constraints_, constraints_from_port_;
     base::samples::Joints status_;
     double cycle_time_;
     base::commands::Joints command_out_;
@@ -39,8 +41,6 @@ protected:
     size_t nDOF_;
     double max_acceleration_scale_, max_jerk_scale_;
     base::samples::Joints output_sample_;
-    base::VectorXd dist_to_upper_, dist_to_lower_;
-    std::vector<std::string> dont_allow_positive_, dont_allow_negative_;
 
     RMLInputParams input_params_;
     RMLOutputParams output_params_;
@@ -49,6 +49,14 @@ protected:
     base::Time stamp_;
     double timeout_;
     base::Time prev_time_;
+
+    void handleStatusInput(const base::samples::Joints &status);
+    void handleCommandInput(const base::commands::Joints &command);
+    void setActiveMotionConstraints(const trajectory_generation::JointsMotionConstraints& constraints);
+    void handleRMLInterpolationResult(const int res);
+    void writeDebug(const RMLVelocityInputParameters* in, const RMLVelocityOutputParameters* out);
+    void writeOutputCommand(const RMLVelocityOutputParameters* output);
+    void writeOutputSample(const base::samples::Joints& status, const RMLVelocityOutputParameters* output);
 
 public:
     RMLVelocityTask(std::string const& name = "trajectory_generation::RMLVelocityTask");
