@@ -35,7 +35,7 @@ void set_speeds(base::JointsTrajectory& traj, double target_speed){
     // TODO:
     // Caution: This currently might result in a infeasible trajectory which will only be detected during execution.
     // This behviour comes because feasibility check is only a check for joint limits.
-    // During execution it is check if e.g. max jerk is high enough to avoid joint limits.
+    // During execution it is checked if e.g. max jerk is high enough to avoid joint limits.
     double cur, prev, next, speed;
     for(size_t t=0; t<traj.getTimeSteps(); t++)
     {
@@ -462,8 +462,9 @@ void Task::handle_reflexxes_result_value(const int& result)
     case ReflexxesAPI::RML_FINAL_STATE_REACHED:
         if(state() != REACHED)
         {
-            current_step++;
+            _via_point_reached.write(current_step++);
             LOG_INFO("Waypoint %d/%d reached", current_step, current_trajectory.getTimeSteps());
+            int steps_in_traj = current_trajectory.getTimeSteps();
             if(current_step >= current_trajectory.getTimeSteps())
                 state(REACHED);
         }
@@ -526,14 +527,15 @@ void Task::handle_reflexxes_result_value(const int& result)
         break;
         //#ifdef USING_REFLEXXES_TYPE_IV
     case ReflexxesAPI::RML_ERROR_POSITIONAL_LIMITS:
-        IP_active->Echo();
-        for(size_t i=0; i<nDof; i++){
-            LOG_INFO("(Joint %d) Current %.5f, Target %.f  --  Limits [%.5f, %.5f]", i, IP_active->GetCurrentPositionVectorElement(i), IP_active->GetTargetPositionVectorElement(i), IP_active->GetMinPositionVectorElement(i), IP_active->GetMaxPositionVectorElement(i));
-        }
-        std::cout<<std::endl;
         if(state() != IN_LIMITS){
             LOG_WARN("At least one joint is in position joint limits");
             state(IN_LIMITS);
+
+            IP_active->Echo();
+            for(size_t i=0; i<nDof; i++){
+                LOG_INFO("(Joint %d) Current %.5f, Target %.f  --  Limits [%.5f, %.5f]", i, IP_active->GetCurrentPositionVectorElement(i), IP_active->GetTargetPositionVectorElement(i), IP_active->GetMinPositionVectorElement(i), IP_active->GetMaxPositionVectorElement(i));
+            }
+            std::cout<<std::endl;
         }
         break;
         //#endif
@@ -610,6 +612,26 @@ void Task::updateHook()
 
     //Perform control step with reflexxes
     int result = RML->RMLPosition( *IP_active, OP, Flags );
+    RMLDoubleVector min_position_vector(nDof);
+    RMLDoubleVector max_position_vector(nDof);
+    OP->GetPositionalExtrema(&min_position_vector, &max_position_vector);
+
+    double time_until_via_point = OP->GetGreatestExecutionTime();
+    _time_until_via_point.write(time_until_via_point);
+
+    if(OP->WillTheTargetPositionBeExceeded()){
+         LOG_WARN("The target position will be exceeded");
+         for(size_t i=0; i<1; i++){
+             LOG_WARN("Joint %d, execution time: %.5f\n     min/max: %.5f / %.5f, \n    target: %.5f, %.5f \n    current: %.5f, %.5f, %.5f\n",
+                      i, time_until_via_point,
+                      min_position_vector.VecData[i], max_position_vector.VecData[i],
+                      IP_active->GetTargetPositionVectorElement(i),
+                      IP_active->GetTargetVelocityVectorElement(i),
+                      IP_active->GetCurrentPositionVectorElement(i),
+                      IP_active->GetCurrentVelocityVectorElement(i),
+                      IP_active->GetCurrentAccelerationVectorElement(i));
+         }
+    }
     has_rml_been_called_once = true;
     handle_reflexxes_result_value(result);
 
