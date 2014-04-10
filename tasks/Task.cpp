@@ -92,8 +92,6 @@ bool Task::configureHook()
 
     override_output_speed = _override_output_speed.value();
     override_output_effort = _override_output_effort.value();
-    override_speed_value = _override_speed_value.value();
-    override_acceleration_value = _override_acceleration_value.value();
 
     output_command.resize( nDof );
     output_command.names = limits.names;
@@ -319,6 +317,12 @@ bool Task::handle_position_target(const base::commands::Joints& sample)
             continue;
         }
 
+        //Check for correct control mode
+        if(sample[i].getMode() != base::JointState::POSITION){
+            LOG_ERROR("%s: Supports only position control mode, but input has control mode %i", this->getName().c_str(), sample[i].getMode());
+            throw std::invalid_argument("Invalid control mode");
+        }
+
         get_default_motion_constraints(internal_idx, current_trajectory.motion_constraints[internal_idx][0]);
         current_trajectory.elements[internal_idx][0] = sample[i];
     }
@@ -346,6 +350,12 @@ bool Task::handle_constrained_position_target(const trajectory_generation::Const
             continue;
         }
 
+        //Check for correct control mode
+        if(sample[i].getMode() != base::JointState::POSITION){
+            LOG_ERROR("%s: Supports only position control mode, but input has control mode %i", this->getName().c_str(), sample[i].getMode());
+            throw std::invalid_argument("Invalid control mode");
+        }
+
         get_default_motion_constraints(internal_idx, current_trajectory.motion_constraints[internal_idx][0]);
         current_trajectory.elements[internal_idx][0] = sample[i];
         current_trajectory.motion_constraints[internal_idx][0] = sample.motion_constraints[i];
@@ -367,6 +377,13 @@ bool Task::handle_trajectory_target(const base::JointsTrajectory& sample)
     for(size_t joint_idx=0; joint_idx<sample.getNumberOfJoints(); joint_idx++){
         internal_joint_idx = map_joint_name_to_index(sample.names[joint_idx]);
         for(size_t time_idx=0; time_idx<sample.getTimeSteps(); time_idx++){
+
+            //Check for correct control mode
+            if(sample[joint_idx][time_idx].getMode() != base::JointState::POSITION){
+                LOG_ERROR("%s: Supports only position control mode, but input has control mode %i", this->getName().c_str(), sample[joint_idx][time_idx].getMode());
+                throw std::invalid_argument("Invalid control mode");
+            }
+
             get_default_motion_constraints(internal_joint_idx, current_trajectory.motion_constraints[internal_joint_idx][time_idx]);
             current_trajectory.elements[internal_joint_idx][time_idx] = sample[joint_idx][time_idx];
         }
@@ -388,6 +405,12 @@ bool Task::handle_constrained_trajectory_target(const ConstrainedJointsTrajector
     for(size_t joint_idx=0; joint_idx<sample.getNumberOfJoints(); joint_idx++){
         internal_joint_idx = map_joint_name_to_index(sample.names[joint_idx]);
         for(size_t time_idx=0; time_idx<sample.getTimeSteps(); time_idx++){
+
+            //Check for correct control mode
+            if(sample[joint_idx][time_idx].getMode() != base::JointState::POSITION){
+                LOG_ERROR("%s: Supports only position control mode, but input has control mode %i", this->getName().c_str(), sample[joint_idx][time_idx].getMode());
+                throw std::invalid_argument("Invalid control mode");
+            }
             current_trajectory.motion_constraints[internal_joint_idx][time_idx] = sample.motion_constraints[joint_idx][time_idx];
             current_trajectory.elements[internal_joint_idx][time_idx] = sample[joint_idx][time_idx];
         }
@@ -693,19 +716,22 @@ void Task::updateHook()
             _output_sample.write(debug_output_command_unmodified);
         }
 
-        //Override output if necessary
-        if(override_output_speed)
-            output_command[i].speed =  override_speed_value;
-
-        if(treat_effort_as_acceleration){
-            if(override_output_effort)
-                output_command[i].effort =  override_acceleration_value;
-            else
-                output_command[i].effort =  OP->NewAccelerationVector->VecData[i];
-        }
-        else{
+        if(!treat_effort_as_acceleration)
             output_command[i].effort = base::unset<float>();
-        }
+    }
+
+    //Override output speed if required
+    for(size_t i = 0; i < override_output_speed.size(); i++)
+    {
+        size_t internal_index = map_joint_name_to_index(override_output_speed.names[i]);
+        output_command[internal_index].speed =  override_output_speed[i].speed;
+    }
+
+    //Override output effort if required
+    for(size_t i = 0; i < override_output_effort.size(); i++)
+    {
+        size_t internal_index = map_joint_name_to_index(override_output_effort.names[i]);
+        output_command[internal_index].effort =  override_output_effort[i].effort;
     }
 
     //Write command output

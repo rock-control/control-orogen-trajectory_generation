@@ -42,10 +42,8 @@ protected:
     bool treat_effort_as_acceleration; //Use the effort field from JointState type for acceleration.
     bool override_input_acceleration;     //Set output acceleration as input for next cycle. When treat_effort_as_acceleration == false, input acceleration is always overriden. In this case, acceleration is always assumed to zero at first sample.
 
-    bool override_output_speed;   //Set output speed to fixed value every time
-    bool override_output_effort;  //Set output effort to fixed value every time
-    double override_speed_value;
-    double override_acceleration_value;
+    base::samples::Joints override_output_speed;   //Set output speed to fixed value every time
+    base::samples::Joints override_output_effort;  //Set output effort to fixed value every time
     double override_target_velocity;
 
     //! Flag that specifies wheter to write debug data to port s or not

@@ -404,8 +404,9 @@ void RMLVelocityTask::updateHook()
     }
 
     while(_constrained_velocity_target.read(constrained_cmd_in_) == RTT::NewData){
+        command_in_.names = constrained_cmd_in_.names;
+        command_in_.elements = constrained_cmd_in_.elements;
         setActiveMotionConstraints(constrained_cmd_in_.motion_constraints);
-        command_in_ = constrained_cmd_in_;
         handleCommandInput(command_in_);
         stamp_ = base::Time::now();
         has_target_ = true;
