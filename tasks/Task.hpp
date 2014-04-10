@@ -80,6 +80,8 @@ protected:
     base::JointsTrajectory input_trajectory_target;
     //!  Temporary storage of new position target read from port
     base::commands::Joints input_position_target;
+    //!  Temporary storage of new constrained position target read from port
+    ConstrainedJointsCmd input_constrained_position_target_;
 
     std::vector<std::string> dont_allow_positive_, dont_allow_negative_;
     size_t current_step;
@@ -148,6 +150,16 @@ protected:
      * @returns wether the input was feasible or had to modified to make it feasible
      */
     bool handle_position_target(const base::commands::Joints& sample);
+
+    /**
+     * @brief Handles a new target of type trajectory_generation::ConstrainedJointsCmd
+     *
+     * Internally converts the joint sample into a ConstrainedJointsTrajectory and calls
+     * handle_constrainted_trajectory_target
+     *
+     * @returns wether the input was feasible or had to modified to make it feasible
+     */
+    bool handle_constrained_position_target(const trajectory_generation::ConstrainedJointsCmd& sample);
 
     /**
      * @brief Handles a new target of type base:JointsTrajectory.

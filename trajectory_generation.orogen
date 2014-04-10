@@ -63,6 +63,8 @@ task_context "Task" do
         doc("Alternative input port to define a target trajectory. The
              contraints given in the ConstrainedJointsTrajectory will override
              the corresponding configured properties temporary.")
+    input_port("constrained_position_target", "trajectory_generation/ConstrainedJointsCmd").
+        doc("Position command with constraints")
 
     # Forbid certain joints to move in a positive direction
     input_port("dont_allow_positive", "/std/vector<std/string>")
@@ -129,11 +131,11 @@ task_context "RMLVelocityTask" do
     property('override_input_acceleration', 'bool', false)
 
 
-    # Optionally set the motion constraints online. If an input is .nan the constraints will fallback to the initial ones
-    input_port("motion_constraints", "trajectory_generation/JointsMotionConstraints")
-
     # The target joint velocity
     input_port("velocity_target", "/base/commands/Joints")
+
+    input_port("constrained_velocity_target", "trajectory_generation/ConstrainedJointsCmd").
+        doc("Velocity command with constraints")
 
     # Current state measurement from the actuators
     input_port("joint_state", "/base/samples/Joints")

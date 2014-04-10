@@ -72,10 +72,6 @@ void set_speeds(base::JointsTrajectory& traj, double target_speed){
 }
 
 
-/// The following lines are template definitions for the various state machine
-// hooks defined by Orocos::RTT. See Task.hpp for more detailed
-// documentation about them.
-
 bool Task::configureHook()
 {
     if (! TaskBase::configureHook())
@@ -315,9 +311,44 @@ bool Task::handle_position_target(const base::commands::Joints& sample)
 
     size_t internal_idx;
     for(size_t i=0; i<sample.size(); i++){
-        internal_idx = map_joint_name_to_index(sample.names[i]);
+        try{
+            internal_idx = map_joint_name_to_index(sample.names[i]);
+        }
+        catch(std::exception e){
+            //LOG_WARN("Joint %s is in position input vector, but has not been configured in joint limits")
+            continue;
+        }
+
         get_default_motion_constraints(internal_idx, current_trajectory.motion_constraints[internal_idx][0]);
         current_trajectory.elements[internal_idx][0] = sample[i];
+    }
+
+    return make_feasible(current_trajectory);
+}
+
+
+bool Task::handle_constrained_position_target(const trajectory_generation::ConstrainedJointsCmd& sample)
+{
+    //Create Contraint trajectory from saple with with one via point. Use default
+    //motion constraints.
+    current_trajectory.resize(nDof, 1);
+
+    //Set active joints according to sample
+    set_active_joints(sample.names);
+
+    size_t internal_idx;
+    for(size_t i=0; i<sample.size(); i++){
+        try{
+            internal_idx = map_joint_name_to_index(sample.names[i]);
+        }
+        catch(std::exception e){
+            //LOG_WARN("Joint %s is in position input vector, but has not been configured in joint limits")
+            continue;
+        }
+
+        get_default_motion_constraints(internal_idx, current_trajectory.motion_constraints[internal_idx][0]);
+        current_trajectory.elements[internal_idx][0] = sample[i];
+        current_trajectory.motion_constraints[internal_idx][0] = sample.motion_constraints[i];
     }
 
     return make_feasible(current_trajectory);
@@ -560,12 +591,17 @@ void Task::updateHook()
         handle_constrained_trajectory_target(input_constrained_trajectory_target);
     }
 
+    if(_constrained_position_target.read(input_constrained_position_target_) == RTT::NewData){
+        LOG_DEBUG("Received a new constrained position target");
+        reset_for_new_command();
+        handle_constrained_position_target(input_constrained_position_target_);
+    }
+
     if(_position_target.read( input_position_target, false ) == RTT::NewData){
-        LOG_DEBUG("Received a new target on trajectory input port");
+        LOG_DEBUG("Received a new position target");
         reset_for_new_command();
         handle_position_target(input_position_target);
     }
-
 
     //If no joint state is avaliable, don't do anything. RML will be uninitialized otherwise
     if(_joint_state.readNewest(input_joint_state) == RTT::NoData){
@@ -607,10 +643,8 @@ void Task::updateHook()
         }
     }
 
-    //FIXME: Deleted a bunch of code dealing with 'allow_positive' and 'allow_negative'.
-    //       It seems rather hacky, what was it for? I don't think it should be here.
-
     //Perform control step with reflexxes
+    LOG_DEBUG("Target Pos: %f Max Acc: %f", IP_active->TargetPositionVector->VecData[5], IP_active->MaxAccelerationVector->VecData[5]);
     int result = RML->RMLPosition( *IP_active, OP, Flags );
     RMLDoubleVector min_position_vector(nDof);
     RMLDoubleVector max_position_vector(nDof);
