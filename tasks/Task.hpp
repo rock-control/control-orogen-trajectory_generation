@@ -10,6 +10,7 @@
 #include <RMLPositionInputParameters.h>
 #include <RMLPositionOutputParameters.h>
 #include "ConstrainedJointsTrajectory.hpp"
+#include "trajectory_generationTypes.hpp"
 
 namespace trajectory_generation {
 
@@ -84,6 +85,7 @@ protected:
     std::vector<std::string> dont_allow_positive_, dont_allow_negative_;
     size_t current_step;
     bool has_target;
+    bool do_write_command;
 
     //! Joint state as read from port
     base::samples::Joints input_joint_state;

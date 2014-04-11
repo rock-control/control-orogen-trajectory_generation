@@ -12,6 +12,7 @@ Task::Task(std::string const& name)
 {
     LOG_CONFIGURE(DEBUG, stdout);
     throw_on_infeasible_input = false;
+    do_write_command=true;
 }
 
 Task::Task(std::string const& name, RTT::ExecutionEngine* engine)
@@ -19,6 +20,7 @@ Task::Task(std::string const& name, RTT::ExecutionEngine* engine)
 {
     LOG_CONFIGURE(DEBUG, stdout);
     throw_on_infeasible_input = false;
+    do_write_command=true;
 }
 
 Task::~Task()
@@ -515,6 +517,7 @@ void Task::reset_for_new_command()
 {
     current_step = 0;
     has_target = true;
+    do_write_command = true;
 }
 
 void Task::handle_reflexxes_result_value(const int& result)
@@ -528,10 +531,24 @@ void Task::handle_reflexxes_result_value(const int& result)
         if(state() != REACHED)
         {
             _via_point_reached.write(current_step++);
-            LOG_INFO("Waypoint %d/%d reached", current_step, current_trajectory.getTimeSteps());
-            int steps_in_traj = current_trajectory.getTimeSteps();
-            if(current_step >= current_trajectory.getTimeSteps())
+            LOG_DEBUG("Waypoint %d/%d reached", current_step, current_trajectory.getTimeSteps());
+            if(current_step >= current_trajectory.getTimeSteps()){
                 state(REACHED);
+                LOG_DEBUG("Final waypoint reached");
+            }
+        }
+        //After end of trajectory was reached, decide what to do, keep sending or stop
+        else{
+            if(_target_reached_behavior.get() == KEEP_SENDING_COMMANDS){
+                do_write_command = true;
+            }
+            else if(_target_reached_behavior.get() == STOP_SENDING_COMMANDS){
+                do_write_command = false;
+            }
+            else{
+                LOG_ERROR_S << "Unexpected target_reached_behavior value: " << _target_reached_behavior.get();
+                throw(std::runtime_error("Unexpected target_reached_behavior value."));
+            }
         }
         break;
     case ReflexxesAPI::RML_ERROR:
@@ -750,7 +767,8 @@ void Task::updateHook()
     }
 
     //Write command output
-    _cmd.write( output_command );
+    if(do_write_command)
+        _cmd.write( output_command );
 
     //
     // Write debug data

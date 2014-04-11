@@ -11,6 +11,7 @@
 #include <vector>
 
 namespace trajectory_generation {
+    enum TargetReachedBehavior{KEEP_SENDING_COMMANDS, STOP_SENDING_COMMANDS};
     struct RMLInputParams{   
          RMLInputParams(){}
          RMLInputParams(int nDOF){

@@ -44,9 +44,11 @@ task_context "Task" do
         doc("Override speed of the given joints with the given speed value")
     property("override_output_effort", "base/samples/Joints").
         doc("Override effort of the given joints with the given effort value")
-
     property('override_target_velocity', 'double').
         doc('Set target velocity forcefully to this value')
+    
+    #TODO: Does it make sense to use this property for velocity control as well?
+    property('target_reached_behavior', 'trajectory_generation/TargetReachedBehavior', 'KEEP_SENDING_COMMANDS')
 
 
     input_port("trajectory_target", "/base/JointsTrajectory").
