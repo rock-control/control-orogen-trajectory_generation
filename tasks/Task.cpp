@@ -96,9 +96,10 @@ bool Task::configureHook()
     output_command.resize( nDof );
     output_command.names = limits.names;
 
+    rml_output_sample.resize(nDof);
+    rml_output_sample.names = limits.names;
+
     if(write_debug_data){
-        debug_output_command_unmodified.resize(nDof);
-        debug_output_command_unmodified.names = limits.names;
 
         debug_rml_input_params = RMLInputParams(nDof);
         debug_rml_output_params = RMLOutputParams(nDof);
@@ -174,8 +175,7 @@ bool Task::configureHook()
     assert(current_motion_constraints.size() == nDof);
     assert(output_command.size() == nDof);
     assert(current_trajectory.getNumberOfJoints() == nDof);
-    if(write_debug_data)
-        assert(debug_output_command_unmodified.size() == nDof);
+    assert(rml_output_sample.size() == nDof);
 
     return true;
 }
@@ -663,10 +663,18 @@ void Task::updateHook()
         }
     }
 
+    //Fill output sample with joint state in case no target is available yet
+    rml_output_sample.time = base::Time::now();
+    for(size_t i=0; i<rml_output_sample.size(); i++){
+        base::JointState state = input_joint_state.getElementByName(rml_output_sample.names[i]);
+        rml_output_sample[i] = state;
+    }
 
     //As long as no target was received, do nothing
-    if(!has_target)
+    if(!has_target){
+        _output_sample.write(rml_output_sample);
         return;
+    }
 
     //Prepare data for Reflexxes
     if( current_step < current_trajectory.getTimeSteps() ){
@@ -725,15 +733,13 @@ void Task::updateHook()
         output_command[i].effort= OP->GetNewAccelerationVectorElement(i);
         output_command.time = base::Time::now();
 
-        if(write_debug_data){
-            debug_output_command_unmodified = output_command;
-            //FIXME: Rename this port to something more understandable. Maybe: debug_output_command_unmodified
-            _output_sample.write(debug_output_command_unmodified);
-        }
-
         if(!treat_effort_as_acceleration)
             output_command[i].effort = base::unset<float>();
     }
+
+    rml_output_sample = output_command;
+    rml_output_sample.time = base::Time::now();
+    _output_sample.write(rml_output_sample);
 
     //Override output speed if required
     for(size_t i = 0; i < override_output_speed.size(); i++)
