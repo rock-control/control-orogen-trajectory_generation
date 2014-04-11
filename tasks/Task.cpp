@@ -11,14 +11,14 @@ Task::Task(std::string const& name)
     : TaskBase(name), current_step(0)
 {
     LOG_CONFIGURE(DEBUG, stdout);
-    throw_on_infeasible_input = true;
+    throw_on_infeasible_input = false;
 }
 
 Task::Task(std::string const& name, RTT::ExecutionEngine* engine)
     : TaskBase(name, engine), current_step(0)
 {
     LOG_CONFIGURE(DEBUG, stdout);
-    throw_on_infeasible_input = true;
+    throw_on_infeasible_input = false;
 }
 
 Task::~Task()
@@ -283,10 +283,21 @@ void Task::get_default_motion_constraints(const std::string &joint_name, JointMo
 
 bool Task::make_feasible(ConstrainedJointsTrajectory& sample)
 {
-    //Check if velocities have been set. If not, guess them
-    base::samples::Joints first_sample;
-    sample.getJointsAtTimeStep(0, first_sample);
-    if(!first_sample.elements[0].hasSpeed()){
+    //Check if velocities have been set.
+    bool velocities_set = true;
+    for(size_t t=0; t<sample.getTimeSteps(); t++){
+        for(size_t j=0; j<nDof; j++){
+            if(IP_active->GetSelectionVectorElement(j) && !sample.elements[j][t].hasSpeed()){
+                velocities_set = false;
+                LOG_INFO("Not all joints have a velocity set in all time points. Will guess _all_ velocities!");
+                break;
+            }
+        }
+        if(!velocities_set)
+            break;
+    }
+
+    if(!velocities_set){
         LOG_DEBUG("Trajectory has no velocities set. Will gues them.");
         set_speeds(sample, override_target_velocity);
     }
@@ -533,7 +544,11 @@ void Task::handle_reflexxes_result_value(const int& result)
 
             IP_active->Echo();
             for(size_t i=0; i<nDof; i++){
-                LOG_INFO("(Joint %d) Current %.5f, Target %.f  --  Limits [%.5f, %.5f]", i, IP_active->GetCurrentPositionVectorElement(i), IP_active->GetTargetPositionVectorElement(i), IP_active->GetMinPositionVectorElement(i), IP_active->GetMaxPositionVectorElement(i));
+                LOG_INFO("(Joint %d) Current %.5f, Target %.f  --  Limits [%.5f, %.5f]",
+                         i, IP_active->GetCurrentPositionVectorElement(i),
+                         IP_active->GetTargetPositionVectorElement(i),
+                         IP_active->GetMinPositionVectorElement(i),
+                         IP_active->GetMaxPositionVectorElement(i));
             }
             std::cout<<std::endl;
         }
