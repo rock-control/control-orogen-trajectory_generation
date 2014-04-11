@@ -40,15 +40,10 @@ task_context "Task" do
         doc('Use the effort field from JointState type for acceleration.')
     property('override_input_acceleration', 'bool', true).
         doc('Set output acceleration as input for next cycle. When treat_effort_as_acceleration == false, input acceleration is always overriden. In this case, acceleration is always assumed to zero at first sample.')
-
-    property('override_output_speed', 'bool', false).
-        doc('Override the output speed.')
-    property('override_output_effort', 'bool', false).
-        doc('Override the output effort.')
-    property('override_speed_value', 'double').
-        doc('Set output speed to this value every time.')
-    property('override_acceleration_value', 'double').
-        doc('Set output acceleration to this value every time. If treat_effort_as_acceleration = false, this property has no effect.')
+    property("override_output_speed", "base/samples/Joints").
+        doc("Override speed of the given joints with the given speed value")
+    property("override_output_effort", "base/samples/Joints").
+        doc("Override effort of the given joints with the given effort value")
 
     property('override_target_velocity', 'double').
         doc('Set target velocity forcefully to this value')
@@ -63,6 +58,8 @@ task_context "Task" do
         doc("Alternative input port to define a target trajectory. The
              contraints given in the ConstrainedJointsTrajectory will override
              the corresponding configured properties temporary.")
+    input_port("constrained_position_target", "trajectory_generation/ConstrainedJointsCmd").
+        doc("Position command with constraints")
 
     # Forbid certain joints to move in a positive direction
     input_port("dont_allow_positive", "/std/vector<std/string>")
@@ -129,11 +126,11 @@ task_context "RMLVelocityTask" do
     property('override_input_acceleration', 'bool', false)
 
 
-    # Optionally set the motion constraints online. If an input is .nan the constraints will fallback to the initial ones
-    input_port("motion_constraints", "trajectory_generation/JointsMotionConstraints")
-
     # The target joint velocity
     input_port("velocity_target", "/base/commands/Joints")
+
+    input_port("constrained_velocity_target", "trajectory_generation/ConstrainedJointsCmd").
+        doc("Velocity command with constraints")
 
     # Current state measurement from the actuators
     input_port("joint_state", "/base/samples/Joints")

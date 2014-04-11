@@ -42,10 +42,8 @@ protected:
     bool treat_effort_as_acceleration; //Use the effort field from JointState type for acceleration.
     bool override_input_acceleration;     //Set output acceleration as input for next cycle. When treat_effort_as_acceleration == false, input acceleration is always overriden. In this case, acceleration is always assumed to zero at first sample.
 
-    bool override_output_speed;   //Set output speed to fixed value every time
-    bool override_output_effort;  //Set output effort to fixed value every time
-    double override_speed_value;
-    double override_acceleration_value;
+    base::samples::Joints override_output_speed;   //Set output speed to fixed value every time
+    base::samples::Joints override_output_effort;  //Set output effort to fixed value every time
     double override_target_velocity;
 
     //! Flag that specifies wheter to write debug data to port s or not
@@ -80,6 +78,8 @@ protected:
     base::JointsTrajectory input_trajectory_target;
     //!  Temporary storage of new position target read from port
     base::commands::Joints input_position_target;
+    //!  Temporary storage of new constrained position target read from port
+    ConstrainedJointsCmd input_constrained_position_target_;
 
     std::vector<std::string> dont_allow_positive_, dont_allow_negative_;
     size_t current_step;
@@ -148,6 +148,16 @@ protected:
      * @returns wether the input was feasible or had to modified to make it feasible
      */
     bool handle_position_target(const base::commands::Joints& sample);
+
+    /**
+     * @brief Handles a new target of type trajectory_generation::ConstrainedJointsCmd
+     *
+     * Internally converts the joint sample into a ConstrainedJointsTrajectory and calls
+     * handle_constrainted_trajectory_target
+     *
+     * @returns wether the input was feasible or had to modified to make it feasible
+     */
+    bool handle_constrained_position_target(const trajectory_generation::ConstrainedJointsCmd& sample);
 
     /**
      * @brief Handles a new target of type base:JointsTrajectory.

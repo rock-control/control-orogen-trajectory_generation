@@ -4,6 +4,7 @@
 #include <vector>
 #include <base/JointsTrajectory.hpp>
 #include <base/JointLimitRange.hpp>
+#include <base/commands/Joints.hpp>
 #include <base/Time.hpp>
 
 namespace trajectory_generation {
@@ -20,6 +21,20 @@ struct JointMotionConstraints
 
 typedef base::NamedVector<JointMotionConstraints> JointsMotionConstraints;
 typedef std::vector<JointMotionConstraints> JointMotionConstraintsSeries;
+
+struct ConstrainedJointsCmd
+        : public base::commands::Joints
+{
+
+    /**
+     * @brief Array of motion constraints the motion of each joint underlies
+     *
+     * This vector needs to be the same dimensions as the base type. That is,
+     * for every joint, a motion constraint is given.
+     */
+    JointsMotionConstraints motion_constraints;
+};
+
 
 struct ConstrainedJointsTrajectory 
         : public base::JointsTrajectory
@@ -44,7 +59,7 @@ struct ConstrainedJointsTrajectory
      *         trajectory.
      */
     void getJointsMotionConstraintsAtSample(size_t time_step,
-            JointsMotionConstraints& motion_constraints){
+                                            JointsMotionConstraints& motion_constraints){
         if(time_step > getTimeSteps()){
             throw(base::JointsTrajectory::InvalidTimeStep(time_step));
         }

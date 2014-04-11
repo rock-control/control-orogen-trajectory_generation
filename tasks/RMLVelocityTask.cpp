@@ -145,9 +145,9 @@ void RMLVelocityTask::handleCommandInput(const base::commands::Joints &command)
         Vel_IP_->SelectionVector->VecData[i] = false;
 
     // Use name mapping to allow partial inputs.
+    size_t joint_idx = 0;
     for(size_t i = 0; i < command_in_.size(); i++)
     {
-        size_t joint_idx = 0;
         try{
             joint_idx = initial_motion_constraints_.mapNameToIndex(command.names[i]);
         }
@@ -184,9 +184,9 @@ void RMLVelocityTask::setActiveMotionConstraints(const trajectory_generation::Jo
         }
         catch(std::exception e)
         {
-            LOG_ERROR("%s: SetMotionConstraints: Joint %s has not been configured",
+            LOG_WARN("%s: SetMotionConstraints: Joint %s has not been configured. Will ignore this joint",
                       this->getName().c_str(), constraints.names[i].c_str());
-            throw std::invalid_argument("Invalid constraint vector");
+            continue;
         }
 
         // Set Position limits: If input is nan, reset to initial min/max pos
@@ -397,14 +397,21 @@ void RMLVelocityTask::updateHook()
 
     handleStatusInput(status_);
 
-    while(_motion_constraints.read(constraints_from_port_) == RTT::NewData)
-        setActiveMotionConstraints(constraints_from_port_);
-
     while(_velocity_target.read(command_in_) == RTT::NewData){
         handleCommandInput(command_in_);
         stamp_ = base::Time::now();
         has_target_ = true;
     }
+
+    while(_constrained_velocity_target.read(constrained_cmd_in_) == RTT::NewData){
+        command_in_.names = constrained_cmd_in_.names;
+        command_in_.elements = constrained_cmd_in_.elements;
+        setActiveMotionConstraints(constrained_cmd_in_.motion_constraints);
+        handleCommandInput(command_in_);
+        stamp_ = base::Time::now();
+        has_target_ = true;
+    }
+
 
     if(has_target_)
     {

@@ -32,7 +32,8 @@ protected:
     bool override_input_acceleration_;  /** Set output acceleration as input for next cycle. When treat_effort_as_acceleration == false, input acceleration
                                             is always overriden. In this case, acceleration is always assumed to zero at first sample. */
 
-    trajectory_generation::JointsMotionConstraints initial_motion_constraints_, constraints_from_port_;
+    trajectory_generation::ConstrainedJointsCmd constrained_cmd_in_;
+    trajectory_generation::JointsMotionConstraints initial_motion_constraints_;
     base::samples::Joints status_;
     base::commands::Joints command_out_, command_in_;
     bool has_rml_been_called_, has_target_;
