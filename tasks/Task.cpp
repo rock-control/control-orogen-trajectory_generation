@@ -630,6 +630,14 @@ void Task::handle_reflexxes_result_value(const int& result)
 
 void Task::updateHook()
 {
+
+    //Write timing information to output port
+    base::Time time = base::Time::now();
+    base::Time diff = time-prev_time;
+    _actual_cycle_time.write(diff.toSeconds());
+    prev_time = time;
+
+    base::Time start = base::Time::now();
     TaskBase::updateHook();
 
     //Read from all the input ports. Notice, that we have implicitly a priorization here:
@@ -640,19 +648,19 @@ void Task::updateHook()
         handle_trajectory_target(input_trajectory_target);
     }
 
-    if(_constrained_trajectory_target.read( input_constrained_trajectory_target, false) == RTT::NewData){
+    if(_constrained_trajectory_target.readNewest( input_constrained_trajectory_target, false) == RTT::NewData){
         LOG_DEBUG("Received a new target on constrained trajectory input port");
         reset_for_new_command();
         handle_constrained_trajectory_target(input_constrained_trajectory_target);
     }
 
-    if(_constrained_position_target.read(input_constrained_position_target_) == RTT::NewData){
+    if(_constrained_position_target.readNewest(input_constrained_position_target_) == RTT::NewData){
         LOG_DEBUG("Received a new constrained position target");
         reset_for_new_command();
         handle_constrained_position_target(input_constrained_position_target_);
     }
 
-    if(_position_target.read( input_position_target, false ) == RTT::NewData){
+    if(_position_target.readNewest( input_position_target, false ) == RTT::NewData){
         LOG_DEBUG("Received a new position target");
         reset_for_new_command();
         handle_position_target(input_position_target);
@@ -780,11 +788,6 @@ void Task::updateHook()
     // Write debug data
     //
     if(write_debug_data){
-        //Write timing information to output port
-        base::Time time = base::Time::now();
-        base::Time diff = time-prev_time;
-        _actual_cycle_time.write(diff.toSeconds());
-        prev_time = time;
 
 
         for(uint i = 0; i < nDof; i++){
@@ -828,6 +831,7 @@ void Task::updateHook()
         _rml_input_params.write(debug_rml_input_params);
         _rml_output_params.write(debug_rml_output_params);
     }
+    printf("Diff: %f\n", (base::Time::now() - start).toSeconds());
 }
 
 void Task::errorHook()
