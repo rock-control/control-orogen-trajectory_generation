@@ -331,8 +331,8 @@ bool Task::handle_position_target(const base::commands::Joints& sample)
         }
 
         //Check for correct control mode
-        if(sample[i].getMode() != base::JointState::POSITION){
-            LOG_ERROR("%s: Supports only position control mode, but input has control mode %i", this->getName().c_str(), sample[i].getMode());
+        if(!sample[i].hasPosition()){
+            LOG_ERROR("%s: Supports only position control mode, but input command does not provide a position value", this->getName().c_str());
             throw std::invalid_argument("Invalid control mode");
         }
 
@@ -364,8 +364,8 @@ bool Task::handle_constrained_position_target(const trajectory_generation::Const
         }
 
         //Check for correct control mode
-        if(sample[i].getMode() != base::JointState::POSITION){
-            LOG_ERROR("%s: Supports only position control mode, but input has control mode %i", this->getName().c_str(), sample[i].getMode());
+        if(!sample[i].hasPosition()){
+            LOG_ERROR("%s: Supports only position control mode, but input command does not provide a position value", this->getName().c_str());
             throw std::invalid_argument("Invalid control mode");
         }
 
@@ -392,8 +392,8 @@ bool Task::handle_trajectory_target(const base::JointsTrajectory& sample)
         for(size_t time_idx=0; time_idx<sample.getTimeSteps(); time_idx++){
 
             //Check for correct control mode
-            if(sample[joint_idx][time_idx].getMode() != base::JointState::POSITION){
-                LOG_ERROR("%s: Supports only position control mode, but input has control mode %i", this->getName().c_str(), sample[joint_idx][time_idx].getMode());
+            if(!sample[joint_idx][time_idx].hasPosition()){
+                LOG_ERROR("%s: Supports only position control mode, but input command does not provide a position value", this->getName().c_str());
                 throw std::invalid_argument("Invalid control mode");
             }
 
@@ -420,10 +420,11 @@ bool Task::handle_constrained_trajectory_target(const ConstrainedJointsTrajector
         for(size_t time_idx=0; time_idx<sample.getTimeSteps(); time_idx++){
 
             //Check for correct control mode
-            if(sample[joint_idx][time_idx].getMode() != base::JointState::POSITION){
-                LOG_ERROR("%s: Supports only position control mode, but input has control mode %i", this->getName().c_str(), sample[joint_idx][time_idx].getMode());
+            if(!sample[joint_idx][time_idx].hasPosition()){
+                LOG_ERROR("%s: Supports only position control mode, but input command does not provide a position value", this->getName().c_str());
                 throw std::invalid_argument("Invalid control mode");
             }
+
             current_trajectory.motion_constraints[internal_joint_idx][time_idx] = sample.motion_constraints[joint_idx][time_idx];
             current_trajectory.elements[internal_joint_idx][time_idx] = sample[joint_idx][time_idx];
         }

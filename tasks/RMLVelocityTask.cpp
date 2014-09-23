@@ -155,8 +155,8 @@ void RMLVelocityTask::handleCommandInput(const base::commands::Joints &command)
             continue;
         }
 
-        if(command_in_[i].getMode() != base::JointState::SPEED){
-            LOG_ERROR("RMLVelocity supports only speed control mode, but input has control mode %i", command[i].getMode());
+        if(!command_in_[i].hasSpeed()){
+            LOG_ERROR("%s: supports only speed control mode, but input command does not provide a speed value", this->getName().c_str());
             throw std::invalid_argument("Invalid control mode");
         }
 
