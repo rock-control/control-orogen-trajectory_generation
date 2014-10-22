@@ -1,0 +1,47 @@
+--- name:default
+# Cycle time in seconds. IMPORTANT: This has to be the same value as the period of this component!
+cycle_time: 0.02
+
+# These are the motion constraints for the output trajectory. Will use max/min position, max vel, max acceleration and max jerk to shape the output trajectory.
+limits:
+  names: ["Joint_one", "Joint_two"]
+  elements: [{max: {position: 1.5, speed: 1.0, acceleration: 0.5}, min: {position: -1.0}, max_jerk: 2.0},
+             {max: {position: 2.0, speed: 2.0, acceleration: 1.0}, min: {position: -1.5}, max_jerk: 2.0}]
+
+# RML Output acceleration of previous cycle will be used as input for next cycle. If false, use the actual joint acceleration (from joint_state port) as input for the next cycle.
+override_input_acceleration: true
+
+# RML Output position of previous cycle will be used as input for next cycle. If false, use the actual joint position (from joint_state port) as input for the next cycle.
+override_input_position: true
+
+# RML Output speed of previous cycle will be used as input for next cycle. If false, use the actual joint speed (from joint_state port) as input for the next cycle.
+override_input_speed: true
+
+# Forcefully set the acceleration of the output command to this value (only for the specified joints)
+override_output_acceleration:
+  names: []
+  elements: []
+  time:
+    microseconds: 0
+
+# Forcefully set the speed of the output command to this value (only for the specified joints)
+override_output_speed:
+  names: []
+  elements: []
+  time:
+    microseconds: 0
+
+# Behavior when reaching positional limits. Can be one of 0 = RMLFlags::POSITIONAL_LIMITS_IGNORE,1 = RMLFlags::POSITIONAL_LIMITS_ERROR_MSG_ONLY, 2 = RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT. Only available for Reflexxes Type_IV
+positional_limits_behavior: 0
+
+# The synchronization behavior of RML. Can be one of 0 = RMLFlags::PHASE_SYNCHRONIZATION_IF_POSSIBLE, 1 = RMLFlags::ONLY_TIME_SYNCHRONIZATION, 2 = RMLFlags::ONLY_PHASE_SYNCHRONIZATION, 3 = RMLFlags::NO_SYNCHRONIZATION
+sync_behavior: 3
+
+# Can be one of KEEP_SENDING_COMMANDS or STOP_SENDING_COMMANDS
+target_reached_behavior: :KEEP_SENDING_COMMANDS
+
+# Should an exception be thrown if input was infeasible, e.g. target speed too high?
+throw_on_infeasible_input: true
+
+# Write additional debug data to port or not
+write_debug_data: true

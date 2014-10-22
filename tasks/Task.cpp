@@ -11,7 +11,6 @@ Task::Task(std::string const& name)
     : TaskBase(name), current_step(0)
 {
     LOG_CONFIGURE(DEBUG, stdout);
-    throw_on_infeasible_input = false;
     do_write_command=true;
 }
 
@@ -19,7 +18,6 @@ Task::Task(std::string const& name, RTT::ExecutionEngine* engine)
     : TaskBase(name, engine), current_step(0)
 {
     LOG_CONFIGURE(DEBUG, stdout);
-    throw_on_infeasible_input = false;
     do_write_command=true;
 }
 
@@ -33,9 +31,9 @@ double interpolate(double a, double b, double c){
     return (ba+cb)/2.0;
 }
 
-void set_speeds(base::JointsTrajectory& traj, double target_speed){
+void set_speeds(trajectory_generation::ConstrainedJointsTrajectory& traj){
     // TODO:
-    // Caution: This currently might result in a infeasible trajectory which will only be detected during execution.
+    // Caution: This currently might result in an infeasible trajectory which will only be detected during execution.
     // This behviour comes because feasibility check is only a check for joint limits.
     // During execution it is checked if e.g. max jerk is high enough to avoid joint limits.
     double cur, prev, next, speed;
@@ -67,8 +65,10 @@ void set_speeds(base::JointsTrajectory& traj, double target_speed){
         {
             if(max_speed == 0)
                 traj[joint_idx][t].speed = 0;
-            else
-                traj[joint_idx][t].speed = (traj[joint_idx][t].speed/max_speed) * target_speed;
+            else{
+                traj[joint_idx][t].speed = (traj[joint_idx][t].speed/max_speed) * traj.motion_constraints[joint_idx][t].max.speed;
+                traj.motion_constraints[joint_idx][t].max.speed = traj[joint_idx][t].speed;
+            }
         }
     }
 }
@@ -76,24 +76,25 @@ void set_speeds(base::JointsTrajectory& traj, double target_speed){
 
 bool Task::configureHook()
 {
+    std::cout<<"In configrue Hook"<<std::endl;
     if (! TaskBase::configureHook())
         return false;
 
-    limits = _limits.value();
+    limits = _limits.get();
     nDof = limits.size();
-
     cycle_time = _cycle_time.get();
+    if(cycle_time <= 0){
+        LOG_ERROR("Cycle time has to be = 0! Note that the cycle time has to be configured to be the same as the period of your component");
+        return false;
+    }
 
     write_debug_data = _write_debug_data.get();
-
-    override_input_position = _override_input_position.value();
-    override_input_speed = _override_input_speed.value();
-    override_input_acceleration = _override_input_acceleration.value();
-    treat_effort_as_acceleration = _treat_effort_as_acceleration.value();
-    override_target_velocity = _override_target_velocity.value();
-
-    override_output_speed = _override_output_speed.value();
-    override_output_effort = _override_output_effort.value();
+    override_input_position = _override_input_position.get();
+    override_input_speed = _override_input_speed.get();
+    override_input_acceleration = _override_input_acceleration.get();
+    override_output_speed = _override_output_speed.get();
+    override_output_acceleration = _override_output_acceleration.get();
+    throw_on_infeasible_input = _throw_on_infeasible_input.get();
 
     output_command.resize( nDof );
     output_command.names = limits.names;
@@ -102,7 +103,6 @@ bool Task::configureHook()
     rml_output_sample.names = limits.names;
 
     if(write_debug_data){
-
         debug_rml_input_params = RMLInputParams(nDof);
         debug_rml_output_params = RMLOutputParams(nDof);
     }
@@ -113,47 +113,20 @@ bool Task::configureHook()
 
     if( nDof == 0 )
     {
-        LOG_ERROR_S << "No joint limits have been configured" << std::endl;
+        LOG_ERROR_S << "Size of joint limits is zero!" << std::endl;
         return false;
     }
-
-    //Verify Override:target_velcoity. If it is n ot set, set it to max velcoity of slowest joint. Otherwise checkt, that it fullfills beforementioned constraint
-    if(base::isNaN<double>(override_target_velocity)){
-        double slowest = 9999999999;
-        for(uint i=0; i<nDof; i++){
-            if(limits[i].max.speed < slowest)
-                slowest = limits[i].max.speed;
-        }
-        override_target_velocity = slowest;
-        LOG_INFO("override_target_velocity was not set. Set it to max velocity of the slowest joint. The new value is %f", override_target_velocity);
-    }
-    else{
-        for(uint i=0; i<nDof; i++){
-            if(limits[i].max.speed < override_target_velocity){
-                LOG_ERROR("override_target_velocity too high. Joint %s has a max speed of %f. override_target_velocity must be lower than that value.",limits.names[i].c_str(), limits[i].max.speed);
-                return false;
-            }
-        }
-    }
-
-    dist_to_upper.resize(nDof);
-    dist_to_lower.resize(nDof);
 
     RML = new ReflexxesAPI( nDof, cycle_time );
     IP_static  = new RMLPositionInputParameters( nDof );
     OP  = new RMLPositionOutputParameters( nDof );
     Flags.SynchronizationBehavior = _sync_behavior.value();
-    max_jerk = _max_jerk.get();
-    if(max_jerk.size() != limits.size())
-    {
-        LOG_ERROR("Size of max jerk property is %i, but size of joint limits is %i", max_jerk.size(), limits.size());
-        return false;
-    }
+
+    //Set initial constraints
     for(size_t i=0; i<nDof; i++){
-        //Constraints
         IP_static->SetMaxVelocityVectorElement(limits[i].max.speed, i);
-        IP_static->SetMaxAccelerationVectorElement(limits[i].max.effort, i);
-        IP_static->SetMaxJerkVectorElement(max_jerk[i], i);
+        IP_static->SetMaxAccelerationVectorElement(limits[i].max.acceleration, i);
+        IP_static->SetMaxJerkVectorElement(limits[i].max_jerk, i);
     }
 
 #ifdef USING_REFLEXXES_TYPE_IV
@@ -173,7 +146,6 @@ bool Task::configureHook()
     current_motion_constraints.names = limits.names;
 
     assert(limits.size() == nDof);
-    assert(max_jerk.size() == nDof);
     assert(current_motion_constraints.size() == nDof);
     assert(output_command.size() == nDof);
     assert(current_trajectory.getNumberOfJoints() == nDof);
@@ -194,14 +166,9 @@ bool Task::startHook()
     return true;
 }
 
-size_t Task::map_joint_name_to_index(const std::string& joint_name)
-{
-    return limits.mapNameToIndex(joint_name);
-}
-
 void Task::set_active_joints(const std::vector<std::string> &joint_names)
 {
-    //Go throu all known joints and test if it is also in the joint_names vector.
+    //Go through all known joints and test if it is also in the joint_names vector.
     //If so, set corresponding joint as active. If not set corresponding joint as
     //inactive.
     for(uint i=0; i<limits.size(); i++){
@@ -233,8 +200,16 @@ void Task::set_active_motion_constraints(const JointsMotionConstraints& motion_c
 
     //Override if new constraints are set
     size_t idx;
-    for(size_t i=0; i<motion_constraints.size(); i++){
-        idx = map_joint_name_to_index(motion_constraints.names[i]);
+    for(size_t i=0; i<motion_constraints.size(); i++)
+    {
+        try{
+            idx = limits.mapNameToIndex(motion_constraints.names[i]);
+        }
+        catch(std::exception e){
+            LOG_ERROR("Motion constraints contain joint %s, but this joint has not been configured", motion_constraints.names[i].c_str());
+            throw e;
+        }
+
 #ifdef USING_REFLEXXES_TYPE_IV
         //Only override position constraint, if a valid value is set
         if(!base::isNaN<double>(motion_constraints[i].min.position))
@@ -249,8 +224,8 @@ void Task::set_active_motion_constraints(const JointsMotionConstraints& motion_c
             IP_active->SetMaxVelocityVectorElement(motion_constraints[i].max.speed, idx);
 
         //Only override acceleration constraint, if a valid value is set
-        if(!base::isNaN<float>(motion_constraints[i].max.effort))
-            IP_active->SetMaxAccelerationVectorElement(motion_constraints[i].max.effort, idx);
+        if(!base::isNaN<float>(motion_constraints[i].max.acceleration))
+            IP_active->SetMaxAccelerationVectorElement(motion_constraints[i].max.acceleration, idx);
 
         //Only override jerk constraint, if a valid value is set
         if(!base::isNaN<float>(motion_constraints[i].max_jerk))
@@ -258,22 +233,23 @@ void Task::set_active_motion_constraints(const JointsMotionConstraints& motion_c
     }
 }
 
-void Task::set_active_motion_constraints_to_default()
-{
-    set_active_motion_constraints(JointsMotionConstraints());
-}
-
 void Task::get_default_motion_constraints(size_t internal_index, JointMotionConstraints& constraints)
 {
     constraints.min = limits[internal_index].min;
     constraints.max = limits[internal_index].max;
-    constraints.max_jerk = max_jerk[internal_index];
+    constraints.max_jerk = limits[internal_index].max_jerk;
 }
 
 void Task::get_default_motion_constraints(const std::string &joint_name, JointMotionConstraints& constraints)
 {
-    size_t idx = map_joint_name_to_index(joint_name);
-
+    size_t idx;
+    try{
+        idx = limits.mapNameToIndex(joint_name);
+    }
+    catch(std::exception e){
+        LOG_ERROR("Joint %s has not been configured");
+        throw e;
+    }
     get_default_motion_constraints(idx, constraints);
 }
 
@@ -295,7 +271,7 @@ bool Task::make_feasible(ConstrainedJointsTrajectory& sample)
 
     if(!velocities_set){
         LOG_DEBUG("Trajectory has no velocities set. Will gues them.");
-        set_speeds(sample, override_target_velocity);
+        set_speeds(sample);
     }
 
     //Check if all samples are withing the constraints boundaries and correct if necessary
@@ -311,6 +287,19 @@ bool Task::make_feasible(ConstrainedJointsTrajectory& sample)
     return was_feasible;
 }
 
+size_t Task::map_target_name_to_joint_idx(const std::string joint_name)
+{
+    size_t idx;
+    try{
+        idx = limits.mapNameToIndex(joint_name);
+    }
+    catch(std::exception e){
+        LOG_ERROR("Target has joint with name %s, but joint has not been configured in limits", joint_name.c_str());
+        throw e;
+    }
+    return idx;
+}
+
 bool Task::handle_position_target(const base::commands::Joints& sample)
 {
     //Create Contraint trajectory from saple with with one via point. Use default
@@ -322,14 +311,7 @@ bool Task::handle_position_target(const base::commands::Joints& sample)
 
     size_t internal_idx;
     for(size_t i=0; i<sample.size(); i++){
-        try{
-            internal_idx = map_joint_name_to_index(sample.names[i]);
-        }
-        catch(std::exception e){
-            //LOG_WARN("Joint %s is in position input vector, but has not been configured in joint limits")
-            continue;
-        }
-
+        internal_idx = map_target_name_to_joint_idx(sample.names[i]);
         //Check for correct control mode
         if(!sample[i].hasPosition()){
             LOG_ERROR("%s: Supports only position control mode, but input command does not provide a position value", this->getName().c_str());
@@ -339,7 +321,6 @@ bool Task::handle_position_target(const base::commands::Joints& sample)
         get_default_motion_constraints(internal_idx, current_trajectory.motion_constraints[internal_idx][0]);
         current_trajectory.elements[internal_idx][0] = sample[i];
     }
-
     return make_feasible(current_trajectory);
 }
 
@@ -356,7 +337,7 @@ bool Task::handle_constrained_position_target(const trajectory_generation::Const
     size_t internal_idx;
     for(size_t i=0; i<sample.size(); i++){
         try{
-            internal_idx = map_joint_name_to_index(sample.names[i]);
+            internal_idx = map_target_name_to_joint_idx(sample.names[i]);
         }
         catch(std::exception e){
             //LOG_WARN("Joint %s is in position input vector, but has not been configured in joint limits")
@@ -388,7 +369,7 @@ bool Task::handle_trajectory_target(const base::JointsTrajectory& sample)
 
     size_t internal_joint_idx;
     for(size_t joint_idx=0; joint_idx<sample.getNumberOfJoints(); joint_idx++){
-        internal_joint_idx = map_joint_name_to_index(sample.names[joint_idx]);
+        internal_joint_idx = map_target_name_to_joint_idx(sample.names[joint_idx]);
         for(size_t time_idx=0; time_idx<sample.getTimeSteps(); time_idx++){
 
             //Check for correct control mode
@@ -416,7 +397,7 @@ bool Task::handle_constrained_trajectory_target(const ConstrainedJointsTrajector
 
     size_t internal_joint_idx;
     for(size_t joint_idx=0; joint_idx<sample.getNumberOfJoints(); joint_idx++){
-        internal_joint_idx = map_joint_name_to_index(sample.names[joint_idx]);
+        internal_joint_idx = map_target_name_to_joint_idx(sample.names[joint_idx]);
         for(size_t time_idx=0; time_idx<sample.getTimeSteps(); time_idx++){
 
             //Check for correct control mode
@@ -435,80 +416,78 @@ bool Task::handle_constrained_trajectory_target(const ConstrainedJointsTrajector
 
 void Task::set_current_joint_state(const base::samples::Joints& sample)
 {
-    size_t index_in_sample;
+    size_t idx;
     std::string joint_name;
-    for(size_t internal_index = 0; internal_index < limits.names.size(); internal_index++){
-        joint_name = limits.names[internal_index];
+    for(size_t i = 0; i < limits.names.size(); i++){
+        joint_name = limits.names[i];
 
         //See if required joint is found in sample. Throw if not
         try{
-            index_in_sample = input_joint_state.mapNameToIndex(joint_name);
+            idx = input_joint_state.mapNameToIndex(joint_name);
         }
         catch(base::samples::Joints::InvalidName e){ //Only catch exception to write more explicit error msgs
             LOG_ERROR("Joint %s is configured in joint limits, but not available in joint state", joint_name.c_str());
             throw e;
         }
 
-
         //If there was no control command previously generated, set current state from sample in any case
-        //Otherwise perfor check wether input should be overridden or note
-        if(override_input_position && has_rml_been_called_once)
-            IP_active->CurrentPositionVector->VecData[internal_index] = OP->NewPositionVector->VecData[internal_index];
+        //Otherwise perform check wether input should be overridden or not
+        if(override_input_position && has_rml_been_called_once){
+            IP_active->CurrentPositionVector->VecData[i] = OP->NewPositionVector->VecData[i];
+        }
         else{
-            if(!sample[index_in_sample].hasPosition()){
-                LOG_ERROR("Joint %s does not have a position value.", joint_name.c_str());
+            if(!sample[idx].hasPosition()){
+                LOG_ERROR("Joint %s from joint_state input does not have a position value.", joint_name.c_str());
                 throw(std::runtime_error("Invalid joint sample"));
             }
-            IP_active->SetCurrentPositionVectorElement(sample[index_in_sample].position, internal_index);
+            IP_active->SetCurrentPositionVectorElement(sample[idx].position, i);
         }
 
 #ifdef USING_REFLEXXES_TYPE_IV
-        //Avoid invalid input here (RML with active Positonal Limits prevention has problems with positional input that is out of limits,
+        //Avoid invalid input here (RML with active Positonal Limits prevention crashes with positional input that is out of limits,
         //which may happen due to noisy position readings)
-        //FIXME: What exactly is this 'problem'? Is it a crash or undesired behavior? If the second, what make the behavior undesireable?
         if(Flags.PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT){
-            double inbounds = IP_active->GetCurrentPositionVectorElement(internal_index);
-            if(inbounds > limits[internal_index].max.position){
-                inbounds = limits[internal_index].max.position;
+            double inbounds = IP_active->GetCurrentPositionVectorElement(i);
+            if(inbounds > limits[i].max.position){
+                inbounds = limits[i].max.position;
             }
-            if(inbounds < limits[internal_index].min.position){
-                inbounds = limits[internal_index].min.position;
+            if(inbounds < limits[i].min.position){
+                inbounds = limits[i].min.position;
             }
-            IP_active->SetCurrentPositionVectorElement(inbounds, internal_index);
+            IP_active->SetCurrentPositionVectorElement(inbounds, i);
         }
 #endif
         //Only use NewVelocityVector from previous cycle if there has been a previous cycle
         if(override_input_speed && has_rml_been_called_once){
-            IP_active->SetCurrentVelocityVectorElement(OP->NewVelocityVector->VecData[internal_index], internal_index);
+            IP_active->SetCurrentVelocityVectorElement(OP->NewVelocityVector->VecData[i], i);
         }
         else{
-            if(input_joint_state[internal_index].hasSpeed())
-                IP_active->SetCurrentVelocityVectorElement(input_joint_state[index_in_sample].speed, internal_index);
+            if(input_joint_state[i].hasSpeed()){
+                IP_active->SetCurrentVelocityVectorElement(input_joint_state[idx].speed, i);
+            }
             else{
-                IP_active->SetCurrentVelocityVectorElement(0.0, internal_index);
                 if(!override_input_speed){
-                    throw(std::runtime_error("override_input_speed was configured to false, but not all joints have a speed measurement."));
+                    LOG_ERROR("override_input_speed was configured to false, but joint_state does not provide a speed value for joint %s", joint_name.c_str());
+                    throw(std::runtime_error("Invalid joint state input"));
                 }
+                IP_active->SetCurrentVelocityVectorElement(0.0, i);
             }
         }
 
-        //We can only use 'real' acceleration values from joint status if we treat the effort field as acceleration and don't want to override effort
-        if(treat_effort_as_acceleration && !override_input_acceleration){
-            //Effort field from joint status is treaded as accerlation and 'real' state should be used. Set it accordingly.
-            IP_active->SetCurrentAccelerationVectorElement(input_joint_state[index_in_sample].effort, internal_index);
-            if(!input_joint_state[index_in_sample].hasEffort()){
-                throw(std::runtime_error("override_input_acceleration was configured to false, but not all joints have a acceleration measurement on effort field."));
-            }
+        //Only use NewVelocityVector from previous cycle if there has been a previous cycle
+        if(override_input_acceleration && has_rml_been_called_once){
+            IP_active->SetCurrentAccelerationVectorElement(OP->NewAccelerationVector->VecData[i], i);
         }
-        //Otherwise we must check whether there was a reference generated before. If so use it, otherwise assume 0
         else{
-            if(!has_rml_been_called_once){
-                //No reference acceleration was genereated before. Assume zero.
-                IP_active->SetCurrentAccelerationVectorElement(0, internal_index);
+            if(input_joint_state[i].hasAcceleration()){
+                IP_active->SetCurrentAccelerationVectorElement(input_joint_state[idx].acceleration, i);
             }
             else{
-                //Override with reference from previous cycle
-                IP_active->SetCurrentAccelerationVectorElement(OP->NewAccelerationVector->VecData[internal_index], internal_index);
+                if(!override_input_acceleration){
+                    LOG_ERROR("override_input_acceleration was configured to false, but joint_state does not provide a acceleration value for joint %s", joint_name.c_str());
+                    throw(std::runtime_error("Invalid joint state input"));
+                }
+                IP_active->SetCurrentAccelerationVectorElement(0.0, i);
             }
         }
     }
@@ -676,17 +655,8 @@ void Task::updateHook()
         return;
     }
     else{
-        assert(output_command.size() == nDof);
         //Set current joint state from sample
         set_current_joint_state(input_joint_state);
-
-        //Pre-initialize output command with current joint state
-        for(size_t input_index = 0; input_index<input_joint_state.size(); input_index++){
-            size_t internal_index = map_joint_name_to_index(input_joint_state.names[input_index]);
-            output_command[internal_index].position = input_joint_state[input_index].position;
-            output_command[internal_index].speed = input_joint_state[input_index].speed;
-            output_command[internal_index].effort= input_joint_state[input_index].effort;
-        }
     }
 
     //Fill output sample with joint state in case no target is available yet
@@ -717,7 +687,9 @@ void Task::updateHook()
 
     //Perform control step with reflexxes
     LOG_DEBUG("Target Pos: %f Max Acc: %f", IP_active->TargetPositionVector->VecData[5], IP_active->MaxAccelerationVector->VecData[5]);
+    IP_active->Echo();
     int result = RML->RMLPosition( *IP_active, OP, Flags );
+    OP->Echo();
     RMLDoubleVector min_position_vector(nDof);
     RMLDoubleVector max_position_vector(nDof);
     OP->GetPositionalExtrema(&min_position_vector, &max_position_vector);
@@ -756,11 +728,8 @@ void Task::updateHook()
         //Copy data to base type
         output_command[i].position = OP->GetNewPositionVectorElement(i);
         output_command[i].speed = OP->GetNewVelocityVectorElement(i);
-        output_command[i].effort= OP->GetNewAccelerationVectorElement(i);
+        output_command[i].acceleration= OP->GetNewAccelerationVectorElement(i);
         output_command.time = base::Time::now();
-
-        if(!treat_effort_as_acceleration)
-            output_command[i].effort = base::unset<float>();
     }
 
     rml_output_sample = output_command;
@@ -770,17 +739,30 @@ void Task::updateHook()
     //Override output speed if required
     for(size_t i = 0; i < override_output_speed.size(); i++)
     {
-        size_t internal_index = map_joint_name_to_index(override_output_speed.names[i]);
-        output_command[internal_index].speed =  override_output_speed[i].speed;
+        size_t idx;
+        try{
+            idx = limits.mapNameToIndex(override_output_speed.names[i]);
+        }
+        catch(std::exception e){ //Only catch exception to give more meaningful error msg
+            LOG_ERROR("override_output_speed has joint with name %s, but this joint has not been configured in limits", override_output_speed.names[i].c_str());
+            throw e;
+        }
+        output_command[idx].speed =  override_output_speed[i].speed;
     }
 
-    //Override output effort if required
-    for(size_t i = 0; i < override_output_effort.size(); i++)
+    //Override output acceleration if required
+    for(size_t i = 0; i < override_output_acceleration.size(); i++)
     {
-        size_t internal_index = map_joint_name_to_index(override_output_effort.names[i]);
-        output_command[internal_index].effort =  override_output_effort[i].effort;
+        size_t idx;
+        try{
+            idx = limits.mapNameToIndex(override_output_acceleration.names[i]);
+        }
+        catch(std::exception e){ //Only catch exception to give more meaningful error msg
+            LOG_ERROR("override_output_acceleration has joint with name %s, but this joint has not been configured in limits", override_output_acceleration.names[i].c_str());
+            throw e;
+        }
+        output_command[idx].acceleration =  override_output_acceleration[i].speed;
     }
-
     //Write command output
     if(do_write_command)
         _cmd.write( output_command );
@@ -789,7 +771,6 @@ void Task::updateHook()
     // Write debug data
     //
     if(write_debug_data){
-
 
         for(uint i = 0; i < nDof; i++){
             debug_rml_input_params.CurrentPositionVector[i] = IP_active->CurrentPositionVector->VecData[i];
@@ -820,19 +801,12 @@ void Task::updateHook()
             debug_rml_input_params.MinPositionVector[i] = IP_active->MinPositionVector->VecData[i];
             debug_rml_input_params.MaxPositionVector[i] = IP_active->MaxPositionVector->VecData[i];
         }
-        for(uint i = 0; i < nDof; i++)
-        {
-            dist_to_upper(i) = limits[i].max.position - IP_active->CurrentPositionVector->VecData[i];
-            dist_to_lower(i) = IP_active->CurrentPositionVector->VecData[i] - limits[i].min.position;
-        }
-        _dist_lower_limit.write(dist_to_lower);
-        _dist_upper_limit.write(dist_to_upper);
 #endif
 
         _rml_input_params.write(debug_rml_input_params);
         _rml_output_params.write(debug_rml_output_params);
     }
-    printf("Diff: %f\n", (base::Time::now() - start).toSeconds());
+    _computation_time.write((base::Time::now() - start).toSeconds());
 }
 
 void Task::errorHook()

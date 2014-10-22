@@ -1,178 +1,113 @@
-name "trajectory_generation"
+name 'trajectory_generation'
 
-import_types_from "base"
-using_library "reflexxes"
-import_types_from "trajectory_generationTypes.hpp"
-import_types_from "ConstrainedJointsTrajectory.hpp"
+import_types_from 'base'
+using_library 'reflexxes'
+import_types_from 'trajectory_generationTypes.hpp'
+import_types_from 'ConstrainedJointsTrajectory.hpp'
 
 typekit do
     export_types '/trajectory_generation/JointMotionConstraints'
     export_types '/trajectory_generation/ConstrainedJointsTrajectory'
 end
 
-task_context "Task" do
-    cycle_time = 0.02
+task_context 'Task' do
 
     needs_configuration
     runtime_states 'FOLLOWING', 'REACHED', 'IN_LIMITS'
     error_states 'NO_JOINT_STATE_INPUT'
 
-    #TODO: Convert this property to trajectory_generation::JointsMotionConstraints
-    property('limits', 'base/JointLimits').
-        doc('The limits for the joints')
+    property('limits', 'trajectory_generation/JointsMotionConstraints').
+        doc('These are the motion constraints for the output trajectory. Will use max/min position, max vel, max acceleration and max jerk to shape the output trajectory.')
     property('cycle_time', 'double').
-        doc('Cycle time in seconds')
-    property('write_debug_data', 'bool').
+        doc('Cycle time in seconds. IMPORTANT: This has to be the same value as the period of this component!')
+    property('write_debug_data', 'bool', true).
         doc('Write additional debug data to port or not')
     property('positional_limits_behavior', 'int', 0).
-        doc("Behavior when reaching positional limits. Can be one of 0 = RMLFlags::POSITIONAL_LIMITS_IGNORE,1 = RMLFlags::POSITIONAL_LIMITS_ERROR_MSG_ONLY, 2 = RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT. Only available for Reflexxes Type_IV")
-    property('sync_behavior', 'int', 1).
-        doc("The synchronization behavior of RML. Can be one of 0 = RMLFlags::PHASE_SYNCHRONIZATION_IF_POSSIBLE, 1 = RMLFlags::ONLY_TIME_SYNCHRONIZATION, 2 = RMLFlags::ONLY_PHASE_SYNCHRONIZATION, 3 = RMLFlags::NO_SYNCHRONIZATION")
-    #TODO: Remove this property. It is to be treated within limits-property
-    property('max_jerk', 'std/vector<double>').
-        doc("Maximum change of acceleration. Size has to be the same as limits")
-
-    property('override_input_position', 'bool', false).
-        doc('Set output position as input for next cycle')
-    property('override_input_speed', 'bool', false).
-        doc('Set output speed as input for next cycle')
-    property('treat_effort_as_acceleration', 'bool', false).
-        doc('Use the effort field from JointState type for acceleration.')
+        doc('Behavior when reaching positional limits. Can be one of 0 = RMLFlags::POSITIONAL_LIMITS_IGNORE,1 = RMLFlags::POSITIONAL_LIMITS_ERROR_MSG_ONLY, 2 = RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT. Only available for Reflexxes Type_IV')
+    property('sync_behavior', 'int', 3).
+        doc('The synchronization behavior of RML. Can be one of 0 = RMLFlags::PHASE_SYNCHRONIZATION_IF_POSSIBLE, 1 = RMLFlags::ONLY_TIME_SYNCHRONIZATION, 2 = RMLFlags::ONLY_PHASE_SYNCHRONIZATION, 3 = RMLFlags::NO_SYNCHRONIZATION')
+    property('override_input_position', 'bool', true).
+        doc('RML Output position of previous cycle will be used as input for next cycle. If false, use the actual joint position (from joint_state port) as input for the next cycle.')
+    property('override_input_speed', 'bool', true).
+        doc('RML Output speed of previous cycle will be used as input for next cycle. If false, use the actual joint speed (from joint_state port) as input for the next cycle.')
     property('override_input_acceleration', 'bool', true).
-        doc('Set output acceleration as input for next cycle. When treat_effort_as_acceleration == false, input acceleration is always overriden. In this case, acceleration is always assumed to zero at first sample.')
-    property("override_output_speed", "base/samples/Joints").
-        doc("Override speed of the given joints with the given speed value")
-    property("override_output_effort", "base/samples/Joints").
-        doc("Override effort of the given joints with the given effort value")
-    property('override_target_velocity', 'double').
-        doc('Set target velocity forcefully to this value')
-    
-    #TODO: Does it make sense to use this property for velocity control as well?
-    property('target_reached_behavior', 'trajectory_generation/TargetReachedBehavior', 'KEEP_SENDING_COMMANDS')
+        doc('RML Output acceleration of previous cycle will be used as input for next cycle. If false, use the actual joint acceleration (from joint_state port) as input for the next cycle.')
+    property('override_output_speed', 'base/samples/Joints').
+        doc('Forcefully set the speed of the output command to this value (only for the specified joints)')
+    property('override_output_acceleration', 'base/samples/Joints').
+        doc('Forcefully set the acceleration of the output command to this value (only for the specified joints)')
+    property('target_reached_behavior', 'trajectory_generation/TargetReachedBehavior', 'KEEP_SENDING_COMMANDS').
+        doc('Can be one of KEEP_SENDING_COMMANDS or STOP_SENDING_COMMANDS')
+    property('throw_on_infeasible_input', 'bool', true).
+        doc('Should an exception be thrown if input was infeasible, e.g. target speed too high?')
 
 
-    input_port("trajectory_target", "/base/JointsTrajectory").
-        doc("The target trajectory which should be followed")
-    input_port("position_target", "/base/commands/Joints").
-        doc("Alternative input port to define a target trajectory. Joint
-             commands are treated as a trajectory with one via point.")
-    input_port("constrained_trajectory_target", "/trajectory_generation/ConstrainedJointsTrajectory").
-        doc("Alternative input port to define a target trajectory. The
-             contraints given in the ConstrainedJointsTrajectory will override
-             the corresponding configured properties temporary.")
-    input_port("constrained_position_target", "trajectory_generation/ConstrainedJointsCmd").
-        doc("Position command with constraints")
+    input_port('trajectory_target', '/base/JointsTrajectory').
+        doc('The target trajectory which should be followed. If speed and acceleration values are specified they will be used as target speed/acceleration. Otherwise the limits will be applied.')
+    input_port('position_target', '/base/commands/Joints').
+        doc('Alternative input port to define a target trajectory. Joint commands are treated as a trajectory with one via point. The given limits will be applied')
+    input_port('constrained_trajectory_target', '/trajectory_generation/ConstrainedJointsTrajectory').
+        doc('Alternative input port to define a target trajectory. The contraints given in the ConstrainedJointsTrajectory will be applied, IF and only if they comply with the given limits.')
+    input_port('constrained_position_target', 'trajectory_generation/ConstrainedJointsCmd').
+        doc('Position command with constraints. The given constraints will be applied, IF and only if they comply with the given limits.')
 
-    # Forbid certain joints to move in a positive direction
-    input_port("dont_allow_positive", "/std/vector<std/string>")
+    input_port('joint_state', '/base/samples/Joints').
+        doc('Current state measurement from the actuators')
 
-    # Forbid certain joints to move in a negative direction
-    input_port("dont_allow_negative", "/std/vector<std/string>")
+    output_port('cmd', '/base/commands/Joints').
+        doc('Target values that are send to the actuators')
 
-    input_port("joint_state", "/base/samples/Joints").
-	doc("Current state measurement from the actuators")
-
-    output_port("cmd", "/base/commands/Joints").
-	doc("Target values that are send to the actuators")
-	
-	output_port("time_until_via_point", "double")
-	output_port("via_point_reached", "int")
-
-    # Estimated next robot state. Equals the full interpolator output
-    output_port("output_sample", "/base/samples/Joints")
+    output_port('time_until_via_point', 'double')
+    output_port('via_point_reached', 'int')
+    output_port('output_sample', '/base/samples/Joints').
+        doc('Full output sample from RML, without any overrides')
 
     # Debug ports
-    output_port("actual_cycle_time", "double")
-    output_port("rml_input_params", "trajectory_generation/RMLInputParams")
-    output_port("rml_output_params", "trajectory_generation/RMLOutputParams")
-    output_port("dist_upper_limit", "base/VectorXd")
-    output_port("dist_lower_limit", "base/VectorXd")
+    output_port('actual_cycle_time', 'double')
+    output_port('computation_time', 'double')
+    output_port('rml_input_params', 'trajectory_generation/RMLInputParams')
+    output_port('rml_output_params', 'trajectory_generation/RMLOutputParams')
 
-    periodic cycle_time
+    periodic 0.02
 end
 
-task_context "RMLVelocityTask" do
+task_context 'RMLVelocityTask' do
     cycle_time = 0.01
 
     needs_configuration
     runtime_states 'FOLLOWING', 'REACHED', 'IN_LIMITS'
 
-    # The limits for the joints. Note: min.speed and min.effort are not used. Effort limit is used as acceleration limit.
-    property('initial_motion_constraints', 'trajectory_generation/JointsMotionConstraints')
+    property('limits', 'trajectory_generation/JointsMotionConstraints')
+        doc('These are the motion constraints for the output trajectory. Will use max/min position, max vel, max acceleration and max jerk to shape the output trajectory.')
+    property('cycle_time', 'double').
+        doc('Cycle time in seconds. IMPORTANT: This has to be the same value as the period of this component!')
+    property('sync_behavior', 'int', 3).
+        doc('The synchronization behavior of RML. Can be one of 0 = RMLFlags::PHASE_SYNCHRONIZATION_IF_POSSIBLE, 1 = RMLFlags::ONLY_TIME_SYNCHRONIZATION, 2 = RMLFlags::ONLY_PHASE_SYNCHRONIZATION, 3 = RMLFlags::NO_SYNCHRONIZATION')
+    property('positional_limits_behavior', 'int', 0).
+        doc('Behavior when reaching positional limits. Can be one of 0 = RMLFlags::POSITIONAL_LIMITS_IGNORE,1 = RMLFlags::POSITIONAL_LIMITS_ERROR_MSG_ONLY, 2 = RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT. Only available for Reflexxes Type_IV')
+    property('override_input_position', 'bool', true).
+        doc('RML Output position of previous cycle will be used as input for next cycle. If false, use the actual joint position (from joint_state port) as input for the next cycle.')
+    property('override_input_speed', 'bool', true).
+        doc('RML Output speed of previous cycle will be used as input for next cycle. If false, use the actual joint speed (from joint_state port) as input for the next cycle.')
+    property('override_input_acceleration', 'bool', true).
+        doc('RML Output acceleration of previous cycle will be used as input for next cycle. If false, use the actual joint acceleration (from joint_state port) as input for the next cycle.')
 
-    # Cycle time in seconds
-    property('cycle_time', 'double') 
-  
-    # The synchronization behavior of RML. Can be one of 0 = RMLFlags::PHASE_SYNCHRONIZATION_IF_POSSIBLE,
-    # 1 = RMLFlags::ONLY_TIME_SYNCHRONIZATION, 2 = RMLFlags::ONLY_PHASE_SYNCHRONIZATION, 3 = RMLFlags::NO_SYNCHRONIZATION
-    property('sync_behavior', 'int', 1)
-    
-    # Behavior when reaching positional limits. Can be one of 0 = RMLFlags::POSITIONAL_LIMITS_IGNORE,
-    # 1 = RMLFlags::POSITIONAL_LIMITS_ERROR_MSG_ONLY, 2 = RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT.
-    # Only available for Reflexxes Type_IV
-    property('positional_limits_behavior', 'int', 0)
+    input_port('velocity_target', '/base/commands/Joints').
+        doc("The target joint velocity")
+    input_port('constrained_velocity_target', 'trajectory_generation/ConstrainedJointsCmd').
+        doc('Velocity command with constraints')
+    input_port('joint_state', '/base/samples/Joints').
+        doc('Current state measurement from the actuators')
 
-    # If no new command comes in for such a long time, set velocity to zero
-    property('timeout', 'double', 0.3)
+    output_port('command', '/base/commands/Joints').
+        doc('Target values that are send to the actuators')
+    output_port('output_sample', '/base/samples/Joints').
+        doc('Full output sample from RML, without any overrides')
 
-    # Set output position as input for next cycle
-    property('override_input_position', 'bool', false)
-
-    # Set output speed as input for next cycle
-    property('override_input_speed', 'bool', false)
-
-    # Use the effort field from JointState type for acceleration.
-    property('treat_effort_as_acceleration', 'bool', false)
-
-    # Set output acceleration as input for next cycle. When treat_effort_as_acceleration == false, input acceleration is always overriden. In this case, acceleration is always assumed to zero at first sample.
-    property('override_input_acceleration', 'bool', false)
-
-
-    # The target joint velocity
-    input_port("velocity_target", "/base/commands/Joints")
-
-    input_port("constrained_velocity_target", "trajectory_generation/ConstrainedJointsCmd").
-        doc("Velocity command with constraints")
-
-    # Current state measurement from the actuators
-    input_port("joint_state", "/base/samples/Joints")
-
-
-    # Target values that are send to the actuators
-    output_port("command", "/base/commands/Joints")
-
-    # Estimated next robot state. Equals the full interpolator output
-    output_port("output_sample", "/base/samples/Joints")
-
-    # Debug Port: Current cycle time
-    output_port("actual_cycle_time", "double")
-
-    # Debug Port: Input values of the rml algorithm
-    output_port("rml_input_params", "trajectory_generation/RMLInputParams")
-
-    # Debug Port: Output values of the rml algorithm
-    output_port("rml_output_params", "trajectory_generation/RMLOutputParams")
-
+    output_port('actual_cycle_time', 'double')
+    output_port('computation_time', 'double')
+    output_port('rml_input_params', 'trajectory_generation/RMLInputParams')
+    output_port('rml_output_params', 'trajectory_generation/RMLOutputParams')
 
     periodic cycle_time
-end
-
-task_context "TestPlant" do
-   needs_configuration
-   property("limits", "/base/JointLimits")
-   property("noise_mean", "/base/JointState")
-   property("noise_variance", "/base/JointState")
-   property("use_fixed_simulation_step_time", "bool")
-   property("simulation_step_time", "double").doc("In seconds")
-   
-   input_port("cmd", "/base/commands/Joints")
-   output_port("joint_state", "/base/samples/Joints")
-   
-
-   periodic 0.02
-end
-
-deployment "plant_deployment" do
-    task 'plant', 'trajectory_generation::TestPlant'
-    add_default_logger
 end

@@ -14,50 +14,35 @@
 
 namespace trajectory_generation {
 
-/*! \class Task
-     * \brief The task context provides and requires services. It uses an ExecutionEngine to perform its functions.
-     * Essential interfaces are operations, data flow ports and properties. These interfaces have been defined using the oroGen specification.
-     * In order to modify the interfaces you should (re)use oroGen and rely on the associated workflow.
-     *
-     * \details
-     * The name of a TaskContext is primarily defined via:
-     \verbatim
-     deployment 'deployment_name'
-         task('custom_task_name','trajectory_generation::Task')
-     end
-     \endverbatim
-     *  It can be dynamically adapted when the deployment is called with a prefix argument.
-     */
 class Task : public TaskBase
 {
     friend class TaskBase;
 protected:
 
-    //Configurable parameters
-    base::JointLimits limits;       //The limits for the joints
-    std::vector<double> max_jerk;
-    double cycle_time;              //Cycle time in seconds
-
-    bool override_input_position;   //Set output position as input for next cycle
-    bool override_input_speed;      //Set output speed as input for next cycle
-    bool treat_effort_as_acceleration; //Use the effort field from JointState type for acceleration.
-    bool override_input_acceleration;     //Set output acceleration as input for next cycle. When treat_effort_as_acceleration == false, input acceleration is always overriden. In this case, acceleration is always assumed to zero at first sample.
-
-    base::samples::Joints override_output_speed;   //Set output speed to fixed value every time
-    base::samples::Joints override_output_effort;  //Set output effort to fixed value every time
-    double override_target_velocity;
-
-    //! Flag that specifies wheter to write debug data to port s or not
+    /** These are the motion constraints for the output trajectory. Will use max/min position, max vel, max acceleration and max jerk to shape the output trajectory.*/
+    trajectory_generation::JointsMotionConstraints limits;
+    /** Cycle time in seconds. IMPORTANT: This has to be the same value as the period of this component! */
+    double cycle_time;
+    /** RML Output position of previous cycle will be used as input for next cycle. If false, use the actual joint position (from joint_state port) as input for the next cycle. */
+    bool override_input_position;
+    /** RML Output speed of previous cycle will be used as input for next cycle. If false, use the actual joint speed (from joint_state port) as input for the next cycle. */
+    bool override_input_speed;
+    /** RML Output acceleration of previous cycle will be used as input for next cycle. If false, use the actual joint acceleration (from joint_state port) as input for the next cycle. */
+    bool override_input_acceleration;
+    /** Forcefully set the speed of the output command to this value (only for the specified joints) */
+    base::samples::Joints override_output_speed;
+    /** Forcefully set the acceleration of the output command to this value (only for the specified joints) */
+    base::samples::Joints override_output_acceleration;
+    /** Flag that specifies wheter to write debug data to port s or not */
     bool write_debug_data;
-    //! Should an exception be thrown if input was infeasible?
+    /** Should an exception be thrown if input was infeasible, e.g. target speed too high? */
     bool throw_on_infeasible_input;
 
-    base::VectorXd dist_to_upper, dist_to_lower;
     size_t nDof;
 
-    //! Parameters as used for Reflexxes for each sample. In debug mode they are
-    //! written to corresponding output ports
+    /** Input Parameters as used for Reflexxes for each sample. In debug mode they are written to corresponding output ports*/
     RMLInputParams debug_rml_input_params;
+    /** Output Parameters from Reflexxes for each sample. In debug mode they are written to corresponding output ports*/
     RMLOutputParams debug_rml_output_params;
 
     //! For internal use
@@ -82,7 +67,6 @@ protected:
     //!  Temporary storage of new constrained position target read from port
     ConstrainedJointsCmd input_constrained_position_target_;
 
-    std::vector<std::string> dont_allow_positive_, dont_allow_negative_;
     size_t current_step;
     bool has_target;
     bool do_write_command;
@@ -115,26 +99,12 @@ protected:
     void set_active_motion_constraints(const JointsMotionConstraints& motion_constraints);
 
     /**
-     * @brief Set motion constraints of all configured joints to its default values
-     */
-    void set_active_motion_constraints_to_default();
-
-    /**
      * @brief Get default motion constraints for joint with name joint_name
      *
      * @throw base::JointLimits::InvalidName if joint name is unknown
      */
     void get_default_motion_constraints(const std::string& joint_name, JointMotionConstraints& constraints);
     void get_default_motion_constraints(size_t internal_index, JointMotionConstraints& constraints);
-
-    /**
-     * @brief Returns the index used internally for reflexxes for a joint represented by
-     *        its name.
-     *
-     * @return Index of the interal index (for the use of Reflexxes structures like IP_* of OP).
-     * @return -1 if joint name was not configured.
-     */
-    size_t map_joint_name_to_index(const std::string& joint_name);
 
     /**
      * @brief Prepares internal data for processing a new target
@@ -150,6 +120,11 @@ protected:
      * @returns wether the input was feasible or had to modified to make it feasible
      */
     bool handle_position_target(const base::commands::Joints& sample);
+
+    /**
+     * @brief map_target_name_to_joint_idx Return internal id of joint name
+     */
+    size_t map_target_name_to_joint_idx(const std::string joint_name);
 
     /**
      * @brief Handles a new target of type trajectory_generation::ConstrainedJointsCmd

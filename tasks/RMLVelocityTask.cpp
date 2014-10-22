@@ -26,20 +26,18 @@ bool RMLVelocityTask::configureHook()
 
     override_input_position_ = _override_input_position.value();
     override_input_speed_ = _override_input_speed.value();
-    treat_effort_as_acceleration_ = _treat_effort_as_acceleration.value();
     override_input_acceleration_ = _override_input_acceleration.value();
-    initial_motion_constraints_ = _initial_motion_constraints.value();
+    limits_ = _limits.value();
     cycle_time_ = _cycle_time.value();
     Vel_Flags_.SynchronizationBehavior = _sync_behavior.value();
-    velocity_timeout_ = _timeout.value();
 
-    nDOF_ =  initial_motion_constraints_.size();
+    nDOF_ =  limits_.size();
 
     status_.resize(nDOF_);
     output_sample_.resize(nDOF_);
-    output_sample_.names = initial_motion_constraints_.names;
+    output_sample_.names = limits_.names;
     command_out_.resize(nDOF_);
-    command_out_.names = initial_motion_constraints_.names;
+    command_out_.names = limits_.names;
 
     input_params_ = RMLInputParams(nDOF_);
     output_params_ = RMLOutputParams(nDOF_);
@@ -51,7 +49,7 @@ bool RMLVelocityTask::configureHook()
     Vel_Flags_.PositionalLimitsBehavior = _positional_limits_behavior.get();
 #endif
 
-    setActiveMotionConstraints(initial_motion_constraints_);
+    setActiveMotionConstraints(limits_);
 
     return true;
 }
@@ -72,7 +70,7 @@ void RMLVelocityTask::handleStatusInput(const base::samples::Joints &status)
 {
     for(size_t i = 0; i < nDOF_; i++)
     {
-        std::string joint_name = initial_motion_constraints_.names[i];
+        std::string joint_name = limits_.names[i];
         size_t joint_idx = 0;
         try{
             joint_idx = status.mapNameToIndex(joint_name);
@@ -115,27 +113,11 @@ void RMLVelocityTask::handleStatusInput(const base::samples::Joints &status)
 
         // Input acceleration
 
-        //We can only use 'real' acceleration values from joint status if we treat the effort field as acceleration and don't want to override effort.
-        //TODO: This is way to complicated to configure
-        if(treat_effort_as_acceleration_ && !override_input_acceleration_)
-        {
-            //Effort field from joint status is treaded as accerlation and 'real' state should be used. Set it accordingly.
-            Vel_IP_->CurrentAccelerationVector->VecData[i] = status[joint_idx].effort;
-        }
-        //Otherwise we must check whether there was a reference generated before. If so use it, otherwise assume 0
+        //Only use NewAccelerationVector from previous cycle if there has been a previous cycle (has_rml_been_called_ == true)
+        if(override_input_acceleration_ && has_rml_been_called_)
+            Vel_IP_->CurrentAccelerationVector->VecData[i] = Vel_OP_->NewAccelerationVector->VecData[i];
         else
-        {
-            if(!has_rml_been_called_)
-            {
-                //No reference acceleration was genereated before. Assume zero.
-                Vel_IP_->CurrentAccelerationVector->VecData[i] = 0;
-            }
-            else
-            {
-                //Override with reference from previous cycle
-                Vel_IP_->CurrentAccelerationVector->VecData[i] = Vel_OP_->NewAccelerationVector->VecData[i];
-            }
-        }
+            Vel_IP_->CurrentAccelerationVector->VecData[i] = status[joint_idx].acceleration;
     }
 }
 
@@ -149,7 +131,7 @@ void RMLVelocityTask::handleCommandInput(const base::commands::Joints &command)
     for(size_t i = 0; i < command_in_.size(); i++)
     {
         try{
-            joint_idx = initial_motion_constraints_.mapNameToIndex(command.names[i]);
+            joint_idx = limits_.mapNameToIndex(command.names[i]);
         }
         catch(std::exception e){
             continue;
@@ -180,7 +162,7 @@ void RMLVelocityTask::setActiveMotionConstraints(const trajectory_generation::Jo
     {
         size_t idx;
         try{
-            idx = initial_motion_constraints_.mapNameToIndex(constraints.names[i]);
+            idx = limits_.mapNameToIndex(constraints.names[i]);
         }
         catch(std::exception e)
         {
@@ -194,7 +176,7 @@ void RMLVelocityTask::setActiveMotionConstraints(const trajectory_generation::Jo
 #ifdef USING_REFLEXXES_TYPE_IV
         double max_pos;
         if(base::isNaN(constraints[i].max.position))
-            max_pos = initial_motion_constraints_[idx].max.position;
+            max_pos = limits_[idx].max.position;
         else
             max_pos = constraints[i].max.position;
 
@@ -208,7 +190,7 @@ void RMLVelocityTask::setActiveMotionConstraints(const trajectory_generation::Jo
 
         double min_pos;
         if(base::isNaN(constraints[i].min.position)){
-            min_pos = initial_motion_constraints_[idx].min.position;
+            min_pos = limits_[idx].min.position;
         }
         else{
             min_pos = constraints[i].min.position;
@@ -226,7 +208,7 @@ void RMLVelocityTask::setActiveMotionConstraints(const trajectory_generation::Jo
 
         double max_vel;
         if(base::isNaN(constraints[i].max.speed)){
-            max_vel = initial_motion_constraints_[idx].max.speed;
+            max_vel = limits_[idx].max.speed;
         }
         else{
             max_vel = constraints[i].max.speed;
@@ -237,11 +219,11 @@ void RMLVelocityTask::setActiveMotionConstraints(const trajectory_generation::Jo
          // Set Max Acceleration: If input is nan, reset to initial max acceleration
 
         double max_acc;
-        if(base::isNaN(constraints[i].max.effort)){
-            max_acc = initial_motion_constraints_[idx].max.effort;
+        if(base::isNaN(constraints[i].max.acceleration)){
+            max_acc = limits_[idx].max.acceleration;
         }
         else{
-            max_acc = constraints[i].max.effort;
+            max_acc = constraints[i].max.acceleration;
         }
         Vel_IP_->MaxAccelerationVector->VecData[idx] = max_acc;
 
@@ -249,7 +231,7 @@ void RMLVelocityTask::setActiveMotionConstraints(const trajectory_generation::Jo
 
         double max_jerk;
         if(base::isNaN(constraints[i].max_jerk))
-            max_jerk = initial_motion_constraints_[idx].max_jerk;
+            max_jerk = limits_[idx].max_jerk;
         else{
             max_jerk = constraints[i].max_jerk;
         }
@@ -343,12 +325,7 @@ void RMLVelocityTask::writeOutputCommand(const RMLVelocityOutputParameters* outp
     {
         std::string joint_name = command_out_.names[i].c_str();
         command_out_[i].speed = output->NewVelocityVector->VecData[i];
-
-        if(treat_effort_as_acceleration_)
-            command_out_[i].effort = output->NewAccelerationVector->VecData[i];
-        else
-            command_out_[i].effort = base::unknown<float>();
-
+        command_out_[i].acceleration = output->NewAccelerationVector->VecData[i];
     }
     command_out_.time = base::Time::now();
     _command.write(command_out_);
@@ -362,13 +339,13 @@ void RMLVelocityTask::writeOutputSample(const base::samples::Joints& status, con
         {
             output_sample_[i].position = output->NewPositionVector->VecData[i];
             output_sample_[i].speed = output->NewVelocityVector->VecData[i];
-            output_sample_[i].effort = output->NewAccelerationVector->VecData[i];
+            output_sample_[i].acceleration = output->NewAccelerationVector->VecData[i];
         }
     }
     else
     {
         for(size_t i = 0; i < nDOF_; i++){
-            std::string joint_name = initial_motion_constraints_.names[i];
+            std::string joint_name = limits_.names[i];
             size_t joint_idx = 0;
             try{
                 joint_idx = status.mapNameToIndex(joint_name);
@@ -379,7 +356,7 @@ void RMLVelocityTask::writeOutputSample(const base::samples::Joints& status, con
 
             output_sample_[i].position = status[joint_idx].position;
             output_sample_[i].speed = status[joint_idx].speed;
-            output_sample_[i].effort= status[joint_idx].effort;
+            output_sample_[i].acceleration = status[joint_idx].acceleration;
         }
     }
     output_sample_.time = base::Time::now();
@@ -415,15 +392,6 @@ void RMLVelocityTask::updateHook()
 
     if(has_target_)
     {
-        //Velocity watchdog
-        double difftime = (base::Time::now() - stamp_).toSeconds();
-        if(difftime > velocity_timeout_)
-        {
-            stamp_ = base::Time::now();
-            for(size_t i = 0; i < nDOF_; i++)
-                Vel_IP_->TargetVelocityVector->VecData[i] = 0;
-        }
-
         handleRMLInterpolationResult(RML_->RMLVelocity(*Vel_IP_, Vel_OP_, Vel_Flags_));
         has_rml_been_called_ = true;
 
@@ -454,5 +422,5 @@ void RMLVelocityTask::cleanupHook()
 
     command_out_.clear();
     status_.clear();
-    initial_motion_constraints_.clear();
+    limits_.clear();
 }
