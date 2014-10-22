@@ -608,7 +608,7 @@ void Task::handle_reflexxes_result_value(const int& result)
         OP->Echo();
         error();
         break;
-        //#ifdef USING_REFLEXXES_TYPE_IV
+#ifdef USING_REFLEXXES_TYPE_IV
     case ReflexxesAPI::RML_ERROR_POSITIONAL_LIMITS:
         if(state() != IN_LIMITS){
             LOG_WARN("At least one joint is in position joint limits");
@@ -625,7 +625,7 @@ void Task::handle_reflexxes_result_value(const int& result)
             std::cout<<std::endl;
         }
         break;
-        //#endif
+#endif
     }
 }
 
@@ -725,6 +725,7 @@ void Task::updateHook()
     double time_until_via_point = OP->GetGreatestExecutionTime();
     _time_until_via_point.write(time_until_via_point);
 
+#ifdef USING_REFLEXXES_TYPE_IV
     if(OP->WillTheTargetPositionBeExceeded()){
          LOG_WARN("The target position will be exceeded");
          for(size_t i=0; i<1; i++){
@@ -738,6 +739,7 @@ void Task::updateHook()
                       IP_active->GetCurrentAccelerationVectorElement(i));
          }
     }
+#endif
     has_rml_been_called_once = true;
     handle_reflexxes_result_value(result);
 
