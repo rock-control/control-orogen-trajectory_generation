@@ -17,7 +17,7 @@ task_context 'Task' do
     error_states 'NO_JOINT_STATE_INPUT'
 
     property('limits', 'trajectory_generation/JointsMotionConstraints').
-        doc('These are the motion constraints for the output trajectory. Will use max/min position, max vel, max acceleration and max jerk to shape the output trajectory.')
+        doc('These are the motion constraints for the output trajectory. Will use max.position, min.position, max.speed, max.acceleration and max_jerk to shape the output trajectory.')
     property('cycle_time', 'double').
         doc('Cycle time in seconds. IMPORTANT: This has to be the same value as the period of this component!')
     property('write_debug_data', 'bool', true).
@@ -39,7 +39,7 @@ task_context 'Task' do
     property('target_reached_behavior', 'trajectory_generation/TargetReachedBehavior', 'KEEP_SENDING_COMMANDS').
         doc('Can be one of KEEP_SENDING_COMMANDS or STOP_SENDING_COMMANDS')
     property('throw_on_infeasible_input', 'bool', true).
-        doc('Should an exception be thrown if input was infeasible, e.g. target speed too high?')
+        doc('Should an exception be thrown if input was infeasible, e.g. target speed too high, target position out of limits, etc...?')
 
 
     input_port('trajectory_target', '/base/JointsTrajectory').
@@ -59,6 +59,7 @@ task_context 'Task' do
 
     output_port('time_until_via_point', 'double')
     output_port('via_point_reached', 'int')
+    # TODO: Remove me!?
     output_port('output_sample', '/base/samples/Joints').
         doc('Full output sample from RML, without any overrides')
 

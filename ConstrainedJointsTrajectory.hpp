@@ -122,8 +122,10 @@ struct ConstrainedJointsTrajectory
      * @return true if was feasible.
      * @return false if trajectory was modified.
      */
-    bool makeFeasible(){
+    bool makeFeasible(std::stringstream &err){
         bool all_feasible = true;
+
+        err.str("");
 
         for(size_t joint_idx=0; joint_idx<elements.size(); joint_idx++){
             for(size_t time_idx=0; time_idx<getTimeSteps(); time_idx++){
@@ -132,79 +134,33 @@ struct ConstrainedJointsTrajectory
 
                 //Check position and make feasible
                 if(constraint.max.hasPosition() && sample.position > constraint.max.position){
-                    sample.position = constraint.max.position;
+                    err << "Joint " << joint_idx << " (" << names[joint_idx] << ") exceeds limits: Target position: "
+                        << sample.position << ", Max position: " << constraint.max.position << std::endl;
+                    sample.position = constraint.max.position - 1e-5; //Subtract small value here, to avoid RML throwing error msgs because of exceeding joint limits
                     all_feasible = false;
                 }
                 if(constraint.min.hasPosition() && sample.position < constraint.min.position){
-                    sample.position = constraint.min.position;
+                    err << "Joint " << joint_idx << " (" << names[joint_idx] << ") exceeds limits: Target position: "
+                        << sample.position << ", Min position: " << constraint.min.position << std::endl;
+                    sample.position = constraint.min.position + 1e-5; //Add small value here, to avoid RML throwing error msgs because of exceeding joint limits
                     all_feasible = false;
                 }
 
                 //Check speed and make feasible
-                if(constraint.max.hasSpeed() && sample.speed > constraint.max.speed){
+                if(constraint.max.hasSpeed() && fabs(sample.speed) > constraint.max.speed){
                     sample.speed = constraint.max.speed;
+                    err << "Joint " << joint_idx << " (" << names[joint_idx] << ") exceeds limits: Target speed: "
+                        << sample.speed<< ", Max Speed: " << constraint.max.speed << std::endl;
                     all_feasible = false;
                 }
-                /*
-                //Constriants for speed and effort might be defined only by its max value which value is
-                //then valid for both, positive and megative direction.
-                if(constraint.min.hasSpeed()){
-                    if(sample.speed < constraint.min.speed){
-                        sample.speed = constraint.min.speed;
-                        all_feasible = false;
-                    }
-                }
-                else{
-                    if(constraint.max.hasSpeed() && sample.speed < -constraint.max.speed){
-                        sample.speed = -constraint.max.speed;
-                        all_feasible = false;
-                    }
-                }
-                */
 
-                //Check effort and make feasible
-                if(constraint.max.hasEffort() && sample.effort > constraint.max.effort){
-                    sample.effort = constraint.max.effort;
+                //Check acceleration and make feasible
+                if(constraint.max.hasAcceleration() && fabs(sample.acceleration) > constraint.max.acceleration){
+                    sample.acceleration = constraint.max.acceleration;
+                    err << "Joint " << joint_idx << " (" << names[joint_idx] << ") exceeds limits: Target acceleration: "
+                        << sample.acceleration<< ", Max acceleration: " << constraint.max.acceleration << std::endl;
                     all_feasible = false;
                 }
-                /*
-                //Constriants for speed and effort might be defined only by its max value which value is
-                //then valid for both, positive and megative direction.
-                if(constraint.min.hasEffort()){
-                    if(sample.effort < constraint.min.effort){
-                        sample.effort = constraint.min.effort;
-                        all_feasible = false;
-                    }
-                }
-                else{
-                    if(constraint.max.hasEffort() && sample.effort < -constraint.max.effort){
-                        sample.effort = -constraint.max.effort;
-                        all_feasible = false;
-                    }
-                }
-                */
-
-                //Check raw and make feasible
-                if(constraint.max.hasRaw() && sample.raw > constraint.max.raw){
-                    sample.raw = constraint.max.raw;
-                    all_feasible = false;
-                }
-                /*
-                //Constriants for speed and effort might be defined only by its max value which value is
-                //then valid for both, positive and megative direction.
-                if(constraint.min.hasRaw()){
-                    if(sample.raw < constraint.min.raw){
-                        sample.raw = constraint.min.raw;
-                        all_feasible = false;
-                    }
-                }
-                else{
-                    if(constraint.max.hasRaw() && sample.raw < -constraint.max.raw){
-                        sample.raw = -constraint.max.raw;
-                        all_feasible = false;
-                    }
-                }
-                */
             }
         }
         return all_feasible;

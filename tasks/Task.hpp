@@ -53,6 +53,7 @@ protected:
     RMLPositionInputParameters *IP_active;
     RMLPositionOutputParameters *OP;
     RMLPositionFlags Flags;
+    std::stringstream feasibility_err;
 
     //! Current trajectory to follow. It has the same joint indexing as reflexxes types
     ConstrainedJointsTrajectory current_trajectory;
@@ -124,7 +125,7 @@ protected:
     /**
      * @brief map_target_name_to_joint_idx Return internal id of joint name
      */
-    size_t map_target_name_to_joint_idx(const std::string joint_name);
+    size_t map_name_to_joint_idx(const std::string joint_name);
 
     /**
      * @brief Handles a new target of type trajectory_generation::ConstrainedJointsCmd

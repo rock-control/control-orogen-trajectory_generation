@@ -146,18 +146,12 @@ void RMLVelocityTask::handleCommandInput(const base::commands::Joints &command)
         Vel_IP_->TargetVelocityVector->VecData[joint_idx] =
                 std::max(std::min(input_params_.MaxVelocityVector[joint_idx], (double)command[i].speed), -input_params_.MaxVelocityVector[joint_idx]);
 
-        /*LOG_DEBUG("Joint %i(%s): Speed %f, Max Speed: %f, Min Speed: %f", joint_idx, command.names[i].c_str(),
-                  Vel_IP_->TargetVelocityVector->VecData[joint_idx], motion_constraints_[joint_idx].max.speed,
-                  motion_constraints_[joint_idx].min.speed);*/
-
         Vel_IP_->SelectionVector->VecData[joint_idx] = true;
     }
 }
 
 void RMLVelocityTask::setActiveMotionConstraints(const trajectory_generation::JointsMotionConstraints& constraints)
 {
-   // LOG_DEBUG("Setting active motion constraints to ... ");
-
     for(size_t i = 0; i < constraints.size(); i++)
     {
         size_t idx;
@@ -237,17 +231,6 @@ void RMLVelocityTask::setActiveMotionConstraints(const trajectory_generation::Jo
         }
 
         Vel_IP_->MaxJerkVector->VecData[idx] = max_jerk;
-
-#ifdef USING_REFLEXXES_TYPE_IV
-        /*LOG_DEBUG("Joint idx %i(%s): Max Pos: %f, Min pos: %f, Max Vel: %f, Max Acc: %f, Max Jerk: %f",
-                  idx, constraints.names[i].c_str(),  Vel_IP_->MaxPositionVector->VecData[idx],
-                  Vel_IP_->MinPositionVector->VecData[idx], input_params_.MaxVelocityVector[idx],
-                  Vel_IP_->MaxAccelerationVector->VecData[idx],  Vel_IP_->MaxJerkVector->VecData[idx]);*/
-#else
-        /*LOG_DEBUG("Joint idx %i(%s): Max Vel: %f, Max Acc: %f, Max Jerk: %f",
-                  idx, constraints.names[i].c_str(), input_params_.MaxVelocityVector[idx],
-                  Vel_IP_->MaxAccelerationVector->VecData[idx],  Vel_IP_->MaxJerkVector->VecData[idx]);*/
-#endif
     }//for loop
 }
 
