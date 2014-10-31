@@ -10,19 +10,16 @@ end
 Orocos.run "trajectory_generation::Task" => "interpolator" do
 
     interpolator = Orocos::TaskContext.get "interpolator"
-    Orocos.conf.apply(interpolator, ["default"])
+    Orocos.conf.apply(interpolator, ["default", "smooth"])
     interpolator.configure
     interpolator.start
   
     initial_joint_state = Types::Base::Samples::Joints.new
-    interpolator.limits.names.each do |name|
-       initial_joint_state.names << name
-    end
+    initial_joint_state.names = interpolator.limits.names
+
     interpolator.limits.elements.each do |elem|
        state = Types::Base::JointState.new
-       state.position = (elem.max.position + elem.min.position)/2
-       state.speed = 0
-       state.acceleration = 0
+       state.position = state.speed = state.acceleration = 0
        initial_joint_state.elements << state
     end
 
@@ -32,22 +29,22 @@ Orocos.run "trajectory_generation::Task" => "interpolator" do
     sleep(1)
 
     target = Types::Base::Commands::Joints.new
-    interpolator.limits.names.each do |name|
-        target.names << name
-    end
+    target.names = interpolator.limits.names
+
     interpolator.limits.elements.each do |elem|
         state = Types::Base::JointState.new
         state.position = (elem.max.position + elem.min.position)/2
         target.elements << state
     end
 
-    for i in 0..1000 
+    # Drive to 20 random points
+    for i in 0..20
        target.elements.each do |elem|
-          elem.position = elem.position + range(-0.1,0.1)
+          elem.position = range(-1,1)
        end
        interpolator.position_target.write(target)
        interpolator.joint_state.write(initial_joint_state)
-       sleep(0.1) 
+       sleep(3)
     end
     
     

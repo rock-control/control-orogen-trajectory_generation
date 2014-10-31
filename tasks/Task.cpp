@@ -338,14 +338,21 @@ size_t Task::map_name_to_joint_idx(const std::string joint_name)
     return idx;
 }
 
+void Task::check_ctrl_mode(const base::JointState& command)
+{
+    //Check for position control mode
+    if(!command.hasPosition()){
+        LOG_ERROR("%s: Supports only position control mode, but input command does not provide a position value", this->getName().c_str());
+        throw std::invalid_argument("Invalid control mode");
+    }
+}
+
 bool Task::handle_position_target(const base::commands::Joints& sample)
 {
     reset_for_new_command();
 
-    //Create Contraint trajectory from saple with with one via point. Use default
-    //motion constraints.
+    //Create Contraint trajectory from sample with with one via point. Use default motion constraints.
     current_trajectory.resize(nDof, 1);
-
     //Set active joints according to sample
     set_active_joints(sample.names);
 
@@ -353,12 +360,7 @@ bool Task::handle_position_target(const base::commands::Joints& sample)
     for(size_t i=0; i<sample.size(); i++){
 
         internal_joint_idx = map_name_to_joint_idx(sample.names[i]);
-
-        //Check for correct control mode
-        if(!sample[i].hasPosition()){
-            LOG_ERROR("%s: Supports only position control mode, but input command does not provide a position value", this->getName().c_str());
-            throw std::invalid_argument("Invalid control mode");
-        }
+        check_ctrl_mode(sample[i]);
 
         get_default_motion_constraints(internal_joint_idx, current_trajectory.motion_constraints[internal_joint_idx][0]);
         current_trajectory.elements[internal_joint_idx][0] = sample[i];
@@ -366,15 +368,12 @@ bool Task::handle_position_target(const base::commands::Joints& sample)
     return make_feasible(current_trajectory);
 }
 
-
 bool Task::handle_constrained_position_target(const trajectory_generation::ConstrainedJointsCmd& sample)
 {
     reset_for_new_command();
 
-    //Create Contraint trajectory from saple with with one via point. Use default
-    //motion constraints.
+    //Create Contraint trajectory from sample with with one via point. Use default given motion constraints
     current_trajectory.resize(nDof, 1);
-
     //Set active joints according to sample
     set_active_joints(sample.names);
 
@@ -382,17 +381,11 @@ bool Task::handle_constrained_position_target(const trajectory_generation::Const
     for(size_t i=0; i<sample.size(); i++){
 
         internal_joint_idx = map_name_to_joint_idx(sample.names[i]);
-
-        //Check for correct control mode
-        if(!sample[i].hasPosition()){
-            LOG_ERROR("%s: Supports only position control mode, but input command does not provide a position value", this->getName().c_str());
-            throw std::invalid_argument("Invalid control mode");
-        }
+        check_ctrl_mode(sample[i]);
 
         current_trajectory.elements[internal_joint_idx][0] = sample[i];
         current_trajectory.motion_constraints[internal_joint_idx][0] = sample.motion_constraints[i];
     }
-
     return make_feasible(current_trajectory);
 }
 
@@ -400,10 +393,8 @@ bool Task::handle_trajectory_target(const base::JointsTrajectory& sample)
 {
     reset_for_new_command();
 
-    //Create constraint trajectory from sample with with via points form sampole. Use default
-    //motion constraints.
+    //Create constraint trajectory from sample with with via points form sampole. Use default motion constraints.
     current_trajectory.resize(nDof, sample.getTimeSteps());
-
     //Set active joints according to sample
     set_active_joints(sample.names);
 
@@ -413,18 +404,12 @@ bool Task::handle_trajectory_target(const base::JointsTrajectory& sample)
         internal_joint_idx = map_name_to_joint_idx(sample.names[i]);
 
         for(size_t time_idx=0; time_idx<sample.getTimeSteps(); time_idx++){
-
-            //Check for correct control mode
-            if(!sample[i][time_idx].hasPosition()){
-                LOG_ERROR("%s: Supports only position control mode, but input command does not provide a position value", this->getName().c_str());
-                throw std::invalid_argument("Invalid control mode");
-            }
+            check_ctrl_mode(sample[i][time_idx]);
 
             get_default_motion_constraints(internal_joint_idx, current_trajectory.motion_constraints[internal_joint_idx][time_idx]);
             current_trajectory.elements[internal_joint_idx][time_idx] = sample[i][time_idx];
         }
     }
-
     return make_feasible(current_trajectory);
 }
 
@@ -432,10 +417,8 @@ bool Task::handle_constrained_trajectory_target(const ConstrainedJointsTrajector
 {
     reset_for_new_command();
 
-    //Create constraint trajectory from sample with with via points form sampole. Use default
-    //motion constraints.
+    //Create constraint trajectory from sample with with via points form sampole. Use default motion constraints.
     current_trajectory.resize(nDof, sample.getTimeSteps());
-
     //Set active joints according to sample
     set_active_joints(sample.names);
 
@@ -445,18 +428,12 @@ bool Task::handle_constrained_trajectory_target(const ConstrainedJointsTrajector
         internal_joint_idx = map_name_to_joint_idx(sample.names[i]);
 
         for(size_t time_idx=0; time_idx<sample.getTimeSteps(); time_idx++){
-
-            //Check for correct control mode
-            if(!sample[i][time_idx].hasPosition()){
-                LOG_ERROR("%s: Supports only position control mode, but input command does not provide a position value", this->getName().c_str());
-                throw std::invalid_argument("Invalid control mode");
-            }
+            check_ctrl_mode(sample[i][time_idx]);
 
             current_trajectory.motion_constraints[internal_joint_idx][time_idx] = sample.motion_constraints[i][time_idx];
             current_trajectory.elements[internal_joint_idx][time_idx] = sample[i][time_idx];
         }
     }
-
     return make_feasible(current_trajectory);
 }
 
@@ -594,10 +571,10 @@ void Task::handle_reflexxes_result_value(const int& result)
         error();
         break;
     case ReflexxesAPI::RML_ERROR_SYNCHRONIZATION:
-        LOG_ERROR("RML_ERROR_SYNCHRONIZATION");
+        LOG_WARN("RML_ERROR_SYNCHRONIZATION");
         IP_active->Echo();
         OP->Echo();
-        error();
+        //error();
         break;
     case ReflexxesAPI::RML_ERROR_NUMBER_OF_DOFS:
         LOG_ERROR("RML_ERROR_NUMBER_OF_DOFS");

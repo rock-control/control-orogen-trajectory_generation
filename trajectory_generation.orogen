@@ -10,6 +10,14 @@ typekit do
     export_types '/trajectory_generation/ConstrainedJointsTrajectory'
 end
 
+#
+# This task generates a feasible, time-stamped trajectory from a path of joint positions (trajectory_target or constrained_trajectory_target)
+# or from single input positions (position_target or constrained_position_target). "Feasible" means that the output trajectory (cmd port) will
+# respect the motion constraints defined by the limits-property, that is maximum/minimum position (only Reflexxes TypeIV), maximum speed, maximum
+# acceleration and maximum Jerk (derivative of acceleration). NOTE: Right now, when using trajectory input and NOT defining speed value in the trajectory,
+# the maximum speed should be low with respect to max acceleration and max jerk, otherwise the output trajectory will overshoot the target positions,
+# Example:  max speed: 0.5, max acc/max jerk: 20. This is required because of an incorrect automatic computation of the speed value (TODO).
+#
 task_context 'Task' do
 
     needs_configuration
@@ -17,14 +25,14 @@ task_context 'Task' do
     error_states 'NO_JOINT_STATE_INPUT'
 
     property('limits', 'trajectory_generation/JointsMotionConstraints').
-        doc('These are the motion constraints for the output trajectory. Will use max.position, min.position, max.speed, max.acceleration and max_jerk to shape the output trajectory.')
+        doc('These are the motion constraints for the output trajectory. Will use max.position, min.position, max.speed, max.acceleration and max_jerk.')
     property('cycle_time', 'double').
         doc('Cycle time in seconds. IMPORTANT: This has to be the same value as the period of this component!')
     property('write_debug_data', 'bool', true).
         doc('Write additional debug data to port or not')
     property('positional_limits_behavior', 'int', 0).
         doc('Behavior when reaching positional limits. Can be one of 0 = RMLFlags::POSITIONAL_LIMITS_IGNORE,1 = RMLFlags::POSITIONAL_LIMITS_ERROR_MSG_ONLY, 2 = RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT. Only available for Reflexxes Type_IV')
-    property('sync_behavior', 'int', 3).
+    property('sync_behavior', 'int', 0).
         doc('The synchronization behavior of RML. Can be one of 0 = RMLFlags::PHASE_SYNCHRONIZATION_IF_POSSIBLE, 1 = RMLFlags::ONLY_TIME_SYNCHRONIZATION, 2 = RMLFlags::ONLY_PHASE_SYNCHRONIZATION, 3 = RMLFlags::NO_SYNCHRONIZATION')
     property('override_input_position', 'bool', true).
         doc('RML Output position of previous cycle will be used as input for next cycle. If false, use the actual joint position (from joint_state port) as input for the next cycle.')
@@ -43,7 +51,7 @@ task_context 'Task' do
 
 
     input_port('trajectory_target', '/base/JointsTrajectory').
-        doc('The target trajectory which should be followed. If speed and acceleration values are specified they will be used as target speed/acceleration. Otherwise the limits will be applied.')
+        doc('The target trajectory which should be followed. If speed are specified, they will be used as target speed. Otherwise the speed will be automatically set by interpolation.')
     input_port('position_target', '/base/commands/Joints').
         doc('Alternative input port to define a target trajectory. Joint commands are treated as a trajectory with one via point. The given limits will be applied')
     input_port('constrained_trajectory_target', '/trajectory_generation/ConstrainedJointsTrajectory').

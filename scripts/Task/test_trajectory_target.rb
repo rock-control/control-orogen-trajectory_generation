@@ -10,47 +10,42 @@ end
 Orocos.run "trajectory_generation::Task" => "interpolator" do
 
     interpolator = Orocos::TaskContext.get "interpolator"
-    Orocos.conf.apply(interpolator, ["default"])
+    Orocos.conf.apply(interpolator, ["default", "reactive"])
     interpolator.configure
     interpolator.start
   
     initial_joint_state = Types::Base::Samples::Joints.new
-    interpolator.limits.names.each do |name|
-       initial_joint_state.names << name
-    end
+    initial_joint_state.names = interpolator.limits.names
+
     interpolator.limits.elements.each do |elem|
        state = Types::Base::JointState.new
-       state.position = (elem.max.position + elem.min.position)/2
-       state.speed = 0
-       state.acceleration = 0
+       state.position = state.speed = state.acceleration = 0
        initial_joint_state.elements << state
     end
-
-    initial_joint_state.time = Types::Base::Time.now
-    interpolator.joint_state.write(initial_joint_state)
-
     sleep(1)
 
     target = Types::Base::JointsTrajectory.new
-    interpolator.limits.names.each do |name|
-        target.names << name
-    end
+    target.names = interpolator.limits.names
+
+    # Drive a trajectory from 0 .. 1 and back to zero (20 steps)
     interpolator.limits.elements.each do |elem|
         traj = Types::Base::JointTrajectory.new
         state = Types::Base::JointState.new
         state.position = 0
         for i in 0..10
-            state.position = 0.1*i#range(elem.min.position, elem.max.position)
+            state.position = 0.1*i
             traj << state
         end
-        state = Types::Base::JointState.new
-        state.position = 0
-        traj << state
+        for i in 0..10
+            state.position = (1-0.1*i)
+            traj << state
+        end
         target.elements << traj
     end
 
-    pp target
+    initial_joint_state.time = Types::Base::Time.now
     interpolator.trajectory_target.write(target)
+    interpolator.joint_state.write(initial_joint_state)
 
     puts "Press ENTER to stop!"
     STDIN.readline

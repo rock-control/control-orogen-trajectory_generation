@@ -106,6 +106,7 @@ protected:
      */
     void get_default_motion_constraints(const std::string& joint_name, JointMotionConstraints& constraints);
     void get_default_motion_constraints(size_t internal_index, JointMotionConstraints& constraints);
+    void check_ctrl_mode(const base::JointState& command);
 
     /**
      * @brief Prepares internal data for processing a new target
