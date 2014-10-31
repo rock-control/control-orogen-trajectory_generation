@@ -8,11 +8,13 @@ using namespace std;
 RMLVelocityTask::RMLVelocityTask(std::string const& name)
     : RMLVelocityTaskBase(name)
 {
+    has_target_ = has_rml_been_called_ = false;
 }
 
 RMLVelocityTask::RMLVelocityTask(std::string const& name, RTT::ExecutionEngine* engine)
     : RMLVelocityTaskBase(name, engine)
 {
+    has_target_ = has_rml_been_called_ = false;
 }
 
 RMLVelocityTask::~RMLVelocityTask()
@@ -102,10 +104,9 @@ void RMLVelocityTask::handleStatusInput(const base::samples::Joints &status)
 {
     for(size_t i = 0; i < nDOF_; i++)
     {
-        std::string joint_name = limits_.names[i];
         size_t joint_idx = 0;
         try{
-            joint_idx = status.mapNameToIndex(joint_name);
+            joint_idx = status.mapNameToIndex(limits_.names[i]);
         }
         catch(std::exception e){
             continue;
@@ -114,8 +115,13 @@ void RMLVelocityTask::handleStatusInput(const base::samples::Joints &status)
         //Only use NewPositionVector from previous cycle if there has been a previous cycle (has_rml_been_called_ == true)
         if(override_input_position_ && has_rml_been_called_)
             Vel_IP_->CurrentPositionVector->VecData[i] = Vel_OP_->NewPositionVector->VecData[i];
-        else
+        else{
+            if(!status[joint_idx].hasPosition()){
+                LOG_ERROR("Position of input joint state of joint %i (%s) is unset", i, limits_.names[i].c_str());
+                throw std::invalid_argument("Invalid joint state input");
+            }
             Vel_IP_->CurrentPositionVector->VecData[i] = status[joint_idx].position;
+        }
 
         //Avoid invalid input here (RML with active Positonal Limits prevention crashes with positional input that is out of limits, which may happen due to noisy position readings)
 #ifdef USING_REFLEXXES_TYPE_IV
@@ -128,12 +134,17 @@ void RMLVelocityTask::handleStatusInput(const base::samples::Joints &status)
         //Only use NewVelocityVector from previous cycle if there has been a previous cycle (has_rml_been_called_ == true)
         if(override_input_speed_ && has_rml_been_called_)
             Vel_IP_->CurrentVelocityVector->VecData[i] = Vel_OP_->NewVelocityVector->VecData[i];
-        else
+        else{
+            if(!status_[joint_idx].hasSpeed()){
+                LOG_ERROR("Speed of input joint state of joint %i (%s) is unset", i, limits_.names[i].c_str());
+                throw std::invalid_argument("Invalid joint state input");
+            }
             Vel_IP_->CurrentVelocityVector->VecData[i] = status[joint_idx].speed;
+        }
 
 #ifndef USING_REFLEXXES_TYPE_IV
         // This is to fix a bug in the Reflexxes type II library. If current and target velocity are equal
-        // the output will be nan.
+        // the output will be nan. TODO: Has this already been fixed in reflexxes?
         if(Vel_IP_->CurrentVelocityVector->VecData[i] == Vel_IP_->TargetVelocityVector->VecData[i])
             Vel_IP_->CurrentVelocityVector->VecData[i] -= 1e-10;
 #endif
@@ -143,8 +154,13 @@ void RMLVelocityTask::handleStatusInput(const base::samples::Joints &status)
         //Only use NewAccelerationVector from previous cycle if there has been a previous cycle (has_rml_been_called_ == true)
         if(override_input_acceleration_ && has_rml_been_called_)
             Vel_IP_->CurrentAccelerationVector->VecData[i] = Vel_OP_->NewAccelerationVector->VecData[i];
-        else
+        else{
+            if(!status_[joint_idx].hasAcceleration()){
+                LOG_ERROR("Acceleration of input joint state of joint %i (%s) is unset", i, limits_.names[i].c_str());
+                throw std::invalid_argument("Invalid joint state input");
+            }
             Vel_IP_->CurrentAccelerationVector->VecData[i] = status[joint_idx].acceleration;
+        }
     }
 }
 
@@ -212,19 +228,21 @@ void RMLVelocityTask::setActiveMotionConstraints(const trajectory_generation::Jo
         }
 
         cur_pos = Vel_IP_->CurrentPositionVector->VecData[idx];
-        if(cur_pos > max_pos){
-            LOG_ERROR("Cannot set max pos of joint %i (%s) to %f, because current pos is %f!", idx, limits_.names[idx].c_str(), max_pos, cur_pos);
-            throw std::invalid_argument("Invalid constraint input");
-        }
-        else
-            Vel_IP_->MaxPositionVector->VecData[idx] = max_pos;
+        if(has_rml_been_called_)
+        {
+            if(cur_pos > max_pos){
+                LOG_ERROR("Cannot set max pos of joint %i (%s) to %f, because current pos is %f!", idx, limits_.names[idx].c_str(), max_pos, cur_pos);
+                throw std::invalid_argument("Invalid constraint input");
+            }
 
-        if(cur_pos < min_pos){
-            LOG_ERROR("Cannot set min pos of joint %i (%s) to %f, because current pos is %f!", idx, limits_.names[idx].c_str(), min_pos, cur_pos);
-            throw std::invalid_argument("Invalid constraint input");
+            if(cur_pos < min_pos){
+                LOG_ERROR("Cannot set min pos of joint %i (%s) to %f, because current pos is %f!", idx, limits_.names[idx].c_str(), min_pos, cur_pos);
+                throw std::invalid_argument("Invalid constraint input");
+            }
         }
-        else
-            Vel_IP_->MinPositionVector->VecData[idx] = min_pos;
+
+        Vel_IP_->MaxPositionVector->VecData[idx] = max_pos;
+        Vel_IP_->MinPositionVector->VecData[idx] = min_pos;
 #endif
 
         // Set Max Velocity: If input is nan, reset to initial max velocity
@@ -239,7 +257,7 @@ void RMLVelocityTask::setActiveMotionConstraints(const trajectory_generation::Jo
         }
         input_params_.MaxVelocityVector[idx] = max_speed;
 
-         // Set Max Acceleration: If input is nan, reset to initial max acceleration
+        // Set Max Acceleration: If input is nan, reset to initial max acceleration
         if(base::isNaN(constraints[i].max.acceleration))
             max_acc = limits_[idx].max.acceleration;
         else
@@ -406,7 +424,9 @@ void RMLVelocityTask::updateHook()
 
     if(has_target_)
     {
+        Vel_IP_->Echo();
         handleRMLInterpolationResult(RML_->RMLVelocity(*Vel_IP_, Vel_OP_, Vel_Flags_));
+        Vel_OP_->Echo();
         has_rml_been_called_ = true;
 
         writeOutputCommand(Vel_OP_);

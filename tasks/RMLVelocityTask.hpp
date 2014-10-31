@@ -29,8 +29,7 @@ protected:
     bool throw_on_infeasible_input_;
     bool override_input_position_;   /** Set output position as input for next cycle */
     bool override_input_speed_;      /** Set output speed as input for next cycle */
-    bool override_input_acceleration_;  /** Set output acceleration as input for next cycle. When treat_effort_as_acceleration == false, input acceleration
-                                            is always overriden. In this case, acceleration is always assumed to zero at first sample. */
+    bool override_input_acceleration_;  /** Set output acceleration as input for next cycle. */
 
     trajectory_generation::ConstrainedJointsCmd constrained_cmd_in_;
     trajectory_generation::JointsMotionConstraints limits_;
