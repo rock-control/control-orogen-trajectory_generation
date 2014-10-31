@@ -26,6 +26,7 @@ protected:
     RMLVelocityOutputParameters *Vel_OP_;
     RMLVelocityFlags Vel_Flags_;
 
+    bool throw_on_infeasible_input_;
     bool override_input_position_;   /** Set output position as input for next cycle */
     bool override_input_speed_;      /** Set output speed as input for next cycle */
     bool override_input_acceleration_;  /** Set output acceleration as input for next cycle. When treat_effort_as_acceleration == false, input acceleration
@@ -36,7 +37,6 @@ protected:
     base::samples::Joints status_;
     base::commands::Joints command_out_, command_in_;
     bool has_rml_been_called_, has_target_;
-    double velocity_timeout_; /** In seconds. Target velocity is set to zero, if no new reference comes in for more than <velocity_timeout_>*/
     double cycle_time_;
     size_t nDOF_;
     base::samples::Joints output_sample_;

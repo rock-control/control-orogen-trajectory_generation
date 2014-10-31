@@ -4,7 +4,7 @@
   </description>
   <author>Jakob Schwendner/jakob.schwendner@dfki.de</author>
   <license>LGPL</license>
-  <tags>stable</tags>
+  <!--tags>stable</tags-->
   <depend package="base/types" />
   <depend package="control/reflexxes" />
 </package>

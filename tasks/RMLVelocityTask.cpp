@@ -30,8 +30,40 @@ bool RMLVelocityTask::configureHook()
     limits_ = _limits.value();
     cycle_time_ = _cycle_time.value();
     Vel_Flags_.SynchronizationBehavior = _sync_behavior.value();
+    throw_on_infeasible_input_ = _throw_on_infeasible_input.get();
 
     nDOF_ =  limits_.size();
+
+    if(limits_.empty()){
+        LOG_ERROR("Size of joint limits has to be > 0!");
+        return false;
+    }
+
+    for(uint i = 0; i < limits_.size(); i++)
+    {
+        if(!limits_[i].max.hasSpeed() || limits_[i].max.speed <= 0){
+            LOG_ERROR("Limits for joint %i (%s) do not have a valid max speed value", i, limits_.names[i].c_str());
+            return false;
+        }
+        if(!limits_[i].max.hasAcceleration() || limits_[i].max.acceleration <= 0){
+            LOG_ERROR("Limits for joint %i (%s) do not have a valid max acceleration value", i, limits_.names[i].c_str());
+            return false;
+        }
+        if(base::isUnset(limits_[i].max_jerk) || limits_[i].max_jerk <= 0){
+            LOG_ERROR("Limits for joint %i (%s) do not have a valid max jerk value", i, limits_.names[i].c_str());
+            return false;
+        }
+#ifdef USING_REFLEXXES_TYPE_IV
+        if(!limits_[i].max.hasPosition()){
+            LOG_ERROR("Limits for joint %i (%s) do not have a valid max position value", i, limits_.names[i].c_str());
+            return false;
+        }
+        if(!limits_[i].min.hasPosition()){
+            LOG_ERROR("Limits for joint %i (%s) do not have a valid min position value", i, limits_.names[i].c_str());
+            return false;
+        }
+#endif
+    }
 
     status_.resize(nDOF_);
     output_sample_.resize(nDOF_);
@@ -79,16 +111,13 @@ void RMLVelocityTask::handleStatusInput(const base::samples::Joints &status)
             continue;
         }
 
-        // Input Position
-
         //Only use NewPositionVector from previous cycle if there has been a previous cycle (has_rml_been_called_ == true)
         if(override_input_position_ && has_rml_been_called_)
             Vel_IP_->CurrentPositionVector->VecData[i] = Vel_OP_->NewPositionVector->VecData[i];
         else
             Vel_IP_->CurrentPositionVector->VecData[i] = status[joint_idx].position;
 
-        //Avoid invalid input here (RML with active Positonal Limits prevention has problems with positional input that is out of limits,
-        //which may happen due to noisy position readings)
+        //Avoid invalid input here (RML with active Positonal Limits prevention crashes with positional input that is out of limits, which may happen due to noisy position readings)
 #ifdef USING_REFLEXXES_TYPE_IV
         if(Vel_Flags_.PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT)
         {
@@ -96,8 +125,6 @@ void RMLVelocityTask::handleStatusInput(const base::samples::Joints &status)
             Vel_IP_->CurrentPositionVector->VecData[i] = new_position;
         }
 #endif
-        // Input Velocity
-
         //Only use NewVelocityVector from previous cycle if there has been a previous cycle (has_rml_been_called_ == true)
         if(override_input_speed_ && has_rml_been_called_)
             Vel_IP_->CurrentVelocityVector->VecData[i] = Vel_OP_->NewVelocityVector->VecData[i];
@@ -152,86 +179,90 @@ void RMLVelocityTask::handleCommandInput(const base::commands::Joints &command)
 
 void RMLVelocityTask::setActiveMotionConstraints(const trajectory_generation::JointsMotionConstraints& constraints)
 {
+    double cur_pos, max_pos, min_pos, max_speed, max_acc, max_jerk;
+    size_t idx;
+
     for(size_t i = 0; i < constraints.size(); i++)
     {
-        size_t idx;
         try{
             idx = limits_.mapNameToIndex(constraints.names[i]);
         }
         catch(std::exception e)
         {
-            LOG_WARN("%s: SetMotionConstraints: Joint %s has not been configured. Will ignore this joint",
+            LOG_ERROR("%s: SetMotionConstraints: Joint %s is given in input constraints, but has not been configured. ",
                       this->getName().c_str(), constraints.names[i].c_str());
-            continue;
+            throw std::invalid_argument("Invalid constraint input");
         }
 
-        // Set Position limits: If input is nan, reset to initial min/max pos
-
 #ifdef USING_REFLEXXES_TYPE_IV
-        double max_pos;
+        // Set Position limits: If input is nan, reset to initial min/max pos
         if(base::isNaN(constraints[i].max.position))
             max_pos = limits_[idx].max.position;
         else
             max_pos = constraints[i].max.position;
 
-        double cur_pos = Vel_IP_->CurrentPositionVector->VecData[idx];
-        if(cur_pos > max_pos){
-            LOG_WARN("Cannot set max pos to %f because current pos is %f", max_pos, cur_pos);
-        }
-        else{
-            Vel_IP_->MaxPositionVector->VecData[idx] = max_pos;
+        if(base::isNaN(constraints[i].min.position))
+            min_pos = limits_[idx].min.position;
+        else
+            min_pos = constraints[i].min.position;
+
+        if(max_pos <= min_pos){
+            LOG_ERROR("Cannot set max and min pos of joint %i (%s) to %f and %f. Max pos has to be >= min pos!", idx, limits_.names[idx].c_str(), max_pos, min_pos);
+            throw std::invalid_argument("Invalid constraint input");
         }
 
-        double min_pos;
-        if(base::isNaN(constraints[i].min.position)){
-            min_pos = limits_[idx].min.position;
+        cur_pos = Vel_IP_->CurrentPositionVector->VecData[idx];
+        if(cur_pos > max_pos){
+            LOG_ERROR("Cannot set max pos of joint %i (%s) to %f, because current pos is %f!", idx, limits_.names[idx].c_str(), max_pos, cur_pos);
+            throw std::invalid_argument("Invalid constraint input");
         }
-        else{
-            min_pos = constraints[i].min.position;
-        }
+        else
+            Vel_IP_->MaxPositionVector->VecData[idx] = max_pos;
 
         if(cur_pos < min_pos){
-            LOG_WARN("Cannot set min pos to %f because current pos is %f", min_pos, cur_pos);
+            LOG_ERROR("Cannot set min pos of joint %i (%s) to %f, because current pos is %f!", idx, limits_.names[idx].c_str(), min_pos, cur_pos);
+            throw std::invalid_argument("Invalid constraint input");
         }
-        else{
+        else
             Vel_IP_->MinPositionVector->VecData[idx] = min_pos;
-        }
 #endif
 
         // Set Max Velocity: If input is nan, reset to initial max velocity
+        if(base::isNaN(constraints[i].max.speed))
+            max_speed = limits_[idx].max.speed;
+        else
+            max_speed = constraints[i].max.speed;
 
-        double max_vel;
-        if(base::isNaN(constraints[i].max.speed)){
-            max_vel = limits_[idx].max.speed;
+        if(max_speed <= 0){
+            LOG_ERROR("Cannot set max speed of joint %i (%s) to %f. Max speed has to be > 0!", idx, limits_.names[idx].c_str(), max_speed);
+            throw std::invalid_argument("Invalid constraint input");
         }
-        else{
-            max_vel = constraints[i].max.speed;
-        }
-        input_params_.MaxVelocityVector[idx] = max_vel;
-
+        input_params_.MaxVelocityVector[idx] = max_speed;
 
          // Set Max Acceleration: If input is nan, reset to initial max acceleration
-
-        double max_acc;
-        if(base::isNaN(constraints[i].max.acceleration)){
+        if(base::isNaN(constraints[i].max.acceleration))
             max_acc = limits_[idx].max.acceleration;
-        }
-        else{
+        else
             max_acc = constraints[i].max.acceleration;
+
+        if(max_acc <= 0){
+            LOG_ERROR("Cannot set max acceleration of joint %i (%s) to %f. Max acceleration has to be > 0!", idx, limits_.names[idx].c_str(), max_acc);
+            throw std::invalid_argument("Invalid constraint input");
         }
         Vel_IP_->MaxAccelerationVector->VecData[idx] = max_acc;
 
         // Set Max Jerk: If input is nan, reset to initial max jerk
-
-        double max_jerk;
         if(base::isNaN(constraints[i].max_jerk))
             max_jerk = limits_[idx].max_jerk;
-        else{
+        else
             max_jerk = constraints[i].max_jerk;
-        }
 
+        if(max_jerk <= 0){
+            LOG_ERROR("Cannot set max jerk of joint %i (%s) to %f. Max jerk has to be > 0!", idx, limits_.names[idx].c_str(), max_jerk);
+            throw std::invalid_argument("Invalid constraint input");
+        }
         Vel_IP_->MaxJerkVector->VecData[idx] = max_jerk;
-    }//for loop
+    }
 }
 
 void RMLVelocityTask::handleRMLInterpolationResult(const int res)
