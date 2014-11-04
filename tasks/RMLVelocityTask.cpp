@@ -135,11 +135,15 @@ void RMLVelocityTask::handleStatusInput(const base::samples::Joints &status)
         if(override_input_speed_ && has_rml_been_called_)
             Vel_IP_->CurrentVelocityVector->VecData[i] = Vel_OP_->NewVelocityVector->VecData[i];
         else{
-            if(!status_[joint_idx].hasSpeed()){
-                LOG_ERROR("Speed of input joint state of joint %i (%s) is unset", i, limits_.names[i].c_str());
-                throw std::invalid_argument("Invalid joint state input");
+            if(status_[joint_idx].hasSpeed())
+                Vel_IP_->CurrentVelocityVector->VecData[i] = status[joint_idx].speed;
+            else{
+                if(!override_input_speed_){
+                    LOG_ERROR("Override input speed is false and speed of input joint state of joint %i (%s) is unset", i, limits_.names[i].c_str());
+                    throw std::invalid_argument("Invalid joint state input");
+                }
+                Vel_IP_->CurrentVelocityVector->VecData[i] = 0;
             }
-            Vel_IP_->CurrentVelocityVector->VecData[i] = status[joint_idx].speed;
         }
 
 #ifndef USING_REFLEXXES_TYPE_IV
@@ -155,11 +159,15 @@ void RMLVelocityTask::handleStatusInput(const base::samples::Joints &status)
         if(override_input_acceleration_ && has_rml_been_called_)
             Vel_IP_->CurrentAccelerationVector->VecData[i] = Vel_OP_->NewAccelerationVector->VecData[i];
         else{
-            if(!status_[joint_idx].hasAcceleration()){
-                LOG_ERROR("Acceleration of input joint state of joint %i (%s) is unset", i, limits_.names[i].c_str());
-                throw std::invalid_argument("Invalid joint state input");
+            if(status_[joint_idx].hasAcceleration())
+                Vel_IP_->CurrentAccelerationVector->VecData[i] = status[joint_idx].acceleration;
+            else{
+                if(!override_input_acceleration_){
+                    LOG_ERROR("Override input acceleration is false and acceleration of input joint state of joint %i (%s) is unset", i, limits_.names[i].c_str());
+                    throw std::invalid_argument("Invalid joint state input");
+                }
+                Vel_IP_->CurrentAccelerationVector->VecData[i] = 0;
             }
-            Vel_IP_->CurrentAccelerationVector->VecData[i] = status[joint_idx].acceleration;
         }
     }
 }
