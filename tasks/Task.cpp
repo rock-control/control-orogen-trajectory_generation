@@ -74,7 +74,8 @@ void set_speeds(trajectory_generation::ConstrainedJointsTrajectory& traj, const 
                 traj[joint_idx][t].speed = 0;
             else{
                 traj[joint_idx][t].speed = (traj[joint_idx][t].speed/max_speed) * traj.motion_constraints[joint_idx][t].max.speed;
-                traj.motion_constraints[joint_idx][t].max.speed = fabs(traj[joint_idx][t].speed);
+                if(fabs(traj[joint_idx][t].speed) > 1e-10)
+                    traj.motion_constraints[joint_idx][t].max.speed = fabs(traj[joint_idx][t].speed);
             }
         }
     }
