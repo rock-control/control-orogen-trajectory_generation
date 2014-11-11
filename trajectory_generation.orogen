@@ -102,6 +102,8 @@ task_context 'RMLVelocityTask' do
         doc('RML Output acceleration of previous cycle will be used as input for next cycle. If false, use the actual joint acceleration (from joint_state port) as input for the next cycle.')
     property('throw_on_infeasible_input', 'bool', true).
          doc('Should an exception be thrown if input was infeasible, e.g. target speed too high, target position out of limits, etc...?')
+    property('velocity_timeout', 'double', 0.5).
+         doc('Set Reference velocity to zero if no new reference arrives for this amount of time (in seconds).')
 
     input_port('velocity_target', '/base/commands/Joints').
         doc("The target joint velocity")

@@ -33,6 +33,7 @@ bool RMLVelocityTask::configureHook()
     cycle_time_ = _cycle_time.value();
     Vel_Flags_.SynchronizationBehavior = _sync_behavior.value();
     throw_on_infeasible_input_ = _throw_on_infeasible_input.get();
+    velocity_timeout_ = _velocity_timeout.get();
 
     nDOF_ =  limits_.size();
 
@@ -96,6 +97,7 @@ bool RMLVelocityTask::startHook()
 
     for(size_t i = 0; i < nDOF_; i++)
         Vel_IP_->TargetVelocityVector->VecData[i] = 0;
+    wrote_velocity_timeout_warning_ = false;
 
     return true;
 }
@@ -432,9 +434,20 @@ void RMLVelocityTask::updateHook()
 
     if(has_target_)
     {
-        Vel_IP_->Echo();
+        base::Time cur = base::Time::now();
+        double diff = (cur - stamp_).toSeconds();
+        if(diff > velocity_timeout_){
+            if(!wrote_velocity_timeout_warning_){
+                LOG_WARN("Velocity Timeout. No new reference arrived for %f seconds. Setting reference velocity to zero", diff);
+                wrote_velocity_timeout_warning_ = true;
+            }
+            for(uint i = 0; i < nDOF_; i++)
+                Vel_IP_->TargetVelocityVector->VecData[i] = 0;
+        }
+        else
+            wrote_velocity_timeout_warning_ = false;
+
         handleRMLInterpolationResult(RML_->RMLVelocity(*Vel_IP_, Vel_OP_, Vel_Flags_));
-        Vel_OP_->Echo();
         has_rml_been_called_ = true;
 
         writeOutputCommand(Vel_OP_);

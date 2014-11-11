@@ -26,10 +26,18 @@ protected:
     RMLVelocityOutputParameters *Vel_OP_;
     RMLVelocityFlags Vel_Flags_;
 
+    /** Should an exception be thrown if input was infeasible, e.g. target speed too high? */
     bool throw_on_infeasible_input_;
-    bool override_input_position_;   /** Set output position as input for next cycle */
-    bool override_input_speed_;      /** Set output speed as input for next cycle */
-    bool override_input_acceleration_;  /** Set output acceleration as input for next cycle. */
+    /** Set output position as input for next cycle */
+    bool override_input_position_;
+    /** Set output speed as input for next cycle */
+    bool override_input_speed_;
+    /** Set output acceleration as input for next cycle. */
+    bool override_input_acceleration_;
+    /** Set Reference velocity to zero if no new reference arrives for this amount of time (in seconds).*/
+    double velocity_timeout_;
+
+    bool wrote_velocity_timeout_warning_;
 
     trajectory_generation::ConstrainedJointsCmd constrained_cmd_in_;
     trajectory_generation::JointsMotionConstraints limits_;
