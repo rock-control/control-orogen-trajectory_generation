@@ -137,12 +137,14 @@ struct ConstrainedJointsTrajectory
                     err << "Joint " << joint_idx << " (" << names[joint_idx] << ") exceeds limits: Target position: "
                         << sample.position << ", Max position: " << constraint.max.position << std::endl;
                     sample.position = constraint.max.position - 1e-5; //Subtract small value here, to avoid RML throwing error msgs because of exceeding joint limits
+                    sample.speed = sample.acceleration = 0; //Set speed and acc to zero, otherwise the trajectory might be driven into the limits anyways
                     all_feasible = false;
                 }
                 if(constraint.min.hasPosition() && sample.position < constraint.min.position){
                     err << "Joint " << joint_idx << " (" << names[joint_idx] << ") exceeds limits: Target position: "
                         << sample.position << ", Min position: " << constraint.min.position << std::endl;
                     sample.position = constraint.min.position + 1e-5; //Add small value here, to avoid RML throwing error msgs because of exceeding joint limits
+                    sample.speed = sample.acceleration = 0; //Set speed and acc to zero, otherwise the trajectory might be driven into the limits anyways
                     all_feasible = false;
                 }
 
