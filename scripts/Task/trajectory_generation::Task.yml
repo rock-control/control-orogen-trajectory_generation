@@ -1,353 +1,65 @@
 --- name:default
+# Cycle time in seconds. IMPORTANT: This has to be the same value as the period of this component!
+cycle_time: 0.02
 
-# Cycle time in seconds
-cycle_time: 0.005
-
-# Set output position as input for next cycle
-override_input_position: true
-
-# Set output speed as input for next cycle
-override_input_speed: true
-
-# Set output acceleration as input for next cycle. When treat_acceleration_as_acceleration == false, input acceleration is always overriden. In this case, acceleration is always assumed to zero at first sample.
+# RML Output acceleration of previous cycle will be used as input for next cycle. If false, use the actual joint acceleration (from joint_state port) as input for the next cycle.
 override_input_acceleration: true
 
+# RML Output position of previous cycle will be used as input for next cycle. If false, use the actual joint position (from joint_state port) as input for the next cycle.
+override_input_position: true
+
+# RML Output speed of previous cycle will be used as input for next cycle. If false, use the actual joint speed (from joint_state port) as input for the next cycle.
+override_input_speed: true
+
+# Forcefully set the acceleration of the output command to this value (only for the specified joints)
+override_output_acceleration:
+  names: []
+  elements: []
+
+# Forcefully set the speed of the output command to this value (only for the specified joints)
+override_output_speed:
+  names: []
+  elements: []
+
 # Behavior when reaching positional limits. Can be one of 0 = RMLFlags::POSITIONAL_LIMITS_IGNORE,1 = RMLFlags::POSITIONAL_LIMITS_ERROR_MSG_ONLY, 2 = RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT. Only available for Reflexxes Type_IV
-positional_limits_behavior: 2
+positional_limits_behavior: 0
 
 # The synchronization behavior of RML. Can be one of 0 = RMLFlags::PHASE_SYNCHRONIZATION_IF_POSSIBLE, 1 = RMLFlags::ONLY_TIME_SYNCHRONIZATION, 2 = RMLFlags::ONLY_PHASE_SYNCHRONIZATION, 3 = RMLFlags::NO_SYNCHRONIZATION
 sync_behavior: 1
-
-# Write additional debug data to port or not
-write_debug_data: true
-
-override_output_speed: 
-   names: ["J_Pan", "J_Tilt"]
-   elements: 
-      - speed: .nan
-      - speed: .nan
-
-override_output_acceleration: 
-   names: ["J_Shoulder1_r", "J_Shoulder2_r", "J_UpperArm_r", "J_Elbow_r", "J_Forearm_r",  
-           "J_Shoulder1_l", "J_Shoulder2_l", "J_UpperArm_l", "J_Elbow_l", "J_Forearm_l", 
-           "J_Pan", "J_Tilt"]
-   elements: 
-      - acceleration: 0.0
-      - acceleration: 0.0
-      - acceleration: 0.0
-      - acceleration: 0.0
-      - acceleration: 0.0
-      - acceleration: 0.0
-      - acceleration: 0.0
-      - acceleration: 0.0
-      - acceleration: 0.0
-      - acceleration: 0.0
-      - acceleration: .nan
-      - acceleration: .nan
-
 
 # Can be one of KEEP_SENDING_COMMANDS or STOP_SENDING_COMMANDS
 target_reached_behavior: :KEEP_SENDING_COMMANDS
 
 # Should an exception be thrown if input was infeasible, e.g. target speed too high?
-throw_on_infeasible_input: false
+throw_on_infeasible_input: true
 
-#######################################################
-#
-# Interpolation profiles with hands
-#
-#######################################################
+# Write additional debug data to port or not
+write_debug_data: true
 
---- name:with_hands_slow
+--- name:sherpa_manipulator
+
+# The limits for the joints
 limits:
-  names: ["J_Foot", "J_Knees", "J_Hip", "J_Waist", 
-          "J_Shoulder1_r", "J_Shoulder2_r", "J_UpperArm_r", "J_Elbow_r", "J_Forearm_r", "J_Wrist1_r", "J_Wrist2_r",
-          "r01_10", "r10_11", "r11_12", "r12_13", "r20_21", "r21_22", "r30_31", "r31_32", "r40_41",
-          "J_Shoulder1_l", "J_Shoulder2_l", "J_UpperArm_l", "J_Elbow_l", "J_Forearm_l", "J_Wrist1_l", "J_Wrist2_l", 
-          "l01_10", "l10_11", "l11_12", "l12_13", "l20_21", "l21_22", "l30_31", "l31_32", "l40_41",
-          "J_Pan", "J_Tilt"]
-
-  elements: [{max: {position: 1.919862175, speed: 0.1, acceleration: 0.5}, min: {position: -1.919862175}, max_jerk: 1.0}, # J_Foot
-             {max: {position: 2.705260337, speed: 0.1, acceleration: 0.5}, min: {position: 2.1816615625}, max_jerk: 1.0}, # J_Knees
-             {max: {position: 2.705260337, speed: 0.1, acceleration: 0.5}, min: {position: 1.919862175 }, max_jerk: 1.0}, # J_Hip
-             {max: {position: 1.04719755,  speed: 0.1, acceleration: 0.5}, min: {position: -1.04719755 }, max_jerk: 1.0}, # J_Waist
-             {max: {position: 0.872664625, speed: 0.3, acceleration: 1.5}, min: {position: -1.74532925 }, max_jerk: 2.0}, # J_Shoulder1_r
-             {max: {position: 1.433529862, speed: 0.3, acceleration: 1.5}, min: {position: -0.087266462}, max_jerk: 2.0}, # J_Shoulder2_r
-             {max: {position: 1.919862175, speed: 0.3, acceleration: 1.5}, min: {position: -1.919862175}, max_jerk: 2.0}, # J_UpperArm_r
-             {max: {position: 1.832595712, speed: 0.3, acceleration: 1.5}, min: {position: -0.087266462}, max_jerk: 2.0}, # J_Elbow_r
-             {max: {position: 1.570796325, speed: 0.3, acceleration: 1.5}, min: {position: -1.919862175}, max_jerk: 2.0}, # J_Forearm_r
-             {max: {position: 0.0,         speed: 0.3, acceleration: 1.5}, min: {position: -1.570796325}, max_jerk: 2.0}, # J_Wrist1_r
-             {max: {position: 0.610865237, speed: 0.3, acceleration: 1.5}, min: {position: -0.261799387}, max_jerk: 2.0}, # J_Wrist2_r
-             {max: {position: 1.04,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 2.0},         # r01_10
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.17}, max_jerk: 2.0},         # r10_11
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 2.0},         # r11_12
-             {max: {position: 3.14,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 2.0},         # r12_13
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 2.0},         # r20_21
-             {max: {position: 3.14,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 2.0},         # r21_22
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 2.0},         # r30_31
-             {max: {position: 3.14,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 2.0},         # r31_32
-             {max: {position: 4.71,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 2.0},         # r40_41
-             {max: {position: 1.74532925,  speed: 0.3, acceleration: 1.5}, min: {position: -0.872664625}, max_jerk: 2.0}, # J_Shoulder1_l
-             {max: {position: 0.087266462, speed: 0.3, acceleration: 1.5}, min: {position: -1.433529862}, max_jerk: 2.0}, # J_Shoulder2_l
-             {max: {position: 1.919862175, speed: 0.3, acceleration: 1.5}, min: {position: -1.919862175}, max_jerk: 2.0}, # J_UpperArm_l
-             {max: {position: 0.087266462, speed: 0.3, acceleration: 1.5}, min: {position: -1.832595712}, max_jerk: 2.0}, # J_Elbow_l
-             {max: {position: 1.570796325, speed: 0.3, acceleration: 1.5}, min: {position: -1.919862175}, max_jerk: 2.0}, # J_Forearm_l
-             {max: {position: 0.0,         speed: 0.3, acceleration: 1.5}, min: {position: -1.570796325}, max_jerk: 2.0}, # J_Wrist1_l
-             {max: {position: 0.610865237, speed: 0.3, acceleration: 2.0}, min: {position: -0.261799387}, max_jerk: 2.0}, # J_Wrist2_l
-             {max: {position: 1.04,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 2.0},         # l01_10
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.17}, max_jerk: 2.0},         # l10_11
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 2.0},         # l11_12
-             {max: {position: 3.14,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 2.0},         # l12_13
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 2.0},         # l20_21
-             {max: {position: 3.14,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 2.0},         # l21_22
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 2.0},         # l30_31
-             {max: {position: 3.14,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 2.0},         # l31_32
-             {max: {position: 4.71,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 2.0},         # l40_41
-             {max: {position: 0.785398162, speed: 0.3, acceleration: 1.5}, min: {position: -0.6981317  }, max_jerk: 2.0}, # J_Pan
-             {max: {position: 0.523598775, speed: 0.3, acceleration: 1.5}, min: {position: -1.04719755 }, max_jerk: 2.0}] # J_Tilt
+  names: ["arm_joint_1", "arm_joint_2", "arm_joint_3", "arm_joint_4", "arm_joint_5", "arm_joint_6"]
+  elements: [{max: {position: 2.967059728, speed: 0.1, acceleration: 1000.5}, min: {position: -3.316125579}, max_jerk: 1010.5},
+             {max: {position: 1.047197551, speed: 0.1, acceleration: 1000.5}, min: {position: -2.094395102}, max_jerk: 1000.5},
+             {max: {position: 3.001966313, speed: 0.1, acceleration: 1000.5}, min: {position: -1.919862177}, max_jerk: 1000.5},
+             {max: {position: 3.490658504, speed: 0.1, acceleration: 1000.5}, min: {position: -3.490658504}, max_jerk: 1000.5},
+             {max: {position: 2.268928028, speed: 0.1, acceleration: 1000.5}, min: {position: -2.268928028}, max_jerk: 1000.5},
+             {max: {position: 3.490658504, speed: 0.1, acceleration: 1000.5}, min: {position: -3.490658504}, max_jerk: 1000.5}]
 
 
---- name:with_hands_and_rover
+--- name:smooth
+# These are the motion constraints for the output trajectory. Will use max/min position, max vel, max acceleration and max jerk to shape the output trajectory.
 limits:
-  names: ["J_X", "J_Y", "J_Theta",
-          "J_Foot", "J_Knees", "J_Hip", "J_Waist", 
-          "J_Shoulder1_r", "J_Shoulder2_r", "J_UpperArm_r", "J_Elbow_r", "J_Forearm_r", "J_Wrist1_r", "J_Wrist2_r",
-          "r01_10", "r10_11", "r11_12", "r12_13", "r20_21", "r21_22", "r30_31", "r31_32", "r40_41",
-          "J_Shoulder1_l", "J_Shoulder2_l", "J_UpperArm_l", "J_Elbow_l", "J_Forearm_l", "J_Wrist1_l", "J_Wrist2_l", 
-          "l01_10", "l10_11", "l11_12", "l12_13", "l20_21", "l21_22", "l30_31", "l31_32", "l40_41",
-          "J_Pan", "J_Tilt"]
+  names: ["Joint_one", "Joint_two"]
+  elements: [{max: {position: 1.5, speed: 1.0, acceleration: 2.0}, min: {position: -1.0}, max_jerk: 4.0},
+             {max: {position: 2.0, speed: 1.0, acceleration: 2.0}, min: {position: -1.5}, max_jerk: 4.0}]
 
-  elements: [{max: {position: 1000.0,      speed: 0.1, acceleration: 0.5}, min: {position: -1000.0},      max_jerk: 2.0 },# J_X
-             {max: {position: 1000.0,      speed: 0.1, acceleration: 0.5}, min: {position: -1000.0},      max_jerk: 2.0 },# J_Y
-             {max: {position: 1000.0,      speed: 0.1, acceleration: 0.5}, min: {position: -1000.0},      max_jerk: 2.0}, # J_Theta
-             {max: {position: 1.919862175, speed: 0.1, acceleration: 0.5}, min: {position: -1.919862175}, max_jerk: 1.0}, # J_Foot
-             {max: {position: 2.705260337, speed: 0.1, acceleration: 0.5}, min: {position: 2.1816615625}, max_jerk: 1.0}, # J_Knees
-             {max: {position: 2.705260337, speed: 0.1, acceleration: 0.5}, min: {position: 1.919862175 }, max_jerk: 1.0}, # J_Hip
-             {max: {position: 1.04719755,  speed: 0.1, acceleration: 0.5}, min: {position: -1.04719755 }, max_jerk: 1.0}, # J_Waist
-             {max: {position: 0.872664625, speed: 1.0, acceleration: 2.0}, min: {position: -1.74532925 }, max_jerk: 4.0}, # J_Shoulder1_r
-             {max: {position: 1.433529862, speed: 1.0, acceleration: 2.0}, min: {position: -0.087266462}, max_jerk: 4.0}, # J_Shoulder2_r
-             {max: {position: 1.919862175, speed: 1.0, acceleration: 2.0}, min: {position: -1.919862175}, max_jerk: 4.0}, # J_UpperArm_r
-             {max: {position: 1.832595712, speed: 1.0, acceleration: 2.0}, min: {position: -0.087266462}, max_jerk: 4.0}, # J_Elbow_r
-             {max: {position: 1.570796325, speed: 1.0, acceleration: 2.0}, min: {position: -1.919862175}, max_jerk: 4.0}, # J_Forearm_r
-             {max: {position: 0.0,         speed: 1.0, acceleration: 2.0}, min: {position: -1.570796325}, max_jerk: 4.0}, # J_Wrist1_r
-             {max: {position: 0.610865237, speed: 1.0, acceleration: 2.0}, min: {position: -0.261799387}, max_jerk: 4.0}, # J_Wrist2_r
-             {max: {position: 1.04,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # r01_10
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.17}, max_jerk: 4.0},         # r10_11
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # r11_12
-             {max: {position: 3.14,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # r12_13
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # r20_21
-             {max: {position: 3.14,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # r21_22
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # r30_31
-             {max: {position: 3.14,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # r31_32
-             {max: {position: 4.71,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # r40_41
-             {max: {position: 1.74532925,  speed: 1.0, acceleration: 2.0}, min: {position: -0.872664625}, max_jerk: 4.0}, # J_Shoulder1_l
-             {max: {position: 0.087266462, speed: 1.0, acceleration: 2.0}, min: {position: -1.433529862}, max_jerk: 4.0}, # J_Shoulder2_l
-             {max: {position: 1.919862175, speed: 1.0, acceleration: 2.0}, min: {position: -1.919862175}, max_jerk: 4.0}, # J_UpperArm_l
-             {max: {position: 0.087266462, speed: 1.0, acceleration: 2.0}, min: {position: -1.832595712}, max_jerk: 4.0}, # J_Elbow_l
-             {max: {position: 1.570796325, speed: 1.0, acceleration: 2.0}, min: {position: -1.919862175}, max_jerk: 4.0}, # J_Forearm_l
-             {max: {position: 0.0,         speed: 1.0, acceleration: 2.0}, min: {position: -1.570796325}, max_jerk: 4.0}, # J_Wrist1_l
-             {max: {position: 0.610865237, speed: 1.0, acceleration: 2.0}, min: {position: -0.261799387}, max_jerk: 4.0}, # J_Wrist2_l
-             {max: {position: 1.04,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # l01_10
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.17}, max_jerk: 4.0},         # l10_11
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # l11_12
-             {max: {position: 3.14,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # l12_13
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # l20_21
-             {max: {position: 3.14,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # l21_22
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # l30_31
-             {max: {position: 3.14,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # l31_32
-             {max: {position: 4.71,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # l40_41
-             {max: {position: 0.785398162, speed: 1.0, acceleration: 2.0}, min: {position: -0.6981317  }, max_jerk: 4.0}, # J_Pan
-             {max: {position: 0.523598775, speed: 1.0, acceleration: 2.0}, min: {position: -1.04719755 }, max_jerk: 4.0}] # J_Tilt
-             
-             
---- name:trajectory_following
+
+--- name:reactive
+# These are the motion constraints for the output trajectory. Will use max/min position, max vel, max acceleration and max jerk to shape the output trajectory.
 limits:
-  names: ["J_X", "J_Y", "J_Theta", "J_Foot", "J_Knees", "J_Hip", "J_Waist", 
-          "J_Shoulder1_r", "J_Shoulder2_r", "J_UpperArm_r", "J_Elbow_r", "J_Forearm_r", "J_Wrist1_r", "J_Wrist2_r",
-          "r01_10", "r10_11", "r11_12", "r12_13", "r20_21", "r21_22", "r30_31", "r31_32", "r40_41",
-          "J_Shoulder1_l", "J_Shoulder2_l", "J_UpperArm_l", "J_Elbow_l", "J_Forearm_l", "J_Wrist1_l", "J_Wrist2_l", 
-          "l01_10", "l10_11", "l11_12", "l12_13", "l20_21", "l21_22", "l30_31", "l31_32", "l40_41",
-          "J_Pan", "J_Tilt"]
-
-  elements: [{max: {position: 1000.0,      speed: 0.1, acceleration: 0.5}, min: {position: -1000.0},      max_jerk: 2.0 },# J_X
-             {max: {position: 1000.0,      speed: 0.1, acceleration: 0.5}, min: {position: -1000.0},      max_jerk: 2.0 },# J_Y
-             {max: {position: 1000.0,      speed: 0.1, acceleration: 0.5}, min: {position: -1000.0},      max_jerk: 2.0}, # J_Theta
-             {max: {position: 1.919862175, speed: 0.2, acceleration: 1000.0}, min: {position: -1.919862175}, max_jerk: 1000.0}, # J_Foot
-             {max: {position: 2.705260337, speed: 0.2, acceleration: 1000.0}, min: {position: 2.1816615625}, max_jerk: 1000.0}, # J_Knees
-             {max: {position: 2.705260337, speed: 0.2, acceleration: 1000.0}, min: {position: 1.919862175 }, max_jerk: 1000.0}, # J_Hip
-             {max: {position: 1.04719755,  speed: 0.2, acceleration: 1000.0}, min: {position: -1.04719755 }, max_jerk: 1000.0}, # J_Waist
-             {max: {position: 0.872664625, speed: 0.5, acceleration: 1000.0}, min: {position: -1.74532925 }, max_jerk: 1000.0}, # J_Shoulder1_r
-             {max: {position: 1.433529862, speed: 0.5, acceleration: 1000.0}, min: {position: -0.087266462}, max_jerk: 1000.0}, # J_Shoulder2_r
-             {max: {position: 1.919862175, speed: 0.5, acceleration: 1000.0}, min: {position: -1.919862175}, max_jerk: 1000.0}, # J_UpperArm_r
-             {max: {position: 1.832595712, speed: 0.5, acceleration: 1000.0}, min: {position: -0.087266462}, max_jerk: 1000.0}, # J_Elbow_r
-             {max: {position: 1.570796325, speed: 0.5, acceleration: 1000.0}, min: {position: -1.919862175}, max_jerk: 1000.0}, # J_Forearm_r
-             {max: {position: 0.0,         speed: 0.5, acceleration: 1000.0}, min: {position: -1.570796325}, max_jerk: 1000.0}, # J_Wrist1_r
-             {max: {position: 0.610865237, speed: 0.5, acceleration: 1000.0}, min: {position: -0.261799387}, max_jerk: 1000.0}, # J_Wrist2_r
-             {max: {position: 1.04,        speed: 0.2, acceleration: 1000.0}, min: {position: 0.0 }, max_jerk: 1000.0},         # r01_10
-             {max: {position: 1.57,        speed: 0.2, acceleration: 1000.0}, min: {position: 0.17}, max_jerk: 1000.0},         # r10_11
-             {max: {position: 1.57,        speed: 0.2, acceleration: 1000.0}, min: {position: 0.0 }, max_jerk: 1000.0},         # r11_12
-             {max: {position: 3.14,        speed: 0.2, acceleration: 1000.0}, min: {position: 0.0 }, max_jerk: 1000.0},         # r12_13
-             {max: {position: 1.57,        speed: 0.2, acceleration: 1000.0}, min: {position: 0.0 }, max_jerk: 1000.0},         # r20_21
-             {max: {position: 3.14,        speed: 0.2, acceleration: 1000.0}, min: {position: 0.0 }, max_jerk: 1000.0},         # r21_22
-             {max: {position: 1.57,        speed: 0.2, acceleration: 1000.0}, min: {position: 0.0 }, max_jerk: 1000.0},         # r30_31
-             {max: {position: 3.14,        speed: 0.2, acceleration: 1000.0}, min: {position: 0.0 }, max_jerk: 1000.0},         # r31_32
-             {max: {position: 4.71,        speed: 0.2, acceleration: 1000.0}, min: {position: 0.0 }, max_jerk: 1000.0},         # r40_41
-             {max: {position: 1.74532925,  speed: 0.2, acceleration: 1000.0}, min: {position: -0.872664625}, max_jerk: 1000.0}, # J_Shoulder1_l
-             {max: {position: 0.087266462, speed: 0.2, acceleration: 1000.0}, min: {position: -1.433529862}, max_jerk: 1000.0}, # J_Shoulder2_l
-             {max: {position: 1.919862175, speed: 0.2, acceleration: 1000.0}, min: {position: -1.919862175}, max_jerk: 1000.0}, # J_UpperArm_l
-             {max: {position: 0.087266462, speed: 0.2, acceleration: 1000.0}, min: {position: -1.832595712}, max_jerk: 1000.0}, # J_Elbow_l
-             {max: {position: 1.570796325, speed: 0.2, acceleration: 1000.0}, min: {position: -1.919862175}, max_jerk: 1000.0}, # J_Forearm_l
-             {max: {position: 0.0,         speed: 0.2, acceleration: 1000.0}, min: {position: -1.570796325}, max_jerk: 1000.0}, # J_Wrist1_l
-             {max: {position: 0.610865237, speed: 0.2, acceleration: 1000.0}, min: {position: -0.261799387}, max_jerk: 1000.0}, # J_Wrist2_l
-             {max: {position: 1.04,        speed: 0.2, acceleration: 1000.0}, min: {position: 0.0 }, max_jerk: 1000.0},         # l01_10
-             {max: {position: 1.57,        speed: 0.2, acceleration: 1000.0}, min: {position: 0.17}, max_jerk: 1000.0},         # l10_11
-             {max: {position: 1.57,        speed: 0.2, acceleration: 1000.0}, min: {position: 0.0 }, max_jerk: 1000.0},         # l11_12
-             {max: {position: 3.14,        speed: 0.2, acceleration: 1000.0}, min: {position: 0.0 }, max_jerk: 1000.0},         # l12_13
-             {max: {position: 1.57,        speed: 0.2, acceleration: 1000.0}, min: {position: 0.0 }, max_jerk: 1000.0},         # l20_21
-             {max: {position: 3.14,        speed: 0.2, acceleration: 1000.0}, min: {position: 0.0 }, max_jerk: 1000.0},         # l21_22
-             {max: {position: 1.57,        speed: 0.2, acceleration: 1000.0}, min: {position: 0.0 }, max_jerk: 1000.0},         # l30_31
-             {max: {position: 3.14,        speed: 0.2, acceleration: 1000.0}, min: {position: 0.0 }, max_jerk: 1000.0},         # l31_32
-             {max: {position: 4.71,        speed: 0.2, acceleration: 1000.0}, min: {position: 0.0 }, max_jerk: 1000.0},         # l40_41
-             {max: {position: 0.785398162, speed: 0.2, acceleration: 1000.0}, min: {position: -0.6981317  }, max_jerk: 1000.0}, # J_Pan
-             {max: {position: 0.523598775, speed: 0.2, acceleration: 1000.0}, min: {position: -1.04719755 }, max_jerk: 1000.0}] # J_Tilt
-
-
---- name:with_hands
-limits:
-  names: ["J_Foot", "J_Knees", "J_Hip", "J_Waist", 
-          "J_Shoulder1_r", "J_Shoulder2_r", "J_UpperArm_r", "J_Elbow_r", "J_Forearm_r", "J_Wrist1_r", "J_Wrist2_r",
-          "r01_10", "r10_11", "r11_12", "r12_13", "r20_21", "r21_22", "r30_31", "r31_32", "r40_41",
-          "J_Shoulder1_l", "J_Shoulder2_l", "J_UpperArm_l", "J_Elbow_l", "J_Forearm_l", "J_Wrist1_l", "J_Wrist2_l", 
-          "l01_10", "l10_11", "l11_12", "l12_13", "l20_21", "l21_22", "l30_31", "l31_32", "l40_41",
-          "J_Pan", "J_Tilt"]
-
-  elements: [{max: {position: 1.919862175, speed: 0.1, acceleration: 0.5}, min: {position: -1.919862175}, max_jerk: 1.0}, # J_Foot
-             {max: {position: 2.705260337, speed: 0.1, acceleration: 0.5}, min: {position: 2.1816615625}, max_jerk: 1.0}, # J_Knees
-             {max: {position: 2.705260337, speed: 0.1, acceleration: 0.5}, min: {position: 1.919862175 }, max_jerk: 1.0}, # J_Hip
-             {max: {position: 1.04719755,  speed: 0.1, acceleration: 0.5}, min: {position: -1.04719755 }, max_jerk: 1.0}, # J_Waist
-             {max: {position: 0.872664625, speed: 1.0, acceleration: 2.0}, min: {position: -1.74532925 }, max_jerk: 4.0}, # J_Shoulder1_r
-             {max: {position: 1.433529862, speed: 1.0, acceleration: 2.0}, min: {position: -0.087266462}, max_jerk: 4.0}, # J_Shoulder2_r
-             {max: {position: 1.919862175, speed: 1.0, acceleration: 2.0}, min: {position: -1.919862175}, max_jerk: 4.0}, # J_UpperArm_r
-             {max: {position: 1.832595712, speed: 1.0, acceleration: 2.0}, min: {position: -0.087266462}, max_jerk: 4.0}, # J_Elbow_r
-             {max: {position: 1.570796325, speed: 1.0, acceleration: 2.0}, min: {position: -1.919862175}, max_jerk: 4.0}, # J_Forearm_r
-             {max: {position: 0.0,         speed: 1.0, acceleration: 2.0}, min: {position: -1.570796325}, max_jerk: 4.0}, # J_Wrist1_r
-             {max: {position: 0.610865237, speed: 1.0, acceleration: 2.0}, min: {position: -0.261799387}, max_jerk: 4.0}, # J_Wrist2_r
-             {max: {position: 1.04,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # r01_10
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.17}, max_jerk: 4.0},         # r10_11
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # r11_12
-             {max: {position: 3.14,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # r12_13
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # r20_21
-             {max: {position: 3.14,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # r21_22
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # r30_31
-             {max: {position: 3.14,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # r31_32
-             {max: {position: 4.71,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # r40_41
-             {max: {position: 1.74532925,  speed: 1.0, acceleration: 2.0}, min: {position: -0.872664625}, max_jerk: 4.0}, # J_Shoulder1_l
-             {max: {position: 0.087266462, speed: 1.0, acceleration: 2.0}, min: {position: -1.433529862}, max_jerk: 4.0}, # J_Shoulder2_l
-             {max: {position: 1.919862175, speed: 1.0, acceleration: 2.0}, min: {position: -1.919862175}, max_jerk: 4.0}, # J_UpperArm_l
-             {max: {position: 0.087266462, speed: 1.0, acceleration: 2.0}, min: {position: -1.832595712}, max_jerk: 4.0}, # J_Elbow_l
-             {max: {position: 1.570796325, speed: 1.0, acceleration: 2.0}, min: {position: -1.919862175}, max_jerk: 4.0}, # J_Forearm_l
-             {max: {position: 0.0,         speed: 1.0, acceleration: 2.0}, min: {position: -1.570796325}, max_jerk: 4.0}, # J_Wrist1_l
-             {max: {position: 0.610865237, speed: 1.0, acceleration: 2.0}, min: {position: -0.261799387}, max_jerk: 4.0}, # J_Wrist2_l
-             {max: {position: 1.04,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # l01_10
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.17}, max_jerk: 4.0},         # l10_11
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # l11_12
-             {max: {position: 3.14,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # l12_13
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # l20_21
-             {max: {position: 3.14,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # l21_22
-             {max: {position: 1.57,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # l30_31
-             {max: {position: 3.14,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # l31_32
-             {max: {position: 4.71,        speed: 1.0, acceleration: 2.0}, min: {position: 0.0 }, max_jerk: 4.0},         # l40_41
-             {max: {position: 0.785398162, speed: 1.0, acceleration: 2.0}, min: {position: -0.6981317  }, max_jerk: 4.0}, # J_Pan
-             {max: {position: 0.523598775, speed: 1.0, acceleration: 2.0}, min: {position: -1.04719755 }, max_jerk: 4.0}] # J_Tilt
-
-
-#######################################################
-#
-# Interpolation profiles without hands
-#
-#######################################################
-
---- name:no_hands_but_wrists
-limits:
-  names: ["J_Foot", "J_Knees", "J_Hip", "J_Waist", 
-          "J_Shoulder1_r", "J_Shoulder2_r", "J_UpperArm_r", "J_Elbow_r", "J_Forearm_r", "J_Wrist1_r", "J_Wrist2_r",
-          "J_Shoulder1_l", "J_Shoulder2_l", "J_UpperArm_l", "J_Elbow_l", "J_Forearm_l", "J_Wrist1_l", "J_Wrist2_l", 
-          "J_Pan", "J_Tilt"]  
-  elements: [{max: {position: 1.919862175, speed: 0.1, acceleration: 0.5}, min: {position: -1.919862175}, max_jerk: 4.0}, # J_Foot
-             {max: {position: 2.705260337, speed: 0.1, acceleration: 0.5}, min: {position: 2.1816615625}, max_jerk: 4.0}, # J_Knees
-             {max: {position: 2.705260337, speed: 0.1, acceleration: 0.5}, min: {position: 1.919862175 }, max_jerk: 4.0}, # J_Hip
-             {max: {position: 1.04719755,  speed: 0.1, acceleration: 0.5}, min: {position: -1.04719755 }, max_jerk: 4.0}, # J_Waist
-             {max: {position: 3.1,         speed: 1.0, acceleration: 2.0}, min: {position: -3.1 },        max_jerk: 4.0}, # J_Shoulder1_r
-             {max: {position: 1.433529862, speed: 1.0, acceleration: 2.0}, min: {position: -0.087266462}, max_jerk: 4.0}, # J_Shoulder2_r
-             {max: {position: 2.9,         speed: 1.0, acceleration: 2.0}, min: {position: -2.9},         max_jerk: 4.0}, # J_UpperArm_r
-             {max: {position: 2.0,         speed: 1.0, acceleration: 2.0}, min: {position: -0.34},        max_jerk: 4.0}, # J_Elbow_r
-             {max: {position: 2.6,         speed: 1.0, acceleration: 2.0}, min: {position: -2.6},         max_jerk: 4.0}, # J_Forearm_r
-             {max: {position: 0.0,         speed: 1.0, acceleration: 2.0}, min: {position: -1.570796325}, max_jerk: 4.0}, # J_Wrist1_r
-             {max: {position: 0.610865237, speed: 1.0, acceleration: 2.0}, min: {position: -0.261799387}, max_jerk: 4.0}, # J_Wrist2_r
-             {max: {position: 3.1,         speed: 1.0, acceleration: 2.0}, min: {position: -3.1 },        max_jerk: 4.0}, # J_Shoulder1_l
-             {max: {position: 0.087266462, speed: 1.0, acceleration: 2.0}, min: {position: -1.433529862}, max_jerk: 4.0}, # J_Shoulder2_l
-             {max: {position: 2.9,         speed: 1.0, acceleration: 2.0}, min: {position: -2.9},         max_jerk: 4.0}, # J_UpperArm_l
-             {max: {position: 1.54,        speed: 1.0, acceleration: 2.0}, min: {position: -2.0},         max_jerk: 4.0}, # J_Elbow_l
-             {max: {position: 2.6,         speed: 1.0, acceleration: 2.0}, min: {position: -2.6},         max_jerk: 4.0}, # J_Forearm_l
-             {max: {position: 0.0,         speed: 1.0, acceleration: 2.0}, min: {position: -1.570796325}, max_jerk: 4.0}, # J_Wrist1_l
-             {max: {position: 0.261799387, speed: 1.0, acceleration: 2.0}, min: {position: -0.610865237}, max_jerk: 4.0}, # J_Wrist2_l
-             {max: {position: 0.785398162, speed: 1.0, acceleration: 4.0}, min: {position: -0.6981317  }, max_jerk: 4.0}, # J_Pan
-             {max: {position: 0.523598775, speed: 1.0, acceleration: 4.0}, min: {position: -1.04719755 }, max_jerk: 4.0}] # J_Tilt
-             
-             
---- name:no_hands_but_wrists_fast
-limits:
-  names: ["J_Foot", "J_Knees", "J_Hip", "J_Waist", 
-          "J_Shoulder1_r", "J_Shoulder2_r", "J_UpperArm_r", "J_Elbow_r", "J_Forearm_r", "J_Wrist1_r", "J_Wrist2_r",
-          "J_Shoulder1_l", "J_Shoulder2_l", "J_UpperArm_l", "J_Elbow_l", "J_Forearm_l", "J_Wrist1_l", "J_Wrist2_l", 
-          "J_Pan", "J_Tilt"]  
-  elements: [{max: {position: 1.919862175, speed: 1000.0, acceleration: 1000.0}, min: {position: -1.919862175}, max_jerk: 1000.0}, # J_Foot
-             {max: {position: 2.705260337, speed: 1000.0, acceleration: 1000.0}, min: {position: 2.1816615625}, max_jerk: 1000.0}, # J_Knees
-             {max: {position: 2.705260337, speed: 1000.0, acceleration: 1000.0}, min: {position: 1.919862175 }, max_jerk: 1000.0}, # J_Hip
-             {max: {position: 1.04719755,  speed: 1000.0, acceleration: 1000.0}, min: {position: -1.04719755 }, max_jerk: 1000.0}, # J_Waist
-             {max: {position: 3.1,         speed: 1000.0, acceleration: 1000.0}, min: {position: -3.1 },        max_jerk: 1000.0}, # J_Shoulder1_r
-             {max: {position: 1.433529862, speed: 1000.0, acceleration: 1000.0}, min: {position: -0.087266462}, max_jerk: 1000.0}, # J_Shoulder2_r
-             {max: {position: 2.9,         speed: 1000.0, acceleration: 1000.0}, min: {position: -2.9},         max_jerk: 1000.0}, # J_UpperArm_r
-             {max: {position: 2.0,         speed: 1000.0, acceleration: 1000.0}, min: {position: -0.34},        max_jerk: 1000.0}, # J_Elbow_r
-             {max: {position: 2.6,         speed: 1000.0, acceleration: 1000.0}, min: {position: -2.6},         max_jerk: 1000.0}, # J_Forearm_r
-             {max: {position: 0.0,         speed: 1000.0, acceleration: 1000.0}, min: {position: -1.570796325}, max_jerk: 1000.0}, # J_Wrist1_r
-             {max: {position: 0.610865237, speed: 1000.0, acceleration: 1000.0}, min: {position: -0.261799387}, max_jerk: 1000.0}, # J_Wrist2_r
-             {max: {position: 3.1,         speed: 1000.0, acceleration: 1000.0}, min: {position: -3.1 },        max_jerk: 1000.0}, # J_Shoulder1_l
-             {max: {position: 0.087266462, speed: 1000.0, acceleration: 1000.0}, min: {position: -1.433529862}, max_jerk: 1000.0}, # J_Shoulder2_l
-             {max: {position: 2.9,         speed: 1000.0, acceleration: 1000.0}, min: {position: -2.9},         max_jerk: 1000.0}, # J_UpperArm_l
-             {max: {position: 1.54,        speed: 1000.0, acceleration: 1000.0}, min: {position: -2.0},         max_jerk: 1000.0}, # J_Elbow_l
-             {max: {position: 2.6,         speed: 1000.0, acceleration: 1000.0}, min: {position: -2.6},         max_jerk: 1000.0}, # J_Forearm_l
-             {max: {position: 0.0,         speed: 1000.0, acceleration: 1000.0}, min: {position: -1.570796325}, max_jerk: 1000.0}, # J_Wrist1_l
-             {max: {position: 0.261799387, speed: 1000.0, acceleration: 1000.0}, min: {position: -0.610865237}, max_jerk: 1000.0}, # J_Wrist2_l
-             {max: {position: 0.785398162, speed: 1000.0, acceleration: 1000.0}, min: {position: -0.6981317  }, max_jerk: 1000.0}, # J_Pan
-             {max: {position: 0.523598775, speed: 1000.0, acceleration: 1000.0}, min: {position: -1.04719755 }, max_jerk: 1000.0}] # J_Tilt
-             
-
---- name:no_hands_but_wrists_slow
-limits:
-  names: ["J_Foot", "J_Knees", "J_Hip", "J_Waist", 
-          "J_Shoulder1_r", "J_Shoulder2_r", "J_UpperArm_r", "J_Elbow_r", "J_Forearm_r", "J_Wrist1_r", "J_Wrist2_r", 
-          "J_Shoulder1_l", "J_Shoulder2_l", "J_UpperArm_l", "J_Elbow_l", "J_Forearm_l", "J_Wrist1_l", "J_Wrist2_l", 
-          "J_Pan", "J_Tilt"]
-
-  elements: [{max: {position: 1.919862175, speed: 0.1, acceleration: 0.5}, min: {position: -1.919862175}, max_jerk: 1.0}, # J_Foot
-             {max: {position: 2.705260337, speed: 0.1, acceleration: 0.5}, min: {position: 2.1816615625}, max_jerk: 1.0}, # J_Knees
-             {max: {position: 2.705260337, speed: 0.1, acceleration: 0.5}, min: {position: 1.919862175 }, max_jerk: 1.0}, # J_Hip
-             {max: {position: 1.04719755,  speed: 0.1, acceleration: 0.5}, min: {position: -1.04719755 }, max_jerk: 1.0}, # J_Waist
-             {max: {position: 0.872664625, speed: 0.3, acceleration: 2.0}, min: {position: -1.74532925 }, max_jerk: 2.0}, # J_Shoulder1_r
-             {max: {position: 1.433529862, speed: 0.3, acceleration: 2.0}, min: {position: -0.087266462}, max_jerk: 2.0}, # J_Shoulder2_r
-             {max: {position: 1.919862175, speed: 0.3, acceleration: 2.0}, min: {position: -1.919862175}, max_jerk: 2.0}, # J_UpperArm_r
-             {max: {position: 1.832595712, speed: 0.3, acceleration: 2.0}, min: {position: -0.087266462}, max_jerk: 2.0}, # J_Elbow_r
-             {max: {position: 1.570796325, speed: 0.3, acceleration: 2.0}, min: {position: -1.919862175}, max_jerk: 2.0}, # J_Forearm_r
-             {max: {position: 0.01,        speed: 0.3, acceleration: 2.0}, min: {position: -1.570796325}, max_jerk: 2.0}, # J_Wrist1_r
-             {max: {position: 0.610865237, speed: 0.3, acceleration: 2.0}, min: {position: -0.261799387}, max_jerk: 2.0}, # J_Wrist2_r
-             {max: {position: 1.74532925,  speed: 0.3, acceleration: 2.0}, min: {position: -0.872664625}, max_jerk: 2.0}, # J_Shoulder1_l
-             {max: {position: 0.087266462, speed: 0.3, acceleration: 2.0}, min: {position: -1.433529862}, max_jerk: 2.0}, # J_Shoulder2_l
-             {max: {position: 1.919862175, speed: 0.3, acceleration: 2.0}, min: {position: -1.919862175}, max_jerk: 2.0}, # J_UpperArm_l
-             {max: {position: 0.087266462, speed: 0.3, acceleration: 2.0}, min: {position: -1.832595712}, max_jerk: 2.0}, # J_Elbow_l
-             {max: {position: 1.570796325, speed: 0.3, acceleration: 2.0}, min: {position: -1.919862175}, max_jerk: 2.0}, # J_Forearm_l
-             {max: {position: 0.01,       speed:  0.3, acceleration: 2.0}, min: {position: -1.570796325}, max_jerk: 2.0}, # J_Wrist1_l
-             {max: {position: 0.261799387, speed: 0.3, acceleration: 2.0}, min: {position: -0.610865237}, max_jerk: 2.0}, # J_Wrist2_l
-             {max: {position: 0.785398162, speed: 0.3, acceleration: 2.0}, min: {position: -0.6981317  }, max_jerk: 2.0}, # J_Pan
-             {max: {position: 0.523598775, speed: 0.3, acceleration: 2.0}, min: {position: -1.04719755 }, max_jerk: 2.0}] # J_Tilt
-
+  names: ["Joint_one", "Joint_two"]
+  elements: [{max: {position: 1.5, speed: 0.3, acceleration: 200.0}, min: {position: -1.0}, max_jerk: 200.0},
+             {max: {position: 2.0, speed: 0.3, acceleration: 200.0}, min: {position: -1.5}, max_jerk: 200.0}]
