@@ -472,11 +472,11 @@ void Task::set_current_joint_state(const base::samples::Joints& sample)
         //which may happen due to noisy position readings)
         if(Flags.PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT){
             double inbounds = IP_active->GetCurrentPositionVectorElement(i);
-            if(inbounds > limits[i].max.position){
-                inbounds = limits[i].max.position;
+            if(inbounds >= limits[i].max.position){
+                inbounds = limits[i].max.position - 1e-5; //Avoid numerical problems here: If the initial state is exactly at the limits, return value of RML will always be RML_ERROR_POSITIONAL_LIMITS
             }
-            if(inbounds < limits[i].min.position){
-                inbounds = limits[i].min.position;
+            if(inbounds <= limits[i].min.position){
+                inbounds = limits[i].min.position + 1e-5; //Avoid numerical problems here: If the initial state is exactly at the limits, return value of RML will always be RML_ERROR_POSITIONAL_LIMITS
             }
             IP_active->SetCurrentPositionVectorElement(inbounds, i);
         }
@@ -524,6 +524,13 @@ void Task::reset_for_new_command()
 
 void Task::handle_reflexxes_result_value(const int& result)
 {
+
+    /*
+     * We need a different method to check whether a trajectory point has been reached! RML_FINAL_STATE_REACHED will be
+     * overwritten by RML_ERROR_POSITIONAL_LIMITS. Thus, the current_step variable will not be increased and the
+     * component gets stuck at a waypoint, with possibly non-zero velocity, which leads to unexpected behavior.
+     */
+
     switch(result){
     case ReflexxesAPI::RML_WORKING:
         if(state() != FOLLOWING)
