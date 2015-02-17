@@ -520,6 +520,7 @@ void Task::reset_for_new_command()
     current_step = 0;
     has_target = true;
     do_write_command = true;
+    state(RUNNING);
 }
 
 void Task::handle_reflexxes_result_value(const int& result)
