@@ -692,6 +692,7 @@ void Task::updateHook()
 
     //Perform control step with reflexxes
     int result = RML->RMLPosition( *IP_active, OP, Flags );
+    _rml_result_value.write(result);
 
     double time_until_via_point = OP->GetGreatestExecutionTime();
     _time_until_via_point.write(time_until_via_point);

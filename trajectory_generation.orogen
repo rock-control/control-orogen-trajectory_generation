@@ -67,6 +67,7 @@ task_context 'Task' do
 
     output_port('time_until_via_point', 'double')
     output_port('via_point_reached', 'int')
+    output_port('rml_result_value', 'int')
     # TODO: Remove me!?
     output_port('output_sample', '/base/samples/Joints').
         doc('Full output sample from RML, without any overrides')
