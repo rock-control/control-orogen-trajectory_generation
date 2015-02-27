@@ -78,7 +78,7 @@ task_context 'Task' do
     output_port('rml_input_params', 'trajectory_generation/RMLInputParams')
     output_port('rml_output_params', 'trajectory_generation/RMLOutputParams')
 
-    periodic 0.02
+    port_driven 'joint_state'
 end
 
 task_context 'RMLVelocityTask' do
@@ -123,5 +123,5 @@ task_context 'RMLVelocityTask' do
     output_port('rml_input_params', 'trajectory_generation/RMLInputParams')
     output_port('rml_output_params', 'trajectory_generation/RMLOutputParams')
 
-    periodic cycle_time
+    port_driven 'joint_state'
 end
