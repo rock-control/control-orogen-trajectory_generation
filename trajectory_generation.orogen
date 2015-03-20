@@ -21,7 +21,7 @@ end
 task_context 'Task' do
 
     needs_configuration
-    runtime_states 'FOLLOWING', 'REACHED', 'IN_LIMITS'
+    runtime_states 'FOLLOWING', 'REACHED'
     error_states 'NO_JOINT_STATE_INPUT'
 
     property('limits', 'trajectory_generation/JointsMotionConstraints').

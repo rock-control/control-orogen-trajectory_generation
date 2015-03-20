@@ -616,16 +616,6 @@ void Task::handle_reflexxes_result_value(const int& result)
         OP->Echo();
         error();
         break;
-#ifdef USING_REFLEXXES_TYPE_IV
-    case ReflexxesAPI::RML_ERROR_POSITIONAL_LIMITS:
-        if(state() != IN_LIMITS){
-            LOG_WARN("%s", OP->GetErrorString());
-            state(IN_LIMITS);
-            IP_active->Echo();
-            OP->Echo();
-        }
-        break;
-#endif
     }
 }
 
