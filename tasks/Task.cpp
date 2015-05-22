@@ -834,7 +834,7 @@ void Task::updateHook()
         _rml_input_params.write(debug_rml_input_params);
         _rml_output_params.write(debug_rml_output_params);
     }
-    printf("Diff: %f\n", (base::Time::now() - start).toSeconds());
+    LOG_DEBUG("Time-Diff: %f\n", (base::Time::now() - start).toSeconds());
 }
 
 void Task::errorHook()
