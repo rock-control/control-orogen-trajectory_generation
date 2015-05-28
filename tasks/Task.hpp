@@ -9,6 +9,7 @@
 #include <RMLPositionFlags.h>
 #include <RMLPositionInputParameters.h>
 #include <RMLPositionOutputParameters.h>
+#include <base/commands/Joints.hpp>
 
 namespace trajectory_generation {
 
