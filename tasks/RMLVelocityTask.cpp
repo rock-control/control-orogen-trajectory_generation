@@ -34,6 +34,7 @@ bool RMLVelocityTask::configureHook()
     Vel_Flags_.SynchronizationBehavior = _sync_behavior.value();
     throw_on_infeasible_input_ = _throw_on_infeasible_input.get();
     velocity_timeout_ = _velocity_timeout.get();
+    convert_to_position_ = _convert_to_position.get();
 
     nDOF_ =  limits_.size();
 
@@ -366,6 +367,8 @@ void RMLVelocityTask::writeOutputCommand(const RMLVelocityOutputParameters* outp
     for(size_t i = 0; i < command_out_.size(); i++)
     {
         std::string joint_name = command_out_.names[i].c_str();
+        if(convert_to_position_)
+            command_out_[i].position = output->NewPositionVector->VecData[i];
         command_out_[i].speed = output->NewVelocityVector->VecData[i];
         command_out_[i].acceleration = output->NewAccelerationVector->VecData[i];
     }

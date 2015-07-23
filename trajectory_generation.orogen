@@ -105,6 +105,8 @@ task_context 'RMLVelocityTask' do
          doc('Should an exception be thrown if input was infeasible, e.g. target speed too high, target position out of limits, etc...?')
     property('velocity_timeout', 'double', 0.5).
          doc('Set Reference velocity to zero if no new reference arrives for this amount of time (in seconds).')
+    property('convert_to_position', 'bool', false).
+         doc('If true, RML will convert the velocity targets to position-based output commands')
 
     input_port('velocity_target', '/base/commands/Joints').
         doc("The target joint velocity")

@@ -26,6 +26,9 @@ protected:
     RMLVelocityOutputParameters *Vel_OP_;
     RMLVelocityFlags Vel_Flags_;
 
+    /** If true, this will convert the velocity targets to position-based output commands */
+    bool convert_to_position_;
+
     /** Should an exception be thrown if input was infeasible, e.g. target speed too high? */
     bool throw_on_infeasible_input_;
     /** Set output position as input for next cycle */
