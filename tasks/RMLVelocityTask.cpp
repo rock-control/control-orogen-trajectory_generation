@@ -367,10 +367,14 @@ void RMLVelocityTask::writeOutputCommand(const RMLVelocityOutputParameters* outp
     for(size_t i = 0; i < command_out_.size(); i++)
     {
         std::string joint_name = command_out_.names[i].c_str();
-        if(convert_to_position_)
-            command_out_[i].position = output->NewPositionVector->VecData[i];
         command_out_[i].speed = output->NewVelocityVector->VecData[i];
         command_out_[i].acceleration = output->NewAccelerationVector->VecData[i];
+    }
+    //Convert the specified joints to position based outputs. If the convert_to_position is empty, nothing will happen here
+    for(size_t i = 0; i < convert_to_position_.size(); i++)
+    {
+        uint idx = command_out_.mapNameToIndex(convert_to_position_[i]);
+        command_out_[idx].position = output->NewPositionVector->VecData[idx];
     }
     command_out_.time = base::Time::now();
     _command.write(command_out_);
