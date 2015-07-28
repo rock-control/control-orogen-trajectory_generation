@@ -29,6 +29,8 @@ bool RMLVelocityTask::configureHook()
     override_input_position_ = _override_input_position.value();
     override_input_speed_ = _override_input_speed.value();
     override_input_acceleration_ = _override_input_acceleration.value();
+    override_output_speed_ = _override_output_speed.value();
+    override_output_acceleration_ = _override_output_acceleration.value();
     limits_ = _limits.value();
     cycle_time_ = _cycle_time.value();
     Vel_Flags_.SynchronizationBehavior = _sync_behavior.value();
@@ -370,12 +372,28 @@ void RMLVelocityTask::writeOutputCommand(const RMLVelocityOutputParameters* outp
         command_out_[i].speed = output->NewVelocityVector->VecData[i];
         command_out_[i].acceleration = output->NewAccelerationVector->VecData[i];
     }
+
+    // Speed Overrides
+    for(size_t i = 0; i < override_output_speed_.size(); i++)
+    {
+        uint idx = command_out_.mapNameToIndex(override_output_speed_.names[i]);
+        command_out_[idx].speed = override_output_speed_[i].speed;
+    }
+
+    // Acceleration overrides
+    for(size_t i = 0; i < override_output_acceleration_.size(); i++)
+    {
+        uint idx = command_out_.mapNameToIndex(override_output_acceleration_.names[i]);
+        command_out_[idx].acceleration = override_output_acceleration_[i].acceleration;
+    }
+
     //Convert the specified joints to position based outputs. If the convert_to_position is empty, nothing will happen here
     for(size_t i = 0; i < convert_to_position_.size(); i++)
     {
         uint idx = command_out_.mapNameToIndex(convert_to_position_[i]);
         command_out_[idx].position = output->NewPositionVector->VecData[idx];
     }
+
     command_out_.time = base::Time::now();
     _command.write(command_out_);
 }

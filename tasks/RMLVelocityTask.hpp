@@ -28,7 +28,10 @@ protected:
 
     /** Convert the velocity targets of the given joints to position-based output commands. If empty, all outputs will be position based */
     std::vector<std::string> convert_to_position_;
-
+    /** Forcefully set the speed of the output command to this value (only for the specified joints) */
+    base::samples::Joints override_output_speed_;
+    /** Forcefully set the acceleration of the output command to this value (only for the specified joints)*/
+    base::samples::Joints override_output_acceleration_;
     /** Should an exception be thrown if input was infeasible, e.g. target speed too high? */
     bool throw_on_infeasible_input_;
     /** Set output position as input for next cycle */
