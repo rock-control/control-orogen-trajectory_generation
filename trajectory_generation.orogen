@@ -105,10 +105,6 @@ task_context 'RMLVelocityTask' do
          doc('Should an exception be thrown if input was infeasible, e.g. target speed too high, target position out of limits, etc...?')
     property('velocity_timeout', 'double', 0.5).
          doc('Set Reference velocity to zero if no new reference arrives for this amount of time (in seconds).')
-    property('convert_to_position', 'std/vector<std/string>').
-         doc('Convert the velocity targets of the given joints to position-based output commands. If empty, all outputs will be position based.')
-     property('override_output_speed', 'base/samples/Joints').
-         doc('Forcefully set the speed of the output command to this value (only for the specified joints)')
      property('override_output_acceleration', 'base/samples/Joints').
          doc('Forcefully set the acceleration of the output command to this value (only for the specified joints)')
 
