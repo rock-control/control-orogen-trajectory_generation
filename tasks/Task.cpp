@@ -438,7 +438,7 @@ bool Task::handle_constrained_trajectory_target(const ConstrainedJointsTrajector
     return make_feasible(current_trajectory);
 }
 
-void Task::set_current_joint_state(const base::samples::Joints& sample)
+bool Task::set_current_joint_state(const base::samples::Joints& sample)
 {
     for(size_t i = 0; i < limits.names.size(); i++){
 
@@ -450,7 +450,9 @@ void Task::set_current_joint_state(const base::samples::Joints& sample)
         }
         catch(base::samples::Joints::InvalidName e){ //Only catch exception to write more explicit error msgs
             LOG_ERROR("Joint %s is configured in joint limits, but not available in joint state", joint_name.c_str());
-            throw e;
+            if(state() != INCOMPLETE_JOINT_STATE)
+                state(INCOMPLETE_JOINT_STATE);
+            return false;
         }
 
         const base::JointState& joint_state = input_joint_state.getElementByName(limits.names[i]);
@@ -513,6 +515,7 @@ void Task::set_current_joint_state(const base::samples::Joints& sample)
             }
         }
     }
+    return true;
 }
 
 void Task::reset_for_new_command()
@@ -635,8 +638,12 @@ void Task::updateHook()
         LOG_DEBUG("No joint state on input port");
         return;
     }
-    else
-        set_current_joint_state(input_joint_state);
+    
+    //check for incomplete joint state (happens sometimes during startup)
+    if(!set_current_joint_state(input_joint_state))
+    {
+        return;
+    }
 
     //Read from all the input ports. Notice, that we have implicitly a priorization here:
     //If there is data on _position_target, it will be preferred over the other ports

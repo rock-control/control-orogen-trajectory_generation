@@ -167,7 +167,7 @@ protected:
      *
      * @param sample joint state to set internally
      */
-    void set_current_joint_state(const base::samples::Joints& sample);
+    bool set_current_joint_state(const base::samples::Joints& sample);
 
     /**
      * @brief Set the a subset of joints given in joint_names as active
