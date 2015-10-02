@@ -1,0 +1,18 @@
+--- name:default
+# Cycle Time is seconds. IMPORTANT: This value has to match the period of the component. Default is 0.01 which matches the default period.
+cycle_time: 0.01
+
+# Motion constraints that define the properties of the output trajectory (command-port). These include the maximum/minimum position,
+# maximum maximum speed, maximum acceleration and maximum jerk (derivative of acceleration).
+motion_constraints:
+  names: ["Joint1", "Joint2"]
+  elements: [{max: {position: 1.0, speed: 0.3, acceleration: 0.5}, min: {position: -1.0}, max_jerk: 1.0},
+             {max: {position: 1.5, speed: 0.6, acceleration: 1.0}, min: {position: -1.0}, max_jerk: 1.0}]
+
+# Behaviour on the position limits (only reflexxes TypeIV!!!). Can be one of POSITIONAL_LIMITS_IGNORE, POSITIONAL_LIMITS_ERROR_MSG_ONLY
+# and POSITIONAL_LIMITS_ACTIVELY_PREVENT. See reflexxes/RMLFlags.h for details.
+positional_limits_behaviour: :POSITIONAL_LIMITS_ACTIVELY_PREVENT
+
+# Synchronozation behavior for the different joints. Can be one of PHASE_SYNCHRONIZATION_IF_POSSIBLE, ONLY_TIME_SYNCHRONIZATION,
+# ONLY_PHASE_SYNCHRONIZATION and NO_SYNCHRONIZATION. See reflexxes/RMLFlags.h for details.
+synchronization_behavior: :PHASE_SYNCHRONIZATION_IF_POSSIBLE
