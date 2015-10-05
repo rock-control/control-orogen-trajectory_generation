@@ -35,11 +35,8 @@ public:
     virtual const ReflexxesInputParameters& fromRMLTypes(const RMLInputParameters &in, ReflexxesInputParameters& out);
     /** Convert from RMLOutputParameters to orogen type*/
     virtual const ReflexxesOutputParameters& fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out);
-
-    virtual void printParams(){
-        ((RMLPositionInputParameters*)rml_input_parameters)->Echo();
-        ((RMLPositionOutputParameters*)rml_output_parameters)->Echo();
-    }
+    /** Call echo() method for rml input and output parameters*/
+    virtual void printParams();
 
 };
 }

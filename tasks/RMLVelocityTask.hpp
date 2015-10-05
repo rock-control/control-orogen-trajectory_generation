@@ -34,11 +34,8 @@ public:
     virtual void setMotionConstraints(const trajectory_generation::JointMotionConstraints& constraints, const size_t idx);
     /** Convert from RMLOutputParameters to orogen type*/
     virtual const ReflexxesOutputParameters& fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out);
-
-    virtual void printParams(){
-        ((RMLVelocityInputParameters*)rml_input_parameters)->Echo();
-        ((RMLVelocityOutputParameters*)rml_output_parameters)->Echo();
-    }
+    /** Call echo() method for rml input and output parameters*/
+    virtual void printParams();
 
 };
 }

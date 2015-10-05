@@ -1,65 +1,75 @@
 /* Generated from orogen/lib/orogen/templates/tasks/Task.cpp */
 
 #include "RMLVelocityTask.hpp"
+#include <base/Logging.hpp>
 
 using namespace trajectory_generation;
 
 RMLVelocityTask::RMLVelocityTask(std::string const& name)
-    : RMLVelocityTaskBase(name){
+    : RMLVelocityTaskBase(name)
+{
 }
 
 RMLVelocityTask::RMLVelocityTask(std::string const& name, RTT::ExecutionEngine* engine)
-    : RMLVelocityTaskBase(name, engine){
+    : RMLVelocityTaskBase(name, engine)
+{
 }
 
-RMLVelocityTask::~RMLVelocityTask(){
+RMLVelocityTask::~RMLVelocityTask()
+{
 }
 
-bool RMLVelocityTask::configureHook(){
+bool RMLVelocityTask::configureHook()
+{
     if (! RMLVelocityTaskBase::configureHook())
         return false;
 
     rml_input_parameters = new RMLVelocityInputParameters(motion_constraints.size());
     rml_output_parameters = new RMLVelocityOutputParameters(motion_constraints.size());
-    rml_flags = new RMLVelocityFlags();
 
     for(size_t i = 0; i < motion_constraints.size(); i++)
         setMotionConstraints(motion_constraints[i], i);
 
+    rml_flags = new RMLVelocityFlags();
+    rml_flags->SynchronizationBehavior = _synchronization_behavior.get();
 #ifdef USING_REFLEXXES_TYPE_IV
     rml_flags->PositionalLimitsBehavior = _positional_limits_behavior.get();
 #endif
-    rml_flags->SynchronizationBehavior = _synchronization_behavior.get();
 
     return true;
 }
 
-bool RMLVelocityTask::startHook(){
+bool RMLVelocityTask::startHook()
+{
     if (! RMLVelocityTaskBase::startHook())
         return false;
     return true;
 }
 
-void RMLVelocityTask::updateHook(){
+void RMLVelocityTask::updateHook()
+{
     RMLVelocityTaskBase::updateHook();
 }
 
-void RMLVelocityTask::errorHook(){
+void RMLVelocityTask::errorHook()
+{
     RMLVelocityTaskBase::errorHook();
 }
 
-void RMLVelocityTask::stopHook(){
+void RMLVelocityTask::stopHook()
+{
     RMLVelocityTaskBase::stopHook();
 }
 
-void RMLVelocityTask::cleanupHook(){
+void RMLVelocityTask::cleanupHook()
+{
     RMLVelocityTaskBase::cleanupHook();
 }
 
-ReflexxesResultValue RMLVelocityTask::performOTG(base::commands::Joints &current_command){
-
+ReflexxesResultValue RMLVelocityTask::performOTG(base::commands::Joints &current_command)
+{
     int result = rml_api->RMLVelocity( *(RMLVelocityInputParameters*)rml_input_parameters,
-                                        (RMLVelocityOutputParameters*)rml_output_parameters,
+                                       (RMLVelocityOutputParameters*)rml_output_parameters,
                                        *(RMLVelocityFlags*)rml_flags );
 
     *rml_input_parameters->CurrentVelocityVector     = *rml_output_parameters->NewVelocityVector;
@@ -77,13 +87,13 @@ ReflexxesResultValue RMLVelocityTask::performOTG(base::commands::Joints &current
     return (ReflexxesResultValue)result;
 }
 
-void  RMLVelocityTask::setJointState(const base::JointState& state, const size_t idx){
-
+void  RMLVelocityTask::setJointState(const base::JointState& state, const size_t idx)
+{
     double position = state.position;
 
 #ifdef USING_REFLEXXES_TYPE_IV
 
-    // bug fix for reflexxes: If the given position is out of limits, the algorithm stops working
+    // Make sure the current position is within limits
     if(rml_flags->PositionalLimitsBehavior == POSITIONAL_LIMITS_ACTIVELY_PREVENT){
 
         if(state.position >= motion_constraints[idx].max.position)
@@ -97,20 +107,45 @@ void  RMLVelocityTask::setJointState(const base::JointState& state, const size_t
     rml_input_parameters->CurrentPositionVector->VecData[idx] = position;
 }
 
-void RMLVelocityTask::setTarget(const base::JointState& cmd, const size_t idx){
+void RMLVelocityTask::setTarget(const base::JointState& cmd, const size_t idx)
+{
+    if(!cmd.hasSpeed()){
+        LOG_ERROR("Target speed of element %i is invalid: %f", idx, cmd.speed);
+        throw std::invalid_argument("Invalid target velocity");
+    }
+
     rml_input_parameters->TargetVelocityVector->VecData[idx] = cmd.speed;
+
+    // Bug fix: If a joint is at its limits and the target velocity is non-zero and pointing in direction
+    // of the limit, the sychronization time is computed by reflexxes as if the constrained joint could move
+    // freely in the direction of the joint limit. This might lead to incorrect synchronization time for all other
+    // joints. This code provides a workaround by setting the target velocity of a joint to zero if it is at a
+    // joint position limit and the target velocity points in the direction of the limit.
+#ifdef USING_REFLEXXES_TYPE_IV
+    if(rml_flags->PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT){
+
+        double cur_pos = rml_input_parameters->CurrentPositionVector->VecData[idx];
+        double target_vel = rml_input_parameters->TargetVelocityVector->VecData[idx];
+        double max_pos = rml_input_parameters->MaxPositionVector->VecData[idx];
+        double min_pos = rml_input_parameters->MinPositionVector->VecData[idx];
+
+        if( (target_vel*cycle_time + cur_pos > max_pos) || (target_vel*cycle_time + cur_pos < min_pos) )
+            rml_input_parameters->TargetVelocityVector->VecData[idx] = 0;
+    }
+#endif
 }
 
 void RMLVelocityTask::setMotionConstraints(const trajectory_generation::JointMotionConstraints& constraints, const size_t idx){
 
+    // Check if constraints are ok, e.g. max.speed > 0 etc
     constraints.validate();
 
 #ifdef USING_REFLEXXES_TYPE_IV
-        rml_input_parameters->MaxPositionVector->VecData[idx] = constraints.max.position;
-        rml_input_parameters->MinPositionVector->VecData[idx] = constraints.min.position;
+    rml_input_parameters->MaxPositionVector->VecData[idx] = constraints.max.position;
+    rml_input_parameters->MinPositionVector->VecData[idx] = constraints.min.position;
 #endif
-        rml_input_parameters->MaxAccelerationVector->VecData[idx] = constraints.max.acceleration;
-        rml_input_parameters->MaxJerkVector->VecData[idx] = constraints.max_jerk;
+    rml_input_parameters->MaxAccelerationVector->VecData[idx] = constraints.max.acceleration;
+    rml_input_parameters->MaxJerkVector->VecData[idx] = constraints.max_jerk;
 }
 
 const ReflexxesOutputParameters& RMLVelocityTask::fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out){
@@ -120,4 +155,9 @@ const ReflexxesOutputParameters& RMLVelocityTask::fromRMLTypes(const RMLOutputPa
            ((RMLVelocityOutputParameters&)in).PositionValuesAtTargetVelocity->VecData,
            sizeof(double) * in.GetNumberOfDOFs());
     return out;
+}
+
+void RMLVelocityTask::printParams(){
+    ((RMLVelocityInputParameters*)rml_input_parameters)->Echo();
+    ((RMLVelocityOutputParameters*)rml_output_parameters)->Echo();
 }

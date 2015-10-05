@@ -1,21 +1,26 @@
 /* Generated from orogen/lib/orogen/templates/tasks/Task.cpp */
 
 #include "RMLPositionTask.hpp"
+#include <base/Logging.hpp>
 
 using namespace trajectory_generation;
 
 RMLPositionTask::RMLPositionTask(std::string const& name)
-    : RMLPositionTaskBase(name){
+    : RMLPositionTaskBase(name)
+{
 }
 
 RMLPositionTask::RMLPositionTask(std::string const& name, RTT::ExecutionEngine* engine)
-    : RMLPositionTaskBase(name, engine){
+    : RMLPositionTaskBase(name, engine)
+{
 }
 
-RMLPositionTask::~RMLPositionTask(){
+RMLPositionTask::~RMLPositionTask()
+{
 }
 
-bool RMLPositionTask::configureHook(){
+bool RMLPositionTask::configureHook()
+{
 
     if (! RMLPositionTaskBase::configureHook())
         return false;
@@ -27,42 +32,47 @@ bool RMLPositionTask::configureHook(){
         setMotionConstraints(motion_constraints[i], i);
 
     rml_flags = new RMLPositionFlags();
+    rml_flags->SynchronizationBehavior = _synchronization_behavior.get();
 #ifdef USING_REFLEXXES_TYPE_IV
     rml_flags->PositionalLimitsBehavior = _positional_limits_behavior.get();
 #endif
-    rml_flags->SynchronizationBehavior = _synchronization_behavior.get();
-
 
     return true;
 }
-bool RMLPositionTask::startHook(){
+bool RMLPositionTask::startHook()
+{
     if (! RMLPositionTaskBase::startHook())
         return false;
     return true;
 }
 
-void RMLPositionTask::updateHook(){
+void RMLPositionTask::updateHook()
+{
     RMLPositionTaskBase::updateHook();
 }
 
-void RMLPositionTask::errorHook(){
+void RMLPositionTask::errorHook()
+{
     RMLPositionTaskBase::errorHook();
 }
 
-void RMLPositionTask::stopHook(){
+void RMLPositionTask::stopHook()
+{
     RMLPositionTaskBase::stopHook();
 }
 
-void RMLPositionTask::cleanupHook(){
+void RMLPositionTask::cleanupHook()
+{
     RMLPositionTaskBase::cleanupHook();
 }
 
-ReflexxesResultValue RMLPositionTask::performOTG(base::commands::Joints &current_command){
-
+ReflexxesResultValue RMLPositionTask::performOTG(base::commands::Joints &current_command)
+{
     int result = rml_api->RMLPosition( *(RMLPositionInputParameters*)rml_input_parameters,
                                         (RMLPositionOutputParameters*)rml_output_parameters,
                                        *(RMLPositionFlags*)rml_flags );
 
+    // Always feed back the new state as the current state:
     *rml_input_parameters->CurrentPositionVector     = *rml_output_parameters->NewPositionVector;
     *rml_input_parameters->CurrentVelocityVector     = *rml_output_parameters->NewVelocityVector;
     *rml_input_parameters->CurrentAccelerationVector = *rml_output_parameters->NewAccelerationVector;
@@ -79,17 +89,39 @@ ReflexxesResultValue RMLPositionTask::performOTG(base::commands::Joints &current
     return (ReflexxesResultValue)result;
 }
 
-void  RMLPositionTask::setJointState(const base::JointState& state, const size_t idx){
-    // Don't do anything here, since (for the position-based RML), the new position vector will always be fed back as current position
+void  RMLPositionTask::setJointState(const base::JointState& state, const size_t idx)
+{
+    // Don't do anything here, since in position-based RML, the new position vector will always be fed back as current position
 }
 
-void RMLPositionTask::setTarget(const base::JointState& cmd, const size_t idx){
-    ((RMLPositionInputParameters*)rml_input_parameters)->TargetPositionVector->VecData[idx] = cmd.position;
-    rml_input_parameters->TargetVelocityVector->VecData[idx] = cmd.speed;
+void RMLPositionTask::setTarget(const base::JointState& cmd, const size_t idx)
+{
+    if(!cmd.hasPosition()){
+        LOG_ERROR("Target position of element %i is invalid: %f", idx, cmd.position);
+        throw std::invalid_argument("Invalid target position");
+    }
+
+    double pos = cmd.position;
+
+#ifdef USING_REFLEXXES_TYPE_IV  // Crop at limits if and only if POSITIONAL_LIMITS_ACTIVELY_PREVENT is selected
+    if(rml_flags->PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT){
+        double max = rml_input_parameters->MaxPositionVector->VecData[idx];
+        double min = rml_input_parameters->MinPositionVector->VecData[idx];
+        pos = std::max(std::min(max, pos), min);
+    }
+#endif
+
+    ((RMLPositionInputParameters*)rml_input_parameters)->TargetPositionVector->VecData[idx] = pos;
+
+    if(cmd.hasSpeed())
+        rml_input_parameters->TargetVelocityVector->VecData[idx] = cmd.speed;
+    else
+        rml_input_parameters->TargetVelocityVector->VecData[idx] = 0;
 }
 
-void RMLPositionTask::setMotionConstraints(const trajectory_generation::JointMotionConstraints& constraints, const size_t idx){
-
+void RMLPositionTask::setMotionConstraints(const trajectory_generation::JointMotionConstraints& constraints, const size_t idx)
+{
+    // Check if constraints are ok, e.g. max.speed > 0 etc
     constraints.validate();
 
 #ifdef USING_REFLEXXES_TYPE_IV
@@ -108,11 +140,17 @@ const ReflexxesInputParameters& RMLPositionTask::fromRMLTypes(const RMLInputPara
     return out;
 }
 
-const ReflexxesOutputParameters& RMLPositionTask::fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out){
-
+const ReflexxesOutputParameters& RMLPositionTask::fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out)
+{
     RMLTask::fromRMLTypes(in, out);
 #ifdef USING_REFLEXXES_TYPE_IV
     out.trajectory_exceeds_target_position = ((RMLPositionOutputParameters&)in).TrajectoryExceedsTargetPosition;
 #endif
     return out;
+}
+
+void RMLPositionTask::printParams()
+{
+    ((RMLPositionInputParameters*)rml_input_parameters)->Echo();
+    ((RMLPositionOutputParameters*)rml_output_parameters)->Echo();
 }

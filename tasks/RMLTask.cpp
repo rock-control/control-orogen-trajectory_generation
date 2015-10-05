@@ -20,7 +20,7 @@ bool RMLTask::configureHook(){
     if (! RMLTaskBase::configureHook())
         return false;
 
-    double cycle_time = _cycle_time.get();
+    cycle_time = _cycle_time.get();
     if(cycle_time <= 0){
         LOG_ERROR("Cycle time should be > 0, but is %i", cycle_time);
         return false;
@@ -69,7 +69,7 @@ void RMLTask::updateHook(){
     }
 
     RTT::FlowStatus target_status = _target.readNewest(target);
-    RTT::FlowStatus constrained_target_status = _constrained_target.readNewest(constrained_target);
+    RTT::FlowStatus constrained_target_status = _constrained_target.readNewest(target);
     if(target_status == RTT::NoData && constrained_target_status == RTT::NoData){
         if(state() != NO_TARGET)
             state(NO_TARGET);
@@ -83,7 +83,7 @@ void RMLTask::updateHook(){
     if(target_status == RTT::NewData)
         handleNewTarget(target);
     else if(constrained_target_status == RTT::NewData)
-        handleNewConstrainedTarget(constrained_target);
+        handleNewTarget(target);
 
     handleResultValue(performOTG(command));
     command.time = base::Time::now();
@@ -135,7 +135,7 @@ void RMLTask::handleNewJointState(const base::samples::Joints &joint_state){
 
         const base::JointState &state = joint_state[idx];
 
-        if(!rml_initialized){ // Init with current joints state
+        if(!rml_initialized){ // Init with current joint position and zero velocity/acceleration
 
             if(state.hasPosition())
                 rml_input_parameters->CurrentPositionVector->VecData[i] = current_sample[i].position = state.position;
@@ -150,49 +150,28 @@ void RMLTask::handleNewJointState(const base::samples::Joints &joint_state){
     rml_initialized = true;
 }
 
-void RMLTask::handleNewTarget(const base::commands::Joints &target){
+void RMLTask::handleNewTarget(const trajectory_generation::ConstrainedJointsCmd &target){
 
+    // Set selection vector to false
     memset(rml_input_parameters->SelectionVector->VecData, false, motion_constraints.size());
+
+    target.validate();
 
     for(size_t i = 0; i < target.size(); i++){
-        size_t idx;
-        try{
-            idx = motion_constraints.mapNameToIndex(target.names[i]);
-        }
-        catch(std::exception e){
-            LOG_ERROR("%s: Element %s is given as target, but has not been configured in motion_constraints",
-                      this->getName().c_str(), motion_constraints.names[i].c_str());
-            throw e;
-        }
-        rml_input_parameters->SelectionVector->VecData[idx] = true;
 
+        size_t idx = motion_constraints.mapNameToIndex(target.names[i]);
+
+        rml_input_parameters->SelectionVector->VecData[idx] = true;
         setTarget(target[i], idx);
-    }
-}
 
-void RMLTask::handleNewConstrainedTarget(const trajectory_generation::ConstrainedJointsCmd &constrained_target){
-    memset(rml_input_parameters->SelectionVector->VecData, false, motion_constraints.size());
+        if(!target.motion_constraints.empty()){
 
-    constrained_target.validate();
+            // if a value of the new motion constraints is unset, use the default motion constraints:
+            JointMotionConstraints constraints = target.motion_constraints[i];
+            constraints.applyDefaultIfUnset(motion_constraints[idx]);
 
-    for(size_t i = 0; i < constrained_target.size(); i++){
-        size_t idx;
-        try{
-            idx = motion_constraints.mapNameToIndex(constrained_target.names[i]);
+            setMotionConstraints(constraints, idx);
         }
-        catch(std::exception e){
-            LOG_ERROR("%s: Element %s is given as target, but has not been configured in motion_constraints",
-                      this->getName().c_str(), motion_constraints.names[i].c_str());
-            throw e;
-        }
-        rml_input_parameters->SelectionVector->VecData[idx] = true;
-
-        // if a value of the new motion constraints is unset, use the default motion constraints instead:
-        JointMotionConstraints constraints = constrained_target.motion_constraints[i];
-        constraints.applyDefaultIfUnset(motion_constraints[idx]);
-
-        setTarget(constrained_target[i], idx);
-        setMotionConstraints(constraints, idx);
     }
 }
 
@@ -294,7 +273,10 @@ const ReflexxesOutputParameters& RMLTask::fromRMLTypes(const RMLOutputParameters
 
 void RMLTask::setOverrideValue(double override_value){
 #ifdef USING_REFLEXXES_TYPE_IV
-    assert(override_value <= 10.0 && override_value > 0);
+    if(override_value > 10.0 || override_value <= 0){
+        LOG_ERROR("Override value must > 0 and <= 10, but is %f", override_value);
+        throw std::invalid_argument("Invalid override value");
+    }
     rml_input_parameters->OverrideValue = override_value;
 #endif
 }

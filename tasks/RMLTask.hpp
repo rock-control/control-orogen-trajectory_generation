@@ -21,14 +21,10 @@ protected:
     /** Current joint state. The joint names have to match the ones defined by the motion_constraints property. Joint indices
       * will be mapped internally by their names. The current joint state will only be used for initialization.*/
     base::samples::Joints joint_state;
-    /** Target joint position or speed. The component will generate a trajectory to that position/speed, which complies with the motion constraints given by the
-      * motion_constraints property. The joint names in target have to match the ones defined by the motion_constraints property. Joint indices
-      * will be mapped internally by their names.*/
-    base::commands::Joints target;
     /** Target joint position/speed + new constraints. The component will generate a trajectory to that position, which complies with the motion constraints given
       * together with this command. If a constraint value (e.g. max.position) is NaN, it will not be changed, so the default motion constraints given
       * by the motion_constraints property apply.*/
-    trajectory_generation::ConstrainedJointsCmd constrained_target;
+    trajectory_generation::ConstrainedJointsCmd target;
     /** Output trajectory. The samples of the generated trajectory will be sent one by one. Size and names of this command will
       * be the same as in the motion_constraints property */
     base::commands::Joints command;
@@ -50,15 +46,16 @@ protected:
     base::Time timestamp;
     /** Current sample of the interpolator. Will equal the current joint state, if no target has been given yet*/
     base::samples::Joints current_sample;
+    /** Cycle time for interpolation*/
+    double cycle_time;
 
     /** Handle an incoming joint state. Set positions/speeds/accelerations.*/
     void handleNewJointState(const base::samples::Joints &joint_state);
     /** Handle a new target. Set target positions/speeds.*/
-    void handleNewTarget(const base::commands::Joints &target);
-    /** Handle a new constrained target. Set target positions/speeds and new motion constraints.*/
-    void handleNewConstrainedTarget(const trajectory_generation::ConstrainedJointsCmd &constrained_target);
+    void handleNewTarget(const trajectory_generation::ConstrainedJointsCmd &target);
     /** Handle result of the OTG algorithm. Handle errors.*/
     void handleResultValue(ReflexxesResultValue result_value);
+
 
     /** Call position or velocity based OTG, depending on the implementation*/
     virtual ReflexxesResultValue performOTG(base::commands::Joints &current_command) = 0;
@@ -72,9 +69,8 @@ protected:
     virtual const ReflexxesInputParameters& fromRMLTypes(const RMLInputParameters &in, ReflexxesInputParameters& out);
     /** Convert from RMLOutputParameters to orogen type*/
     virtual const ReflexxesOutputParameters& fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out);
-
+    /** Call echo() method for rml input and output parameters*/
     virtual void printParams() = 0;
-
     /** operation: Set new override value to define the relative speed of the overall motion*/
     virtual void setOverrideValue(double override_value);
 
