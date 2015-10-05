@@ -200,6 +200,17 @@ void RMLVelocityTask::handleCommandInput(const base::commands::Joints &command)
         Vel_IP_->TargetVelocityVector->VecData[joint_idx] =
                 std::max(std::min(input_params_.MaxVelocityVector[joint_idx], (double)command[i].speed), -input_params_.MaxVelocityVector[joint_idx]);
 
+#ifdef  USING_REFLEXXES_TYPE_IV
+        if(Vel_Flags_.PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT){
+            double cur_pos = Vel_IP_->CurrentPositionVector->VecData[joint_idx];
+            double target_vel = Vel_IP_->TargetVelocityVector->VecData[joint_idx];
+            double max_pos = Vel_IP_->MaxPositionVector->VecData[joint_idx];
+            double min_pos = Vel_IP_->MinPositionVector->VecData[joint_idx];
+            if( (target_vel*cycle_time_ + cur_pos > max_pos) || (target_vel*cycle_time_ + cur_pos < min_pos) )
+                Vel_IP_->TargetVelocityVector->VecData[joint_idx] = 0;
+        }
+#endif
+
         Vel_IP_->SelectionVector->VecData[joint_idx] = true;
     }
 }
