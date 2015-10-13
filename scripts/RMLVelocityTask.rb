@@ -26,10 +26,10 @@ Orocos.run "trajectory_generation::RMLVelocityTask" => "interpolator" do
     target = Types::Base::Samples::Joints.new
     target.names = interpolator.motion_constraints.names
     cmd = Types::Base::JointState.new
-    cmd.speed = 0.0
+    cmd.speed = 0.3
     target.elements << cmd
     cmd = Types::Base::JointState.new
-    cmd.speed = 0.0
+    cmd.speed = 0.5
     target.elements << cmd
 
     puts "Writing target"

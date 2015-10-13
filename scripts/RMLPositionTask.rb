@@ -6,7 +6,7 @@ Orocos.conf.load_dir('config')
 
 Orocos.run "trajectory_generation::RMLPositionTask" => "interpolator" do
   
-    interpolator = Orocos::TaskContext.get "interpolator" #"orogen_default_trajectory_generation__RMLPositionTask"
+    interpolator = Orocos::TaskContext.get "interpolator"
     Orocos.conf.apply(interpolator, ["default"], true)
     interpolator.configure
     interpolator.start
@@ -15,7 +15,7 @@ Orocos.run "trajectory_generation::RMLPositionTask" => "interpolator" do
     joint_state.names = interpolator.motion_constraints.names
     joint_state.names.each do 
         state = Types::Base::JointState.new
-        state.position = -1.1
+        state.position = 0
         joint_state.elements << state
     end
 

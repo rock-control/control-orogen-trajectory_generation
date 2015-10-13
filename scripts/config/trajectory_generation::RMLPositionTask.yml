@@ -11,7 +11,7 @@ motion_constraints:
 
 # Behaviour on the position limits (only reflexxes TypeIV!!!). Can be one of POSITIONAL_LIMITS_IGNORE, POSITIONAL_LIMITS_ERROR_MSG_ONLY
 # and POSITIONAL_LIMITS_ACTIVELY_PREVENT. See reflexxes/RMLFlags.h for details.
-positional_limits_behaviour: :POSITIONAL_LIMITS_ERROR_MSG_ONLY
+positional_limits_behavior: :POSITIONAL_LIMITS_ACTIVELY_PREVENT
 
 # Synchronozation behavior for the different joints. Can be one of PHASE_SYNCHRONIZATION_IF_POSSIBLE, ONLY_TIME_SYNCHRONIZATION,
 # ONLY_PHASE_SYNCHRONIZATION and NO_SYNCHRONIZATION. See reflexxes/RMLFlags.h for details.
