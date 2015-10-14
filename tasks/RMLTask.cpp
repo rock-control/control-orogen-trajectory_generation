@@ -65,6 +65,7 @@ void RMLTask::updateHook(){
     }
     else if(joint_state_status == RTT::NewData){
         handleNewJointState(joint_state);
+        current_sample.time = base::Time::now();
         _current_sample.write(current_sample);
     }
 
