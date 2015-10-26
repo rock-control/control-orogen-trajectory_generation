@@ -36,6 +36,8 @@ bool RMLVelocityTask::configureHook()
     rml_flags->PositionalLimitsBehavior = _positional_limits_behavior.get();
 #endif
 
+    no_reference_timeout = _no_reference_timeout.get();
+
     return true;
 }
 
@@ -66,8 +68,22 @@ void RMLVelocityTask::cleanupHook()
     RMLVelocityTaskBase::cleanupHook();
 }
 
+void RMLVelocityTask::checkVelocityTimeout()
+{
+    double t_diff = (base::Time::now() - time_of_last_reference).toSeconds();
+
+    if(!time_of_last_reference.isNull() && t_diff > no_reference_timeout)
+    {
+        rml_input_parameters->TargetVelocityVector->Set(0.0);
+        time_of_last_reference.microseconds = 0;
+        LOG_WARN("%s: Timeout: No new reference velocity arrived for %f seconds. Setting target velocity to zero.", this->getName().c_str(), t_diff);
+    }
+}
+
 ReflexxesResultValue RMLVelocityTask::performOTG(base::commands::Joints &current_command)
 {
+    checkVelocityTimeout();
+
     int result = rml_api->RMLVelocity( *(RMLVelocityInputParameters*)rml_input_parameters,
                                        (RMLVelocityOutputParameters*)rml_output_parameters,
                                        *(RMLVelocityFlags*)rml_flags );
@@ -115,6 +131,9 @@ void RMLVelocityTask::setTarget(const base::JointState& cmd, const size_t idx)
     }
 
     rml_input_parameters->TargetVelocityVector->VecData[idx] = cmd.speed;
+
+    // Reset velocity watchdog:
+    time_of_last_reference = base::Time::now();
 
     // Bug fix: If a joint is at its limits and the target velocity is non-zero and pointing in direction
     // of the limit, the sychronization time is computed by reflexxes as if the constrained joint could move

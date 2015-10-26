@@ -92,4 +92,6 @@ task_context "RMLPositionTask" do subclasses "RMLTask"
 end
 
 task_context "RMLVelocityTask" do subclasses "RMLTask"
+   # Velocity reference timeout in seconds: If no new reference arrives for this amount of time, the target velocity will be set to zero.
+   property "no_reference_timeout", "double", 1.0
 end
