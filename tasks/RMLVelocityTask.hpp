@@ -13,6 +13,7 @@ class RMLVelocityTask : public RMLVelocityTaskBase
 protected:
     double no_reference_timeout;
     base::Time time_of_last_reference;
+    bool convert_to_position;
 
     /** Velocity watchdog: Set target velocity to zero if no new reference arrives for more than no_reference_timeout seconds */
     void checkVelocityTimeout();

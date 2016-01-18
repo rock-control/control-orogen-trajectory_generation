@@ -37,6 +37,7 @@ bool RMLVelocityTask::configureHook()
 #endif
 
     no_reference_timeout = _no_reference_timeout.get();
+    convert_to_position = _convert_to_position.get();
 
     return true;
 }
@@ -98,6 +99,15 @@ ReflexxesResultValue RMLVelocityTask::performOTG(base::commands::Joints &current
         current_sample[i].position = rml_output_parameters->NewPositionVector->VecData[i];
         current_command[i].speed = current_sample[i].speed = rml_output_parameters->NewVelocityVector->VecData[i];
         current_command[i].acceleration = current_sample[i].acceleration = rml_output_parameters->NewAccelerationVector->VecData[i];
+    }
+
+    if( convert_to_position ){
+        for(size_t i = 0; i < motion_constraints.size(); i++){
+            if(current_command[i].hasPosition())
+                current_command[i].position += cycle_time * current_command[i].speed;
+            else
+                current_command[i].position = rml_input_parameters->CurrentPositionVector->VecData[i];
+        }
     }
 
     return (ReflexxesResultValue)result;
