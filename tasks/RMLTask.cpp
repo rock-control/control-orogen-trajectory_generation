@@ -38,6 +38,22 @@ bool RMLTask::configureHook(){
 
     input_parameters = ReflexxesInputParameters(motion_constraints.size());
     output_parameters = ReflexxesOutputParameters(motion_constraints.size());
+    override_commanded_positions = _override_commanded_positions.get();
+    override_commanded_speeds = _override_commanded_speeds.get();
+    override_commanded_accelerations = _override_commanded_accelerations.get();
+
+    if(override_commanded_positions.size() != override_commanded_positions.names.size()){
+        LOG_ERROR("Override commanded positions property: Size of names must same as size of elements");
+        return false;
+    }
+    if(override_commanded_speeds.size() != override_commanded_speeds.names.size()){
+        LOG_ERROR("Override commanded speeds property: Size of names must same as size of elements");
+        return false;
+    }
+    if(override_commanded_accelerations.size() != override_commanded_accelerations.names.size()){
+        LOG_ERROR("Override commanded accelelerations property: Size of names must same as size of elements");
+        return false;
+    }
 
     return true;
 }
@@ -87,6 +103,7 @@ void RMLTask::updateHook(){
         handleNewTarget(target);
 
     handleResultValue(performOTG(command));
+    overrideCommand(command);
     command.time = base::Time::now();
     _command.write(command);
 
@@ -226,6 +243,25 @@ void RMLTask::handleResultValue(ReflexxesResultValue result_value){
         error(RML_ERROR);
         break;
     }
+    }
+}
+
+void RMLTask::overrideCommand(base::commands::Joints &cmd){
+
+    for(uint i = 0; i < override_commanded_positions.size(); i++)
+    {
+        uint idx = cmd.mapNameToIndex(override_commanded_positions.names[i]);
+        cmd[idx].position = override_commanded_positions[i].position;
+    }
+    for(uint i = 0; i < override_commanded_speeds.size(); i++)
+    {
+        uint idx = cmd.mapNameToIndex(override_commanded_speeds.names[i]);
+        cmd[idx].speed = override_commanded_speeds[i].speed;
+    }
+    for(uint i = 0; i < override_commanded_accelerations.size(); i++)
+    {
+        uint idx = cmd.mapNameToIndex(override_commanded_accelerations.names[i]);
+        cmd[idx].acceleration = override_commanded_accelerations[i].acceleration;
     }
 }
 
