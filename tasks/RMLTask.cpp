@@ -307,13 +307,3 @@ const ReflexxesOutputParameters& RMLTask::fromRMLTypes(const RMLOutputParameters
 #endif
     return out;
 }
-
-void RMLTask::setOverrideValue(double override_value){
-#ifdef USING_REFLEXXES_TYPE_IV
-    if(override_value > 10.0 || override_value <= 0){
-        LOG_ERROR("Override value must > 0 and <= 10, but is %f", override_value);
-        throw std::invalid_argument("Invalid override value");
-    }
-    rml_input_parameters->OverrideValue = override_value;
-#endif
-}

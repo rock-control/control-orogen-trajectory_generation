@@ -79,8 +79,6 @@ protected:
     virtual const ReflexxesOutputParameters& fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out);
     /** Call echo() method for rml input and output parameters*/
     virtual void printParams() = 0;
-    /** operation: Set new override value to define the relative speed of the overall motion*/
-    virtual void setOverrideValue(double override_value);
 
 public:
     RMLTask(std::string const& name = "trajectory_generation::RMLTask");

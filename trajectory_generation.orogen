@@ -92,9 +92,6 @@ task_context "RMLTask" do abstract
     # Debug: Current full output sample of interpolator (position/speed/acceleration)
     output_port "current_sample", "base/samples/Joints"
 
-    operation("setOverrideValue").
-        argument("override_value", "double")
-
     periodic 0.01
 end
 

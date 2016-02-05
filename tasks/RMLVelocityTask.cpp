@@ -26,7 +26,6 @@ bool RMLVelocityTask::configureHook()
 
     rml_input_parameters = new RMLVelocityInputParameters(motion_constraints.size());
     rml_output_parameters = new RMLVelocityOutputParameters(motion_constraints.size());
-
     for(size_t i = 0; i < motion_constraints.size(); i++)
         setMotionConstraints(motion_constraints[i], i);
 
