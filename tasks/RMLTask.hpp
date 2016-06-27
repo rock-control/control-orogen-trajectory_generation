@@ -8,8 +8,24 @@
 #include "trajectory_generationTypes.hpp"
 #include <reflexxes/ReflexxesAPI.h>
 
+/* TODOs (D.M, 2016/06/28):
+ *
+ * - Introduce a "stop" functionality, which leads to a controlled stop of the robot (while repecting the motion constraints). This can be useful
+ *   if, e.g. the robot shall be stopped by some external sensor event, without performing a 'hard' stop
+ * - Introduce a "reset" functionality, which sets the current interpolator state to the actual state. This can be used after the robot has stopped
+ *   to bring the system to a safe initial state
+ * - Add the possibility to control compliant joints. Here the problem is that the interpolator state is quite often not the same as the actual
+ *   robot state (because of a position deviation due to an external force applied to the robot). This could be handles by adding a "maximum allowed
+ *   deviation" between actual and interpolator state. However, the continuity of the output signal has to be ensured at all times!
+ */
+
 namespace trajectory_generation{
 
+/** This task generates a feasible, time-stamped trajectory to given a target (position/velocity, depending on the subclass used).
+ *  "Feasible" means here that the output trajectory (command port) will respect the motion constraints defined by the
+ *  motion_constraints-property, that is maximum/minimum position (only Reflexxes TypeIV), maximum speed, maximum
+ *  acceleration and maximum jerk (derivative of acceleration). The motion constraints structure is define in trajectory_generationTypes.hpp.
+ */
 class RMLTask : public RMLTaskBase
 {
     friend class RMLTaskBase;

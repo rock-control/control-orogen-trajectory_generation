@@ -95,9 +95,19 @@ task_context "RMLTask" do abstract
     periodic 0.01
 end
 
+#
+# Position based implementation of RML. The given target has to have valid position and speed entries. The output will be a
+# position trajectory with a trapezoidal acceleration profile. Note that a non-zero target speed will result in a motion, even
+# if the target position has already been reached.
+#
 task_context "RMLPositionTask" do subclasses "RMLTask"
 end
 
+#
+# Velocity based implementation of RML. The given target has to have valid speed entries, position has to be NaN! The output will be a
+# velocity trajectory with a trapezoidal acceleration profile, or, if convert_to_position is set to true, the velocity output
+# will be converted to position by simple integration.
+#
 task_context "RMLVelocityTask" do subclasses "RMLTask"
    # Velocity reference timeout in seconds: If no new reference arrives for this amount of time, the target velocity will be set to zero.
    property "no_reference_timeout", "double", 1.0
