@@ -9,7 +9,7 @@
 #include <RMLVelocityFlags.h>
 #include <RMLVelocityInputParameters.h>
 #include <RMLVelocityOutputParameters.h>
-#include <base/commands/joints.h>
+#include <base/commands/Joints.hpp>
 #include <trajectory_generation/trajectory_generationTypes.hpp>
 #include <trajectory_generation/ConstrainedJointsTrajectory.hpp>
 

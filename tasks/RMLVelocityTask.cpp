@@ -1,7 +1,7 @@
 /* Generated from orogen/lib/orogen/templates/tasks/Task.cpp */
 
 #include "RMLVelocityTask.hpp"
-#include <base/logging.h>
+#include <base/Logging.hpp>
 using namespace trajectory_generation;
 using namespace std;
 
