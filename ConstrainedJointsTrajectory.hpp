@@ -6,6 +6,7 @@
 #include <base/JointLimitRange.hpp>
 #include <base/commands/Joints.hpp>
 #include <base/Time.hpp>
+#include <sstream>
 
 namespace trajectory_generation {
 
