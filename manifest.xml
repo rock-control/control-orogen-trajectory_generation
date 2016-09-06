@@ -5,6 +5,6 @@
   <author>Jakob Schwendner/jakob.schwendner@dfki.de</author>
   <license>LGPL</license>
   <tags>stable</tags>
-  <depend package="base/types" />
+  <depend package="base/orogen/types" />
   <depend package="control/reflexxes" />
 </package>
