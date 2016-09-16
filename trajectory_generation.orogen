@@ -101,6 +101,8 @@ end
 # if the target position has already been reached.
 #
 task_context "RMLPositionTask" do subclasses "RMLTask"
+   # Position trajectory. Each point will generate a new target for the interpolator. New trajectories will overwrite the currently executed ones.
+   input_port "trajectory", "base/JointsTrajectory"
 end
 
 #

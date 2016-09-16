@@ -11,6 +11,12 @@ class RMLPositionTask : public RMLPositionTaskBase
 {
     friend class RMLPositionTaskBase;
 protected:
+    base::JointsTrajectory trajectory;
+    size_t timestep;
+
+    void computeSpeeds(const base::samples::Joints &joint_state,
+                       const trajectory_generation::JointsMotionConstraints& motion_constraints,
+                       base::JointsTrajectory& trajectory);
 
 public:
     RMLPositionTask(std::string const& name = "trajectory_generation::RMLPositionTask");
