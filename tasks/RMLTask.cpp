@@ -85,8 +85,8 @@ void RMLTask::updateHook(){
         _current_sample.write(current_sample);
     }
 
-    _target.readNewest(target, false);
-    _constrained_target.readNewest(target, false);
+    RTT::FlowStatus target_status = _target.readNewest(target, false);
+    RTT::FlowStatus constrained_target_status = _constrained_target.readNewest(target, false);
     if(target.empty()){
         if(state() != NO_TARGET)
             state(NO_TARGET);
