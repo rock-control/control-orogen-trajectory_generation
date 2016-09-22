@@ -51,6 +51,9 @@ void RMLPositionTask::updateHook()
 {
     RMLPositionTaskBase::updateHook();
 
+    if(state() == NO_JOINT_STATE)
+        return;
+
     base::JointsTrajectory new_traj;
     if(_trajectory.readNewest(new_traj) == RTT::NewData){
         if(state() != RUNNING)
