@@ -102,7 +102,8 @@ void RMLTask::updateHook(){
     else if(constrained_target_status == RTT::NewData)
         handleNewTarget(target);
 
-    handleResultValue(performOTG(command));
+    rml_result_value = performOTG(command);
+    handleResultValue(rml_result_value);
     overrideCommand(command);
     command.time = base::Time::now();
     _command.write(command);
@@ -126,6 +127,8 @@ void RMLTask::cleanupHook(){
     RMLTaskBase::cleanupHook();
 
     motion_constraints.clear();
+    target.clear();
+    command.clear();
     delete rml_api;
     delete rml_input_parameters;
     delete rml_output_parameters;

@@ -71,6 +71,8 @@ protected:
     /** Set (parts) of the output command to predefined values.*/
     base::commands::Joints override_commanded_accelerations;
 
+    ReflexxesResultValue rml_result_value;
+
     /** Handle an incoming joint state. Set positions/speeds/accelerations.*/
     void handleNewJointState(const base::samples::Joints &joint_state);
     /** Handle a new target. Set target positions/speeds.*/

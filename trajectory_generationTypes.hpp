@@ -10,6 +10,7 @@
 
 #include <base/JointLimitRange.hpp>
 #include <base/commands/Joints.hpp>
+#include <base/JointsTrajectory.hpp>
 #include <base/NamedVector.hpp>
 
 namespace trajectory_generation {
@@ -76,6 +77,11 @@ struct JointMotionConstraints : public base::JointLimitRange{
 
 /** Named vector of JointMotionConstraints, i.e. motion constraints for all the joints of a robot*/
 struct JointsMotionConstraints : base::NamedVector<JointMotionConstraints>{
+};
+
+class ConstrainedJointsTrajectory : public base::JointsTrajectory{
+public:
+    std::vector<JointsMotionConstraints> motion_constraints;
 };
 
 /** Names vector of ConstrainedJointCmd, i.e. constrained commands for all the joints of a robot*/

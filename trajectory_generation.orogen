@@ -101,8 +101,6 @@ end
 # if the target position has already been reached.
 #
 task_context "RMLPositionTask" do subclasses "RMLTask"
-   # Position trajectory. Each point will generate a new target for the interpolator. New trajectories will overwrite the currently executed ones.
-   input_port "trajectory", "base/JointsTrajectory"
 end
 
 #
@@ -116,4 +114,15 @@ task_context "RMLVelocityTask" do subclasses "RMLTask"
 
    # Converts the output to position commands
    property "convert_to_position", "bool", false
+end
+
+#
+# A temporary solution to interpolate complete trajectories. IMPORTANT: Jerk and acceleration have to be set to high values (e.g. 1000 and 100)
+# here, because the component will interpolate linearly between two trajectory points.
+#
+task_context "RMLPositionTrajectoryTask" do subclasses "RMLPositionTask"
+    runtime_states "REACHED_FINAL_TRAJ_POINT"
+
+   # Position trajectory. Each point will generate a new target for the interpolator. New trajectories will overwrite the currently executed ones.
+   input_port "trajectory", "base/JointsTrajectory"
 end
