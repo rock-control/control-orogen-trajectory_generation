@@ -27,14 +27,21 @@ bool RMLTask::configureHook(){
     }
 
     motion_constraints = _motion_constraints.get();
+    setMotionConstraints(motion_constraints);
     if(motion_constraints.empty()){
         LOG_ERROR("Motion constraints are empty");
         return false;
     }
+    for(size_t i = 0; i < motion_constraints.size(); i++)
+        setMotionConstraints(motion_constraints[i], i);
 
     rml_api = new ReflexxesAPI(motion_constraints.size(), cycle_time);
-
     rml_initialized = false;
+
+    rml_flags->SynchronizationBehavior = _synchronization_behavior.get();
+#ifdef USING_REFLEXXES_TYPE_IV
+    rml_flags->PositionalLimitsBehavior = _positional_limits_behavior.get();
+#endif
 
     input_parameters = ReflexxesInputParameters(motion_constraints.size());
     output_parameters = ReflexxesOutputParameters(motion_constraints.size());
@@ -57,38 +64,42 @@ void RMLTask::updateHook(){
 
     RMLTaskBase::updateHook();
 
-    RTT::FlowStatus joint_state_status = _joint_state.readNewest(joint_state);
-    if(joint_state_status == RTT::NoData){
-        if(state() != NO_JOINT_STATE)
-            state(NO_JOINT_STATE);
+    RTT::FlowStatus fs = updateCurrentState(rml_input_parameters);
+    if(fs == RTT::NoData){
+        if(state() != NO_CURRENT_STATE)
+            state(NO_CURRENT_STATE);
         return;
     }
-    else if(joint_state_status == RTT::NewData){
+    /*else if(fs == RTT::NewData){
         handleNewJointState(joint_state);
         current_sample.time = base::Time::now();
         _current_sample.write(current_sample);
-    }
+    }*/
 
-    RTT::FlowStatus target_status = _target.readNewest(target);
-    RTT::FlowStatus constrained_target_status = _constrained_target.readNewest(target);
-    if(target_status == RTT::NoData && constrained_target_status == RTT::NoData){
+    fs = updateTarget(rml_input_parameters);
+
+    /*RTT::FlowStatus target_status = _target.readNewest(target);
+    RTT::FlowStatus constrained_target_status = _constrained_target.readNewest(target);*/
+    if(fs == RTT::NoData){
         if(state() != NO_TARGET)
             state(NO_TARGET);
         return;
     }
 
-    if(state() == NO_TARGET || state() == NO_JOINT_STATE)
+    if(state() == NO_TARGET || state() == NO_CURRENT_STATE)
         state(RUNNING);
 
+    handleResultValue(performOTG(rml_input_parameters, rml_flags, rml_output_parameters));
+
     // Handle targets. Notice, that we have implicitly a priorization here: If there is data on target port, it will be preferred over the constrained target port
-    if(target_status == RTT::NewData)
+    /*if(target_status == RTT::NewData)
         handleNewTarget(target);
     else if(constrained_target_status == RTT::NewData)
         handleNewTarget(target);
 
     handleResultValue(performOTG(command));
     command.time = base::Time::now();
-    _command.write(command);
+    _command.write(command);*/
 
     // Write debug data
     _rml_input_parameters.write(fromRMLTypes(*rml_input_parameters, input_parameters));
@@ -110,9 +121,6 @@ void RMLTask::cleanupHook(){
 
     motion_constraints.clear();
     delete rml_api;
-    delete rml_input_parameters;
-    delete rml_output_parameters;
-    delete rml_flags;
 }
 
 void RMLTask::handleNewJointState(const base::samples::Joints &joint_state){

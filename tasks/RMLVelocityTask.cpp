@@ -8,35 +8,30 @@ using namespace trajectory_generation;
 RMLVelocityTask::RMLVelocityTask(std::string const& name)
     : RMLVelocityTaskBase(name)
 {
+    rml_flags = new RMLVelocityFlags();
 }
 
 RMLVelocityTask::RMLVelocityTask(std::string const& name, RTT::ExecutionEngine* engine)
     : RMLVelocityTaskBase(name, engine)
 {
+    rml_flags = new RMLVelocityFlags();
 }
 
 RMLVelocityTask::~RMLVelocityTask()
 {
+    delete rml_flags;
 }
 
 bool RMLVelocityTask::configureHook()
 {
-    if (! RMLVelocityTaskBase::configureHook())
-        return false;
-
     rml_input_parameters = new RMLVelocityInputParameters(motion_constraints.size());
     rml_output_parameters = new RMLVelocityOutputParameters(motion_constraints.size());
-    for(size_t i = 0; i < motion_constraints.size(); i++)
-        setMotionConstraints(motion_constraints[i], i);
-
-    rml_flags = new RMLVelocityFlags();
-    rml_flags->SynchronizationBehavior = _synchronization_behavior.get();
-#ifdef USING_REFLEXXES_TYPE_IV
-    rml_flags->PositionalLimitsBehavior = _positional_limits_behavior.get();
-#endif
 
     no_reference_timeout = _no_reference_timeout.get();
     convert_to_position = _convert_to_position.get();
+
+    if (! RMLVelocityTaskBase::configureHook())
+        return false;
 
     return true;
 }
@@ -66,6 +61,9 @@ void RMLVelocityTask::stopHook()
 void RMLVelocityTask::cleanupHook()
 {
     RMLVelocityTaskBase::cleanupHook();
+
+    delete rml_input_parameters;
+    delete rml_output_parameters;
 }
 
 void RMLVelocityTask::checkVelocityTimeout()
@@ -163,7 +161,7 @@ void RMLVelocityTask::setTarget(const base::JointState& cmd, const size_t idx)
 #endif
 }
 
-void RMLVelocityTask::setMotionConstraints(const trajectory_generation::JointMotionConstraints& constraints, const size_t idx){
+void RMLVelocityTask::setMotionConstraints(const trajectory_generation::MotionConstraint& constraints, const size_t idx){
 
     // Check if constraints are ok, e.g. max.speed > 0 etc
     constraints.validate();

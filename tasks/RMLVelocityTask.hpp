@@ -37,7 +37,7 @@ public:
     /** Set appropriate target depending on whether using position or velocity based RML*/
     virtual void setTarget(const base::JointState& cmd, const size_t idx);
     /** Set appropriate constraints depending on whether using position or velocity based RML*/
-    virtual void setMotionConstraints(const trajectory_generation::JointMotionConstraints& constraints, const size_t idx);
+    virtual void setMotionConstraints(const trajectory_generation::MotionConstraint& constraints, const size_t idx);
     /** Convert from RMLOutputParameters to orogen type*/
     virtual const ReflexxesOutputParameters& fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out);
     /** Call echo() method for rml input and output parameters*/

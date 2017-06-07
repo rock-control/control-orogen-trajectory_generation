@@ -8,34 +8,27 @@ using namespace trajectory_generation;
 RMLPositionTask::RMLPositionTask(std::string const& name)
     : RMLPositionTaskBase(name)
 {
+    rml_flags = new RMLPositionFlags();
 }
 
 RMLPositionTask::RMLPositionTask(std::string const& name, RTT::ExecutionEngine* engine)
     : RMLPositionTaskBase(name, engine)
 {
+    rml_flags = new RMLPositionFlags();
 }
 
 RMLPositionTask::~RMLPositionTask()
 {
+    delete rml_flags;
 }
 
 bool RMLPositionTask::configureHook()
 {
-
-    if (! RMLPositionTaskBase::configureHook())
-        return false;
-
     rml_input_parameters = new RMLPositionInputParameters(motion_constraints.size());
     rml_output_parameters = new RMLPositionOutputParameters(motion_constraints.size());
 
-    for(size_t i = 0; i < motion_constraints.size(); i++)
-        setMotionConstraints(motion_constraints[i], i);
-
-    rml_flags = new RMLPositionFlags();
-    rml_flags->SynchronizationBehavior = _synchronization_behavior.get();
-#ifdef USING_REFLEXXES_TYPE_IV
-    rml_flags->PositionalLimitsBehavior = _positional_limits_behavior.get();
-#endif
+    if (! RMLPositionTaskBase::configureHook())
+        return false;
 
     return true;
 }
@@ -64,6 +57,9 @@ void RMLPositionTask::stopHook()
 void RMLPositionTask::cleanupHook()
 {
     RMLPositionTaskBase::cleanupHook();
+
+    delete rml_input_parameters;
+    delete rml_output_parameters;
 }
 
 ReflexxesResultValue RMLPositionTask::performOTG(base::commands::Joints &current_command)
@@ -119,7 +115,7 @@ void RMLPositionTask::setTarget(const base::JointState& cmd, const size_t idx)
         rml_input_parameters->TargetVelocityVector->VecData[idx] = 0;
 }
 
-void RMLPositionTask::setMotionConstraints(const trajectory_generation::JointMotionConstraints& constraints, const size_t idx)
+void RMLPositionTask::setMotionConstraints(const trajectory_generation::MotionConstraint& constraints, const size_t idx)
 {
     // Check if constraints are ok, e.g. max.speed > 0 etc
     constraints.validate();
