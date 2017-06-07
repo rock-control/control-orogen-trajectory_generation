@@ -64,12 +64,6 @@ protected:
     base::samples::Joints current_sample;
     /** Cycle time for interpolation*/
     double cycle_time;
-    /** Set (parts) of the output command to predefined values.*/
-    base::commands::Joints override_commanded_positions;
-    /** Set (parts) of the output command to predefined values.*/
-    base::commands::Joints override_commanded_speeds;
-    /** Set (parts) of the output command to predefined values.*/
-    base::commands::Joints override_commanded_accelerations;
 
     /** Handle an incoming joint state. Set positions/speeds/accelerations.*/
     void handleNewJointState(const base::samples::Joints &joint_state);
@@ -77,8 +71,6 @@ protected:
     void handleNewTarget(const trajectory_generation::ConstrainedJointsCmd &target);
     /** Handle result of the OTG algorithm. Handle errors.*/
     void handleResultValue(ReflexxesResultValue result_value);
-    /** Override parts of the output command with configured values.*/
-    void overrideCommand(base::commands::Joints& _command);
 
 
     /** Call position or velocity based OTG, depending on the implementation*/

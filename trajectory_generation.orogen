@@ -45,16 +45,6 @@ task_context "RMLTask" do abstract
     # ONLY_PHASE_SYNCHRONIZATION and NO_SYNCHRONIZATION. See reflexxes/RMLFlags.h for details.
     property "synchronization_behavior", "RMLFlags/SyncBehaviorEnum", :PHASE_SYNCHRONIZATION_IF_POSSIBLE
 
-    # Set (parts) of the output command positions to predefined values. This can be useful, if e.g. a controller that used the reflexxes output
-    # does not work with a speed value set in a position based output command, etc.
-    property "override_commanded_positions", "base/commands/Joints"
-
-    # Set (parts) of the output command speeds to predefined values.
-    property "override_commanded_speeds", "base/commands/Joints"
-
-    # Set (parts) of the output command accelerations to predefined values.
-    property "override_commanded_accelerations", "base/commands/Joints"
-
     # Current joint state. The joint names have to match the ones defined by the motion_constraints property. Joint indices
     # will be mapped internally by their names. The current joint state will only be used for initialization.
     input_port "joint_state", "base/samples/Joints"
