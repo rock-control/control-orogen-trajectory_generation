@@ -30,7 +30,7 @@ bool RMLTask::configureHook(){
     setMotionConstraints(motion_constraints, rml_input_parameters);
 
     rml_api = new ReflexxesAPI(motion_constraints.size(), cycle_time);
-    rml_result_value = std::numeric_limits<int>::quiet_NaN();
+    rml_result_value = RML_NOT_INITIALIZED;
 
     rml_flags->SynchronizationBehavior = _synchronization_behavior.get();
 #ifdef USING_REFLEXXES_TYPE_IV

@@ -104,6 +104,7 @@ struct ConstrainedJointsCmd : public base::commands::Joints{
 
 /** Result values of the Online Trajectory Generation algorithm. See reflexxes/ReflexxesAPI.h for further details*/
 enum ReflexxesResultValue{
+    RML_NOT_INITIALIZED                     = -200, /** RML has never been called*/
     RML_WORKING	                            =  0,   /** The Online Trajectory Generation algorithm is working; the final state of motion has not been reached yet.*/
     RML_FINAL_STATE_REACHED                 =  1,   /** The desired final state of motion has been reached.*/
     RML_NO_ERROR                            =  2,   /** This value is returned by the method ReflexxesAPI::SetupOverrideFilter() if executed successfully.*/

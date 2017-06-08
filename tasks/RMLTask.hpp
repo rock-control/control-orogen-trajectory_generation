@@ -56,22 +56,21 @@ protected:
     /** Update the RML input parameters with the current motion constraints*/
     virtual void setMotionConstraints(const MotionConstraints &constraints, RMLInputParameters* new_input_parameters) = 0;
     /** Read the current state from port and update the RML input parameters accordingly. Return the flow status.*/
-    virtual RTT::FlowStatus updateCurrentState(RMLInputParameters& new_input_parameters) = 0;
+    virtual RTT::FlowStatus updateCurrentState(RMLInputParameters* new_input_parameters) = 0;
     /** Read a new target from port and update the RML input parameters accordingly. Return the flow status.*/
-    virtual RTT::FlowStatus updateTarget(RMLInputParameters& new_input_parameters) = 0;    
+    virtual RTT::FlowStatus updateTarget(RMLInputParameters* new_input_parameters) = 0;
     /** Perform online trajectory generation (call the the RML algorithm) and update the RML output parameters. Return the result value.*/
     virtual ReflexxesResultValue performOTG(const RMLInputParameters& new_input_parameters, const RMLFlags& flags, RMLOutputParameters* new_output_parameters) = 0;
     /** Update and write the current trajectory sample to port*/
     virtual void writeSample(const RMLOutputParameters& new_output_paramameters);
     /** Call echo() method for rml input and output parameters*/
     virtual void printParams() = 0;
-
-    /** Handle result of the OTG algorithm. Handle errors.*/
-    void handleResultValue(ReflexxesResultValue result_value);
     /** Convert from RMLInputParameters to orogen type*/
     virtual const ReflexxesInputParameters& fromRMLTypes(const RMLInputParameters &in, ReflexxesInputParameters& out);
     /** Convert from RMLOutputParameters to orogen type*/
     virtual const ReflexxesOutputParameters& fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out);
+    /** Handle result of the OTG algorithm. Handle errors.*/
+    void handleResultValue(ReflexxesResultValue result_value);
 
 public:
     RMLTask(std::string const& name = "trajectory_generation::RMLTask");
