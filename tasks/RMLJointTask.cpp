@@ -18,12 +18,6 @@ RMLJointTask::~RMLJointTask()
 {
 }
 
-
-
-/// The following lines are template definitions for the various state machine
-// hooks defined by Orocos::RTT. See RMLJointTask.hpp for more detailed
-// documentation about them.
-
 bool RMLJointTask::configureHook()
 {
     if (! RMLJointTaskBase::configureHook())
