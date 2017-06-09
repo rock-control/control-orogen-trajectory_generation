@@ -23,24 +23,10 @@ public:
     void stopHook();
     void cleanupHook();
 
-    /** Update the RML input parameters with the current motion constraints*/
-    virtual void setMotionConstraints(const MotionConstraints &constraints, RMLInputParameters* new_input_parameters);
-    /** Read the current state from port and update the RML input parameters accordingly. Return the flow status.*/
-    virtual RTT::FlowStatus updateCurrentState(RMLInputParameters& new_input_parameters);
-    /** Read a new target from port and update the RML input parameters accordingly. Return the flow status.*/
-    virtual RTT::FlowStatus updateTarget(RMLInputParameters& new_input_parameters);
-    /** Perform online trajectory generation (call the the RML algorithm) and update the RML output parameters. Return the result value.*/
-    virtual ReflexxesResultValue performOTG(const RMLInputParameters& new_input_parameters, const RMLFlags& flags, RMLOutputParameters* new_output_parameters);
-    /** Update and write the current trajectory sample to port*/
-    virtual void writeSample(const RMLOutputParameters& new_output_paramameters);
+    /** Perform one step of online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/
+    virtual ReflexxesResultValue performOTG(const CurrentStateVector& current_state, const TargetVector& target);
     /** Call echo() method for rml input and output parameters*/
     virtual void printParams();
-    /** Convert from RMLInputParameters to orogen type*/
-    virtual const ReflexxesInputParameters& fromRMLTypes(const RMLInputParameters &in, ReflexxesInputParameters& out);
-    /** Convert from RMLOutputParameters to orogen type*/
-    virtual const ReflexxesOutputParameters& fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out);
-    /** Handle result of the OTG algorithm. Handle errors.*/
-    void handleResultValue(ReflexxesResultValue result_value);
 
 };
 }

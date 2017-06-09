@@ -135,7 +135,8 @@ RTT::FlowStatus RMLPositionTask::updateTarget(RMLInputParameters& new_input_para
 
 }
 
-ReflexxesResultValue RMLPositionTask::performOTG(const RMLInputParameters& new_input_parameters, const RMLFlags& flags, RMLOutputParameters* new_output_parameters){
+ReflexxesResultValue RMLPositionTask::performOTG(const CurrentStateVector& current_state, const TargetVector& target){
+
 
 }
 

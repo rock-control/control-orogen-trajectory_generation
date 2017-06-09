@@ -71,7 +71,7 @@ task_context "RMLJointTask" do abstract
 
     # Current joint state. The joint names have to match the ones defined by the motion_constraints property. Joint indices
     # will be mapped internally by their names. The current joint state will only be used for initialization.
-    input_port "current_state", "base/samples/Joints"
+    input_port "joint_state", "base/samples/Joints"
 
     # Target joint position or speed. The component will generate a trajectory to that position/speed, which complies with the motion constraints given by the
     # motion_constraints property. The joint names in target have to match the ones defined by the motion_constraints property. Joint indices
@@ -125,7 +125,7 @@ end
 #     subclasses "RMLTask"
 #
 #     # Current Cartesian state.
-#     input_port "current_state", "base/samples/RigidBodyState"
+#     input_port "cartesian_state", "base/samples/RigidBodyState"
 #
 #     # Target Cartesian position or speed. The component will generate a trajectory to that position/speed, which complies with the motion constraints given by the
 #     # motion_constraints property. Depending on the implementation, the position and/or velocity entries must have valid entries

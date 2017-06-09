@@ -58,14 +58,14 @@ void RMLTask::updateHook(){
 
     RMLTaskBase::updateHook();
 
-    RTT::FlowStatus fs = updateCurrentState(rml_input_parameters);
+    RTT::FlowStatus fs = getCurrentState(current_state);
     if(fs == RTT::NoData){
         if(state() != NO_CURRENT_STATE)
             state(NO_CURRENT_STATE);
         return;
     }
 
-    fs = updateTarget(rml_input_parameters);
+    fs = getTarget(target);
     if(fs == RTT::NoData){
         if(state() != NO_TARGET)
             state(NO_TARGET);
@@ -75,10 +75,8 @@ void RMLTask::updateHook(){
     if(state() == NO_TARGET || state() == NO_CURRENT_STATE)
         state(RUNNING);
 
-    rml_result_value = performOTG(*rml_input_parameters, rml_flags, rml_output_parameters);
+    rml_result_value = performOTG(current_state, target);
     handleResultValue(rml_result_value);
-
-    writeSample(*rml_output_parameters);
 
     // Write debug data
     _rml_input_parameters.write(fromRMLTypes(*rml_input_parameters, input_parameters));

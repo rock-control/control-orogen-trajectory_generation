@@ -55,7 +55,7 @@ struct MotionConstraint{
             throw std::invalid_argument("Motion Constraints: Maximum position is invalid");
         if(!hasMinPosition())
             throw std::invalid_argument("Motion Constraints: Minimum position is invalid");
-        if(max_pos <= min_pos)
+        if(max.position <= min.position)
             throw std::invalid_argument("Motion Constraints: Max. position has to be > min. position");
 #endif
         if(!hasMaxVelocity())
@@ -87,6 +87,29 @@ struct MotionConstraint{
 
 /** Named vector of MotionConstraints, i.e. motion constraints for all the joints of a robot*/
 struct MotionConstraints : base::NamedVector<MotionConstraint>{
+};
+
+struct CurrentState{
+    double position;
+    double velocity;
+    double acceleration;
+};
+
+struct CurrentStateVector : base::NamedVector<CurrentState>{
+};
+
+struct Target{
+    double position;
+    double velocity;
+    bool selected;
+};
+
+struct TargetVector : base::NamedVector<Target>{
+    void reset(){
+        for(size_t i = 0; i < size(); i++)
+            elements[i].selected = false;
+    }
+    MotionConstraints motion_constraints;
 };
 
 /** Named vector of Joints command with motion constraints, i.e. constrained commands for all the joints of a robot*/
