@@ -10,37 +10,56 @@ namespace trajectory_generation{
 class RMLJointTask : public RMLJointTaskBase
 {
     friend class RMLJointTaskBase;
-protected:
-    /** Current joint state. The joint names have to match the ones defined by the motion_constraints property. Joint indices
-        will be mapped internally by their names. The current joint state will only be used for initialization */
-    base::samples::Joints current_joint_state;
-    /** Debug: Current joint interpolator status (position/speed/acceleration)*/
-    base::samples::Joints current_joint_sample;
-    /** Target joint position or speed. The component will generate a trajectory to that position/speed, which complies with the motion constraints given by the
-        motion_constraints property. The joint names in target have to match the ones defined by the motion_constraints property. Joint indices
-        will be mapped internally by their names. */
-    ConstrainedJointsCmd joint_target;
 
-    /** Read the current state from port and return the current state if available and the flow status.*/
-    virtual RTT::FlowStatus getCurrentState(CurrentStateVector& new_current_state);
-    /** Read a new target from port and return the target if available and the flow status.*/
-    virtual RTT::FlowStatus getTarget(TargetVector& new_target);
+    RTT::FlowStatus getCurrentState(const std::vector<std::string> &names, base::samples::Joints &current_state);
+
+protected:
+    base::samples::Joints joint_state;    /** From input port: Current joint state. Will only be used for initializing RML */
+    base::samples::Joints current_sample; /** From input port: Current joint interpolator status (position/speed/acceleration)*/
+    ConstrainedJointsCmd target;          /** From input port: Target joint position or speed.  */
+    base::commands::Joints command;       /** From input port: Target joint position or speed.  */
+
+    /** Read the current state from port. If available, update the RML input parameters. Also return the flow state*/
+    virtual RTT::FlowStatus updateCurrentState(const std::vector<std::string> &names,
+                                               RMLInputParameters* new_input_parameters);
+
+    /** Read a new target from port. If available, update the RML input parameters. Also return the flow state*/
+    virtual RTT::FlowStatus updateTarget(const MotionConstraints& default_constraints,
+                                         RMLInputParameters* new_input_parameters);
 
     /** Perform one step of online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/
-    virtual ReflexxesResultValue performOTG(const CurrentStateVector& current_state, const TargetVector& target) = 0;
+    virtual ReflexxesResultValue performOTG(RMLInputParameters* new_input_parameters,
+                                            RMLOutputParameters* new_output_parameters,
+                                            RMLFlags *rml_flag) = 0;
+
+    /** Write the generated trajectory to port*/
+    virtual void writeCommand(const RMLOutputParameters& new_output_parameters) = 0;
+
     /** Call echo() method for rml input and output parameters*/
     virtual void printParams() = 0;
 
+    virtual void setJointState(const base::JointState &state,
+                               const size_t idx,
+                               RMLInputParameters* new_input_parameters) = 0;
+
+    virtual void setJointTarget(const base::JointState &cmd,
+                                const size_t idx,
+                                RMLInputParameters* new_input_parameters) = 0;
+
+    virtual void setMotionConstraints(const MotionConstraint& constraint,
+                                      const size_t idx,
+                                      RMLInputParameters* new_input_parameters) = 0;
+
 public:
-    RMLJointTask(std::string const& name = "trajectory_generation::RMLJointTask") : RMLJointTaskBase(name){}
-    RMLJointTask(std::string const& name, RTT::ExecutionEngine* engine) : RMLJointTaskBase(name, engine){}
-    ~RMLJointTask(){}
+    RMLJointTask(std::string const& name = "trajectory_generation::RMLJointTask");
+    RMLJointTask(std::string const& name, RTT::ExecutionEngine* engine);
+    ~RMLJointTask();
     bool configureHook();
     bool startHook();
-    void updateHook(){RMLJointTaskBase::updateHook();}
-    void errorHook(){RMLJointTaskBase::errorHook();}
-    void stopHook(){RMLJointTaskBase::stopHook();}
-    void cleanupHook(){RMLJointTaskBase::cleanupHook();}
+    void updateHook();
+    void errorHook();
+    void stopHook();
+    void cleanupHook();
 };
 }
 

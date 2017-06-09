@@ -1,7 +1,7 @@
 /* Generated from orogen/lib/orogen/templates/tasks/Task.cpp */
 
 #include "RMLTask.hpp"
-#include <base/Logging.hpp>
+#include <base-logging/Logging.hpp>
 
 using namespace trajectory_generation;
 
@@ -17,6 +17,7 @@ RMLTask::~RMLTask(){
 }
 
 bool RMLTask::configureHook(){
+
     if (! RMLTaskBase::configureHook())
         return false;
 
@@ -27,18 +28,16 @@ bool RMLTask::configureHook(){
     }
 
     motion_constraints = _motion_constraints.get();
-    setMotionConstraints(motion_constraints, rml_input_parameters);
-
-    rml_api = new ReflexxesAPI(motion_constraints.size(), cycle_time);
-    rml_result_value = RML_NOT_INITIALIZED;
-
     rml_flags->SynchronizationBehavior = _synchronization_behavior.get();
 #ifdef USING_REFLEXXES_TYPE_IV
     rml_flags->PositionalLimitsBehavior = _positional_limits_behavior.get();
 #endif
 
-    input_parameters = ReflexxesInputParameters(motion_constraints.size());
-    output_parameters = ReflexxesOutputParameters(motion_constraints.size());
+    rml_api = new ReflexxesAPI(motion_constraints.size(), cycle_time);
+    rml_result_value = RML_NOT_INITIALIZED;
+
+    input_parameters = ReflexxesInputParameters(rml_input_parameters->NumberOfDOFs);
+    output_parameters = ReflexxesOutputParameters(rml_input_parameters->NumberOfDOFs);
 
     return true;
 }
@@ -58,14 +57,14 @@ void RMLTask::updateHook(){
 
     RMLTaskBase::updateHook();
 
-    RTT::FlowStatus fs = getCurrentState(current_state);
+    RTT::FlowStatus fs = updateCurrentState(motion_constraints.names, rml_input_parameters);
     if(fs == RTT::NoData){
         if(state() != NO_CURRENT_STATE)
             state(NO_CURRENT_STATE);
         return;
     }
 
-    fs = getTarget(target);
+    fs = updateTarget(motion_constraints, rml_input_parameters);
     if(fs == RTT::NoData){
         if(state() != NO_TARGET)
             state(NO_TARGET);
@@ -75,13 +74,14 @@ void RMLTask::updateHook(){
     if(state() == NO_TARGET || state() == NO_CURRENT_STATE)
         state(RUNNING);
 
-    rml_result_value = performOTG(current_state, target);
+    rml_result_value = performOTG(rml_input_parameters, rml_output_parameters, rml_flags);
     handleResultValue(rml_result_value);
 
-    // Write debug data
+    writeCommand(*rml_output_parameters);
+
+    // write debug data
     _rml_input_parameters.write(fromRMLTypes(*rml_input_parameters, input_parameters));
     _rml_output_parameters.write(fromRMLTypes(*rml_output_parameters, output_parameters));
-
     _computation_time.write((base::Time::now() - start_time).toSeconds());
 
 
@@ -108,80 +108,11 @@ void RMLTask::updateHook(){
     _command.write(command);*/
 }
 
-void RMLTask::errorHook(){
-    RMLTaskBase::errorHook();
-}
-
-void RMLTask::stopHook(){
-    RMLTaskBase::stopHook();
-}
-
 void RMLTask::cleanupHook(){
     RMLTaskBase::cleanupHook();
 
     motion_constraints.clear();
     delete rml_api;
-}
-
-void RMLTask::handleNewJointState(const base::samples::Joints &joint_state){
-
-    if(!rml_initialized){
-        current_sample.resize(motion_constraints.size());
-        current_sample.names = motion_constraints.names;
-    }
-
-    for(size_t i = 0; i < motion_constraints.size(); i++)
-    {
-        size_t idx;
-        try{
-            idx = joint_state.mapNameToIndex(motion_constraints.names[i]);
-        }
-        catch(std::exception e){
-            LOG_ERROR("%s: Element %s has been configured in motion constraints, but is not available in joint state",
-                      this->getName().c_str(), motion_constraints.names[i].c_str());
-            throw e;
-        }
-
-        const base::JointState &state = joint_state[idx];
-
-        if(!rml_initialized){ // Init with current joint position and zero velocity/acceleration
-
-            if(state.hasPosition())
-                rml_input_parameters->CurrentPositionVector->VecData[i] = current_sample[i].position = state.position;
-            else
-                throw std::invalid_argument("Joint state contains NaN position elements");
-            rml_input_parameters->CurrentVelocityVector->VecData[i] = current_sample[i].speed = 0;
-            rml_input_parameters->CurrentAccelerationVector->VecData[i] = current_sample[i].acceleration = 0;
-        }
-        else
-            setJointState(state, i);
-    }
-    rml_initialized = true;
-}
-
-void RMLTask::handleNewTarget(const trajectory_generation::ConstrainedJointsCmd &target){
-
-    // Set selection vector to false
-    memset(rml_input_parameters->SelectionVector->VecData, false, motion_constraints.size());
-
-    target.validate();
-
-    for(size_t i = 0; i < target.size(); i++){
-
-        size_t idx = motion_constraints.mapNameToIndex(target.names[i]);
-
-        rml_input_parameters->SelectionVector->VecData[idx] = true;
-        setTarget(target[i], idx);
-
-        if(!target.motion_constraints.empty()){
-
-            // if a value of the new motion constraints is unset, use the default motion constraints:
-            JointMotionConstraints constraints = target.motion_constraints[i];
-            constraints.applyDefaultIfUnset(motion_constraints[idx]);
-
-            setMotionConstraints(constraints, idx);
-        }
-    }
 }
 
 void RMLTask::handleResultValue(ReflexxesResultValue result_value){
@@ -279,3 +210,74 @@ const ReflexxesOutputParameters& RMLTask::fromRMLTypes(const RMLOutputParameters
 #endif
     return out;
 }
+
+/*
+void RMLTask::errorHook(){
+    RMLTaskBase::errorHook();
+}
+
+void RMLTask::stopHook(){
+    RMLTaskBase::stopHook();
+}
+
+void RMLTask::handleNewJointState(const base::samples::Joints &joint_state){
+
+    if(!rml_initialized){
+        current_sample.resize(motion_constraints.size());
+        current_sample.names = motion_constraints.names;
+    }
+
+    for(size_t i = 0; i < motion_constraints.size(); i++)
+    {
+        size_t idx;
+        try{
+            idx = joint_state.mapNameToIndex(motion_constraints.names[i]);
+        }
+        catch(std::exception e){
+            LOG_ERROR("%s: Element %s has been configured in motion constraints, but is not available in joint state",
+                      this->getName().c_str(), motion_constraints.names[i].c_str());
+            throw e;
+        }
+
+        const base::JointState &state = joint_state[idx];
+
+        if(!rml_initialized){ // Init with current joint position and zero velocity/acceleration
+
+            if(state.hasPosition())
+                rml_input_parameters->CurrentPositionVector->VecData[i] = current_sample[i].position = state.position;
+            else
+                throw std::invalid_argument("Joint state contains NaN position elements");
+            rml_input_parameters->CurrentVelocityVector->VecData[i] = current_sample[i].speed = 0;
+            rml_input_parameters->CurrentAccelerationVector->VecData[i] = current_sample[i].acceleration = 0;
+        }
+        else
+            setJointState(state, i);
+    }
+    rml_initialized = true;
+}
+
+void RMLTask::handleNewTarget(const trajectory_generation::ConstrainedJointsCmd &target){
+
+    // Set selection vector to false
+    memset(rml_input_parameters->SelectionVector->VecData, false, motion_constraints.size());
+
+    target.validate();
+
+    for(size_t i = 0; i < target.size(); i++){
+
+        size_t idx = motion_constraints.mapNameToIndex(target.names[i]);
+
+        rml_input_parameters->SelectionVector->VecData[idx] = true;
+        setTarget(target[i], idx);
+
+        if(!target.motion_constraints.empty()){
+
+            // if a value of the new motion constraints is unset, use the default motion constraints:
+            JointMotionConstraints constraints = target.motion_constraints[i];
+            constraints.applyDefaultIfUnset(motion_constraints[idx]);
+
+            setMotionConstraints(constraints, idx);
+        }
+    }
+}
+*/

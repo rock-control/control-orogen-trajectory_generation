@@ -109,12 +109,11 @@ struct TargetVector : base::NamedVector<Target>{
         for(size_t i = 0; i < size(); i++)
             elements[i].selected = false;
     }
-    MotionConstraints motion_constraints;
 };
 
 /** Named vector of Joints command with motion constraints, i.e. constrained commands for all the joints of a robot*/
 struct ConstrainedJointsCmd : public base::commands::Joints{
-    std::vector<MotionConstraints> motion_constraints;
+    std::vector<MotionConstraint> motion_constraints;
     void validate() const{
 
         if(names.size() != size())

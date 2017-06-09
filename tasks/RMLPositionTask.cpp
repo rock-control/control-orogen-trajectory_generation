@@ -1,7 +1,7 @@
 /* Generated from orogen/lib/orogen/templates/tasks/Task.cpp */
 
 #include "RMLPositionTask.hpp"
-#include <base/Logging.hpp>
+#include <base-logging/Logging.hpp>
 
 using namespace trajectory_generation;
 
@@ -27,34 +27,29 @@ bool RMLPositionTask::configureHook()
     rml_input_parameters = new RMLPositionInputParameters(_motion_constraints.get().size());
     rml_output_parameters = new RMLPositionOutputParameters(_motion_constraints.get().size());
 
-    current_sample.resize(_motion_constraints.get().size());
-    current_sample.names = _motion_constraints.get().names;
-
     if (! RMLPositionTaskBase::configureHook())
         return false;
 
     return true;
 }
+
+void RMLPositionTask::updateHook(){
+    RMLPositionTaskBase::updateHook();
+}
+
+void RMLPositionTask::errorHook(){
+    RMLPositionTaskBase::errorHook();
+}
+
+void RMLPositionTask::stopHook(){
+    RMLPositionTaskBase::stopHook();
+}
+
 bool RMLPositionTask::startHook()
 {
     if (! RMLPositionTaskBase::startHook())
         return false;
     return true;
-}
-
-void RMLPositionTask::updateHook()
-{
-    RMLPositionTaskBase::updateHook();
-}
-
-void RMLPositionTask::errorHook()
-{
-    RMLPositionTaskBase::errorHook();
-}
-
-void RMLPositionTask::stopHook()
-{
-    RMLPositionTaskBase::stopHook();
 }
 
 void RMLPositionTask::cleanupHook()
@@ -63,8 +58,115 @@ void RMLPositionTask::cleanupHook()
 
     delete rml_input_parameters;
     delete rml_output_parameters;
+
+    current_sample.clear();
+    joint_state.clear();
+    target.clear();
 }
 
+void  RMLPositionTask::setJointState(const base::JointState &state,
+                                     const size_t idx,
+                                     RMLInputParameters* new_input_parameters){
+
+    if(rml_result_value == RML_NOT_INITIALIZED){
+        new_input_parameters->CurrentPositionVector[idx]     = state.position;
+        new_input_parameters->CurrentVelocityVector[idx]     = 0;
+        new_input_parameters->CurrentAccelerationVector[idx] = 0;
+    }
+}
+
+void RMLPositionTask::setJointTarget(const base::JointState &cmd,
+                                     const size_t idx,
+                                     RMLInputParameters* new_input_parameters){
+
+    if(!cmd.hasPosition()){
+        LOG_ERROR("Target position of element %i is invalid: %f", idx, cmd.position);
+        throw std::invalid_argument("Invalid target position");
+    }
+
+    RMLPositionInputParameters* params = (RMLPositionInputParameters*)new_input_parameters;
+
+    double pos = cmd.position;
+#ifdef USING_REFLEXXES_TYPE_IV  // Crop at limits if POSITIONAL_LIMITS_ACTIVELY_PREVENT is selected
+    if(rml_flags->PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT)
+        pos = std::max(std::min(new_input_parameters->MaxPositionVector->VecData[idx], pos),
+                       rml_input_parameters->MinPositionVector->VecData[idx]);
+#endif
+
+    params->TargetPositionVector[idx] = pos;
+    params->SelectionVector[idx]      = true;
+    params->TargetVelocityVector[idx] = 0;
+    if(cmd.hasSpeed())
+        params->TargetVelocityVector[idx] = cmd.speed;
+}
+
+
+void RMLPositionTask::setMotionConstraints(const MotionConstraint& constraint,
+                                           const size_t idx,
+                                           RMLInputParameters* new_input_parameters){
+
+    constraint.validate(); // Check if constraints are ok, e.g. max.speed > 0 etc
+
+    RMLPositionInputParameters* params = (RMLPositionInputParameters*)new_input_parameters;
+
+#ifdef USING_REFLEXXES_TYPE_IV
+    params->MaxPositionVector[idx] = constraint.max.position;
+    params->MinPositionVector[idx] = constraint.min.position;
+#endif
+    params->MaxVelocityVector[idx]     = constraint.max.speed;
+    params->MaxAccelerationVector[idx] = constraint.max.acceleration;
+    params->MaxJerkVector[idx]         = constraint.max_jerk;
+}
+
+ReflexxesResultValue RMLPositionTask::performOTG(RMLInputParameters* new_input_parameters,
+                                                 RMLOutputParameters* new_output_parameters,
+                                                 RMLFlags *rml_flags){
+
+    int result = rml_api->RMLPosition( *(RMLPositionInputParameters*)new_input_parameters,
+                                       (RMLPositionOutputParameters*)new_output_parameters,
+                                       *(RMLPositionFlags*)rml_flags );
+
+    // Always feed back the new state as the current state in Position based RML:
+    *new_input_parameters->CurrentPositionVector     = *rml_output_parameters->NewPositionVector;
+    *new_input_parameters->CurrentVelocityVector     = *rml_output_parameters->NewVelocityVector;
+    *new_input_parameters->CurrentAccelerationVector = *rml_output_parameters->NewAccelerationVector;
+
+    return (ReflexxesResultValue)result;
+}
+
+void RMLPositionTask::writeCommand(const RMLOutputParameters& new_output_parameters){
+
+    for(size_t i = 0; i < command.size(); i++){
+        command[i].position     = new_output_parameters.NewPositionVector->VecData[i];
+        command[i].speed        = new_output_parameters.NewVelocityVector->VecData[i];
+        command[i].acceleration = new_output_parameters.NewAccelerationVector->VecData[i];
+    }
+    command.time = base::Time::now();
+    _command.write(command);
+}
+
+void RMLPositionTask::printParams(){
+    ((RMLPositionInputParameters*)rml_input_parameters)->Echo();
+    ((RMLPositionOutputParameters*)rml_output_parameters)->Echo();
+}
+
+const ReflexxesInputParameters& RMLPositionTask::fromRMLTypes(const RMLInputParameters &in, ReflexxesInputParameters& out){
+    RMLTask::fromRMLTypes(in, out);
+    memcpy(out.max_velocity_vector.data(), ((RMLPositionInputParameters&)in).MaxVelocityVector->VecData, sizeof(double) * in.GetNumberOfDOFs());
+    memcpy(out.target_position_vector.data(), ((RMLPositionInputParameters&)in).TargetPositionVector->VecData, sizeof(double) * in.GetNumberOfDOFs());
+    return out;
+}
+
+const ReflexxesOutputParameters& RMLPositionTask::fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out){
+    RMLTask::fromRMLTypes(in, out);
+#ifdef USING_REFLEXXES_TYPE_IV
+    out.trajectory_exceeds_target_position = ((RMLPositionOutputParameters&)in).TrajectoryExceedsTargetPosition;
+#endif
+    return out;
+}
+
+
+/*
 void RMLPositionTask::setMotionConstraints(const MotionConstraints &constraints, RMLInputParameters* new_input_parameters){
 
     for(size_t i = 0; i < constraints.size(); i++){
@@ -144,10 +246,6 @@ void RMLPositionTask::writeSample(const RMLOutputParameters& new_output_paramame
 
 }
 
-void RMLPositionTask::printParams(){
-    ((RMLPositionInputParameters*)rml_input_parameters)->Echo();
-    ((RMLPositionOutputParameters*)rml_output_parameters)->Echo();
-}
 
 ReflexxesResultValue RMLPositionTask::performOTG(base::commands::Joints &current_command)
 {
@@ -202,18 +300,5 @@ void RMLPositionTask::setTarget(const base::JointState& cmd, const size_t idx)
         rml_input_parameters->TargetVelocityVector->VecData[idx] = 0;
 }
 
-const ReflexxesInputParameters& RMLPositionTask::fromRMLTypes(const RMLInputParameters &in, ReflexxesInputParameters& out){
-    RMLTask::fromRMLTypes(in, out);
-    memcpy(out.max_velocity_vector.data(), ((RMLPositionInputParameters& )in).MaxVelocityVector->VecData, sizeof(double) * in.GetNumberOfDOFs());
-    memcpy(out.target_position_vector.data(), ((RMLPositionInputParameters& )in).TargetPositionVector->VecData, sizeof(double) * in.GetNumberOfDOFs());
-    return out;
-}
 
-const ReflexxesOutputParameters& RMLPositionTask::fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out)
-{
-    RMLTask::fromRMLTypes(in, out);
-#ifdef USING_REFLEXXES_TYPE_IV
-    out.trajectory_exceeds_target_position = ((RMLPositionOutputParameters&)in).TrajectoryExceedsTargetPosition;
-#endif
-    return out;
-}
+*/
