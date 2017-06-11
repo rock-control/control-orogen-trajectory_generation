@@ -5,38 +5,41 @@ import_types_from "reflexxes/RMLFlags.h"
 import_types_from "trajectory_generationTypes.hpp"
 using_library "reflexxes"
 
+# This task generates a feasible, time-stamped trajectory to a given a target (joint position/velocity or Cartesian position/velocity, depending on the subclass used).
+# "Feasible" means here that the output trajectory (command port) will respect the motion constraints defined by the motion_constraints-property, that is maximum/minimum
+# position (only Reflexxes TypeIV), maximum speed, maximum acceleration and maximum jerk (derivative of acceleration, again only Reflexxes TypeIV). Note that RML
+# is meant to be used ONLY for reactive motions with quickly changing, but discrete target points. Examples are sensor-based (e.g. Visual Servoing) or
+# point-to-point motions. RML is not meant to be used for interpolating full trajectories.
 #
-# This task generates a feasible, time-stamped trajectory to given a target (joint position/velocity or Cartesian position/velocity, depending on the subclass used).
-# "Feasible" means here that the output trajectory (command port) will respect the motion constraints defined by the
-# motion_constraints-property, that is maximum/minimum position (only Reflexxes TypeIV), maximum speed, maximum
-# acceleration and maximum jerk (derivative of acceleration).
+# Note: The quality of the trajectory depends on the accuracy of this component' s period. Real-time systems may significantly improve the performance.
+# Also not that the robot should always be able to follow the given trajectory. The current state of the robot will NOT be considered at runtime.
 #
 task_context "RMLTask" do abstract
     needs_configuration
 
     runtime_states "FOLLOWING",        # A new target has been given and the interpolator is attempting to reach that target.
-                                       # This is indicated by the RML OTG algorithm (RML_WORKING). See the rml_result_value port for the current rml result value.
+                                       # This is indicated by the RML OTG (online trajectory generation) algorithm (RML_WORKING).
+                                       # See the rml_result_value port for the current rml result value.
                    "REACHED",          # The given target has been reached. This is indicated by the RML OTG algorithm (RML_FINAL_STATE_REACHED).
                                        # Check the rml_result_value output port for the current rml result value.
-                   "NO_CURRENT_STATE", # Missing status input
-                   "NO_TARGET"         # Missing target input
+                   "NO_CURRENT_STATE", # Missing current state input. No output command will be generated.
+                   "NO_TARGET"         # Missing target input. No output command will be generated.
 
     error_states "RML_ERROR" # RML result is an error state. Check the rml_result_value output port for the current rml
                              # result value. See ReflexxesAPI.h for possible rml result values
 
-    # Motion constraints that define the properties of the output trajectory (command-port). These include the maximum/minimum position,
-    # maximum maximum speed, maximum acceleration and maximum jerk (derivative of acceleration).
+    # Motion constraints that define the properties of the output trajectory that is sent on the command-port.
+    # These include the maximum/minimum position (only Reflexxes TypeIV), maximum maximum speed, maximum acceleration and maximum jerk
+    # (derivative of acceleration, only Reflexxes TypeIV).
     property "motion_constraints", "trajectory_generation/MotionConstraints"
 
     # Cycle Time is seconds. IMPORTANT: This value has to match the period of the component. Default is 0.01 which matches the default period.
     property "cycle_time", "double", 0.01
 
     # Behaviour at the position limits (only reflexxes TypeIV!!!). Can be one of the following:
-    #
     #   - POSITIONAL_LIMITS_IGNORE: Positional limits are completely ignored
     #   - POSITIONAL_LIMITS_ERROR_MSG_ONLY: Component will go into error state if target is out of bounds
     #   - POSITIONAL_LIMITS_ACTIVELY_PREVENT: Reflexxes will make a smooth transition at the bounds and prevent exceededing them
-    #
     # See reflexxes/RMLFlags.h for further details.
     property "positional_limits_behavior", "trajectory_generation/PositionalLimitsBehavior", :POSITIONAL_LIMITS_ACTIVELY_PREVENT
 
@@ -44,41 +47,41 @@ task_context "RMLTask" do abstract
     # ONLY_PHASE_SYNCHRONIZATION and NO_SYNCHRONIZATION. See reflexxes/RMLFlags.h for details.
     property "synchronization_behavior", "RMLFlags/SyncBehaviorEnum", :PHASE_SYNCHRONIZATION_IF_POSSIBLE
 
-    # Result value of the current call of the reflexxes Reflexxes online trajectory generation Algorithm. See ReflexxesAPI.h for possible rml result values
+    # Result value of the current call of the RML OTG Algorithm. See ReflexxesAPI.h for possible rml result values
     output_port "rml_result_value", "trajectory_generation/ReflexxesResultValue"
 
-    # Debug: Parameters given as input to the current call of the reflexxes Reflexxes online trajectory generation Algorithm
+    # Debug: Parameters given as input to the current call of the RML OTG Algorithm
     output_port "rml_input_parameters", "trajectory_generation/ReflexxesInputParameters"
 
-    # Debug: Output parameters of the current call of the reflexxes Reflexxes online trajectory generation Algorithm.
+    # Debug: Output parameters of the current call of the RML OTG Algorithm.
     output_port "rml_output_parameters", "trajectory_generation/ReflexxesOutputParameters"
 
     # Debug: Computation time need for one cycle
     output_port "computation_time", "double"
 
-    # Debug: Difference between two consecutive calls of updateHook()
+    # Debug: Difference between two consecutive calls of updateHook(). Note that the value given on this port should match as closely as possible the configured cycle time.
     output_port "actual_cycle_time", "double"
 
+    # This value has to be the same as the cycle_time property. Don't forget to change the cycle_time when you change the period.
     periodic 0.01
 end
 
-#
 # Abstract base class for a joint space RML implementation. Implemented by RMLPositionTask and RMLVelocityTask
 #
 task_context "RMLJointTask" do abstract
 
     subclasses "RMLTask"
 
-    # Current joint state. The joint names have to match the ones defined by the motion_constraints property. Joint indices
-    # will be mapped internally by their names. The current joint state will only be used for initialization.
+    # Current joint state. Has to contains all joint names configured in the motion_constraints property. Joint indices
+    # will be mapped internally by name. The joint state will ONLY be considered at initialization, not at runtime.
     input_port "joint_state", "base/samples/Joints"
 
     # Target joint position or speed. The component will generate a trajectory to that position/speed, which complies with the motion constraints given by the
-    # motion_constraints property. The joint names in target have to match the ones defined by the motion_constraints property. Joint indices
-    # will be mapped internally by their names.
+    # motion_constraints property. The given joint names have to be a subset of the names in the motion_constraints property. Joint indices
+    # will be mapped internally by name.
     input_port "target", "base/commands/Joints"
 
-    # Target joint position/speed + new constraints. The component will generate a trajectory to that position/speed, which complies with the motion constraints given
+    # Target joint position/speed + new motion constraints. The component will generate a trajectory to that position/speed, which complies with the motion constraints given
     # together with this command. If one of the new constraint values (e.g. max.position) is NaN, it will not be changed, so the default motion constraints given
     # by the motion_constraints property apply.
     input_port "constrained_target", "trajectory_generation/ConstrainedJointsCmd"
@@ -93,7 +96,7 @@ task_context "RMLJointTask" do abstract
 end
 
 #
-# Position based implementation of RML. The given target has to have valid position and speed entries. The output will be a
+# Position based implementation of RML. The given target has to have valid position and (optionally) speed entries. The output will be a
 # position trajectory with a trapezoidal acceleration profile. Note that a non-zero target speed will result in a motion, even
 # if the target position has already been reached.
 #
@@ -101,25 +104,25 @@ task_context "RMLPositionTask" do
     subclasses "RMLJointTask"
 end
 
-#
+
 # Velocity based implementation of RML. The given target has to have valid speed entries, position has to be NaN! The output will be a
 # velocity trajectory with a trapezoidal acceleration profile, or, if convert_to_position is set to true, the velocity output
 # will be converted to position by simple integration.
 #
-# task_context "RMLVelocityTask" do
+task_context "RMLVelocityTask" do
+
+    subclasses "RMLJointTask"
+
+    # Velocity reference timeout in seconds: If no new reference arrives for this amount of time, the target velocity will be set to zero.
+    property "no_reference_timeout", "double", 1.0
+
+    # Converts the output to position commands
+    property "convert_to_position", "bool", false
+end
+
 #
-#     subclasses "RMLJointTask"
+# Abstract base class for a Cartesian space RML implementation. Implemented by RMLCartesianPositionTask and RMLCartesianVelocityTask
 #
-#     # Velocity reference timeout in seconds: If no new reference arrives for this amount of time, the target velocity will be set to zero.
-#     property "no_reference_timeout", "double", 1.0
-#
-#     # Converts the output to position commands
-#     property "convert_to_position", "bool", false
-# end
-#
-# #
-# # Abstract base class for a Cartesian space RML implementation. Implemented by RMLCartesianPositionTask and RMLCartesianVelocityTask
-# #
 # task_context "RMLCartesianTask" do abstract
 #
 #     subclasses "RMLTask"
@@ -137,7 +140,7 @@ end
 #     output_port "command", "base/samples/RigidBodyState"
 #
 #     # Debug: Current full output sample of interpolator (position/speed/acceleration)
-#     output_port "interpolator_state", "base/samples/RigidBodyState"
+#     output_port "current_sample", "base/samples/RigidBodyState"
 # end
 #
 # #
@@ -148,7 +151,7 @@ end
 # end
 #
 # #
-# # Position based implementation of a Cartesian RML task. The given target has to have valid position entries. Velocity entries are optional.
+# # Velocity based implementation of a Cartesian RML task. The given target has to have valid velocity entries.
 # #
 # task_context "RMLCartesianVelocityTask" do
 #     subclasses "RMLCartesianTask"

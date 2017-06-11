@@ -89,28 +89,6 @@ struct MotionConstraint{
 struct MotionConstraints : base::NamedVector<MotionConstraint>{
 };
 
-struct CurrentState{
-    double position;
-    double velocity;
-    double acceleration;
-};
-
-struct CurrentStateVector : base::NamedVector<CurrentState>{
-};
-
-struct Target{
-    double position;
-    double velocity;
-    bool selected;
-};
-
-struct TargetVector : base::NamedVector<Target>{
-    void reset(){
-        for(size_t i = 0; i < size(); i++)
-            elements[i].selected = false;
-    }
-};
-
 /** Named vector of Joints command with motion constraints, i.e. constrained commands for all the joints of a robot*/
 struct ConstrainedJointsCmd : public base::commands::Joints{
     std::vector<MotionConstraint> motion_constraints;
@@ -126,7 +104,6 @@ struct ConstrainedJointsCmd : public base::commands::Joints{
 
 /** Result values of the Online Trajectory Generation algorithm. See reflexxes/ReflexxesAPI.h for further details*/
 enum ReflexxesResultValue{
-    RML_NOT_INITIALIZED                     = -200, /** RML has never been called*/
     RML_WORKING	                            =  0,   /** The Online Trajectory Generation algorithm is working; the final state of motion has not been reached yet.*/
     RML_FINAL_STATE_REACHED                 =  1,   /** The desired final state of motion has been reached.*/
     RML_NO_ERROR                            =  2,   /** This value is returned by the method ReflexxesAPI::SetupOverrideFilter() if executed successfully.*/
@@ -140,7 +117,8 @@ enum ReflexxesResultValue{
     RML_ERROR_EXECUTION_TIME_TOO_BIG        = -106, /** RML_MAX_EXECUTION_TIME*/
     RML_ERROR_USER_TIME_OUT_OF_RANGE        = -107, /** User selected RML_MAX_EXECUTION_TIME exceeded */
     RML_ERROR_POSITIONAL_LIMITS	            = -108, /** Only TypeIV: Positional limits are exceeded*/
-    RML_ERROR_OVERRIDE_OUT_OF_RANGE         = -109  /** Only TypeIV: This is return value indicates that the specified override value or filter time value is out of range.*/
+    RML_ERROR_OVERRIDE_OUT_OF_RANGE         = -109, /** Only TypeIV: This is return value indicates that the specified override value or filter time value is out of range.*/
+    RML_NOT_INITIALIZED                     = -200  /** RML has never been called*/
 };
 
 /** Debug: Input parameters of the reflexxes OTG algorithm*/

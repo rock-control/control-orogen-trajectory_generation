@@ -15,6 +15,35 @@ protected:
     base::Time time_of_last_reference;
     bool convert_to_position;
 
+    /** Update the motion constraints of a particular joint*/
+    virtual void updateMotionConstraints(const MotionConstraint& constraint,
+                                         const size_t idx,
+                                         RMLInputParameters* new_input_parameters);
+
+    /** Perform one step of online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/
+    virtual ReflexxesResultValue performOTG(RMLInputParameters* new_input_parameters,
+                                            RMLOutputParameters* new_output_parameters,
+                                            RMLFlags *rml_flag);
+
+    /** Write the generated trajectory to port*/
+    virtual void writeCommand(const RMLOutputParameters& new_output_parameters);
+
+    /** Call echo() method for rml input and output parameters*/
+    virtual void printParams();
+
+    /** Update the current state of a particular joint*/
+    virtual void updateCurrentState(const base::JointState &state,
+                                    const size_t idx,
+                                    RMLInputParameters* new_input_parameters);
+
+    /** Update the target of a particular joint*/
+    virtual void updateTarget(const base::JointState &cmd,
+                              const size_t idx,
+                              RMLInputParameters* new_input_parameters);
+
+    /** Convert from RMLOutputParameters to orogen type*/
+    virtual const ReflexxesOutputParameters& fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out);
+
     /** Velocity watchdog: Set target velocity to zero if no new reference arrives for more than no_reference_timeout seconds */
     void checkVelocityTimeout();
 
@@ -28,21 +57,6 @@ public:
     void errorHook();
     void stopHook();
     void cleanupHook();
-
-
-    /** Call position or velocity based OTG, depending on the implementation*/
-    virtual ReflexxesResultValue performOTG(base::commands::Joints &current_command);
-    /** Set appropriate joint state depending on whether using position or velocity based RML*/
-    virtual void setJointState(const base::JointState& state, const size_t idx);
-    /** Set appropriate target depending on whether using position or velocity based RML*/
-    virtual void setTarget(const base::JointState& cmd, const size_t idx);
-    /** Set appropriate constraints depending on whether using position or velocity based RML*/
-    virtual void setMotionConstraints(const trajectory_generation::MotionConstraint& constraints, const size_t idx);
-    /** Convert from RMLOutputParameters to orogen type*/
-    virtual const ReflexxesOutputParameters& fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out);
-    /** Call echo() method for rml input and output parameters*/
-    virtual void printParams();
-
 };
 }
 

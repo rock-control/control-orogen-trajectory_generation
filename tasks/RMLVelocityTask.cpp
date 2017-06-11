@@ -1,7 +1,7 @@
 /* Generated from orogen/lib/orogen/templates/tasks/Task.cpp */
 
 #include "RMLVelocityTask.hpp"
-#include <base/Logging.hpp>
+#include <base-logging/Logging.hpp>
 
 using namespace trajectory_generation;
 
@@ -66,6 +66,128 @@ void RMLVelocityTask::cleanupHook()
     delete rml_output_parameters;
 }
 
+void RMLVelocityTask::updateMotionConstraints(const MotionConstraint& constraint,
+                                              const size_t idx,
+                                              RMLInputParameters* new_input_parameters){
+
+    // Check if constraints are ok, e.g. max.speed > 0 etc
+    constraint.validate();
+
+#ifdef USING_REFLEXXES_TYPE_IV
+    new_input_parameters->MaxPositionVector->VecData[idx] = constraint.max.position;
+    new_input_parameters->MinPositionVector->VecData[idx] = constraint.min.position;
+#endif
+    new_input_parameters->MaxAccelerationVector->VecData[idx] = constraint.max.acceleration;
+    new_input_parameters->MaxJerkVector->VecData[idx] = constraint.max_jerk;
+}
+
+ReflexxesResultValue RMLVelocityTask::performOTG(RMLInputParameters* new_input_parameters,
+                                                 RMLOutputParameters* new_output_parameters,
+                                                 RMLFlags *rml_flags){
+
+    checkVelocityTimeout();
+
+    int result = rml_api->RMLVelocity( *(RMLVelocityInputParameters*)new_input_parameters,
+                                       (RMLVelocityOutputParameters*)new_output_parameters,
+                                       *(RMLVelocityFlags*)rml_flags );
+
+    *new_input_parameters->CurrentVelocityVector     = *new_output_parameters->NewVelocityVector;
+    *new_input_parameters->CurrentAccelerationVector = *new_output_parameters->NewAccelerationVector;
+
+    return (ReflexxesResultValue)result;
+}
+
+
+void RMLVelocityTask::writeCommand(const RMLOutputParameters& new_output_parameters){
+
+    for(size_t i = 0; i < command.size(); i++){
+        current_sample[i].position     = new_output_parameters.NewPositionVector->VecData[i];
+        command[i].speed        = current_sample[i].speed        = new_output_parameters.NewVelocityVector->VecData[i];
+        command[i].acceleration = current_sample[i].acceleration = new_output_parameters.NewAccelerationVector->VecData[i];
+    }
+
+    if( convert_to_position ){
+        for(size_t i = 0; i < command.size(); i++){
+            if(command[i].hasPosition())
+                command[i].position += cycle_time * command[i].speed;
+            else
+                command[i].position = new_output_parameters.NewPositionVector->VecData[i];
+        }
+    }
+
+    command.time = base::Time::now();
+    _command.write(command);
+}
+
+void RMLVelocityTask::printParams(){
+    ((RMLVelocityInputParameters*)rml_input_parameters)->Echo();
+    ((RMLVelocityOutputParameters*)rml_output_parameters)->Echo();
+}
+
+
+void RMLVelocityTask::updateCurrentState(const base::JointState &state,
+                                         const size_t idx,
+                                         RMLInputParameters* new_input_parameters){
+
+    double position = state.position;
+#ifdef USING_REFLEXXES_TYPE_IV
+    // Make sure the current position is within limits
+    if(rml_flags->PositionalLimitsBehavior == POSITIONAL_LIMITS_ACTIVELY_PREVENT){
+
+        if(state.position >= motion_constraints[idx].max.position)
+            position = motion_constraints[idx].max.position - 1e-5;
+        if(state.position <= motion_constraints[idx].min.position)
+            position = motion_constraints[idx].min.position + 1e-5;
+    }
+#endif
+
+    new_input_parameters->CurrentPositionVector->VecData[idx] = position;
+
+}
+
+void RMLVelocityTask::updateTarget(const base::JointState &cmd,
+                                   const size_t idx,
+                                   RMLInputParameters* new_input_parameters){
+
+    if(!cmd.hasSpeed()){
+        LOG_ERROR("Target speed of element %i is invalid: %f", idx, cmd.speed);
+        throw std::invalid_argument("Invalid target velocity");
+    }
+
+    new_input_parameters->TargetVelocityVector->VecData[idx] = cmd.speed;
+
+    // Reset velocity watchdog:
+    time_of_last_reference = base::Time::now();
+
+    // Bug fix: If a joint is at its limits and the target velocity is non-zero and pointing in direction
+    // of the limit, the sychronization time is computed by reflexxes as if the constrained joint could move
+    // freely in the direction of the joint limit. This might lead to incorrect synchronization time for all other
+    // joints. This code provides a workaround by setting the target velocity of a joint to zero if it is at a
+    // joint position limit and the target velocity points in the direction of the limit.
+#ifdef USING_REFLEXXES_TYPE_IV
+    if(rml_flags->PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT){
+
+        double cur_pos = new_input_parameters->CurrentPositionVector->VecData[idx];
+        double target_vel = new_input_parameters->TargetVelocityVector->VecData[idx];
+        double max_pos = new_input_parameters->MaxPositionVector->VecData[idx];
+        double min_pos = new_input_parameters->MinPositionVector->VecData[idx];
+
+        if( (target_vel*cycle_time + cur_pos > max_pos) || (target_vel*cycle_time + cur_pos < min_pos) )
+            new_input_parameters->TargetVelocityVector->VecData[idx] = 0;
+    }
+#endif
+
+}
+
+const ReflexxesOutputParameters& RMLVelocityTask::fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out){
+
+    RMLTask::fromRMLTypes(in, out);
+    memcpy(out.position_values_at_target_velocity.data(),
+           ((RMLVelocityOutputParameters&)in).PositionValuesAtTargetVelocity->VecData,
+           sizeof(double) * in.GetNumberOfDOFs());
+    return out;
+}
+
 void RMLVelocityTask::checkVelocityTimeout()
 {
     double t_diff = (base::Time::now() - time_of_last_reference).toSeconds();
@@ -78,6 +200,7 @@ void RMLVelocityTask::checkVelocityTimeout()
     }
 }
 
+/*
 ReflexxesResultValue RMLVelocityTask::performOTG(base::commands::Joints &current_command)
 {
     checkVelocityTimeout();
@@ -187,3 +310,4 @@ void RMLVelocityTask::printParams(){
     ((RMLVelocityInputParameters*)rml_input_parameters)->Echo();
     ((RMLVelocityOutputParameters*)rml_output_parameters)->Echo();
 }
+*/

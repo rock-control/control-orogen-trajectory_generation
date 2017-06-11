@@ -17,13 +17,6 @@ RMLCartesianVelocityTask::RMLCartesianVelocityTask(std::string const& name, RTT:
 RMLCartesianVelocityTask::~RMLCartesianVelocityTask()
 {
 }
-
-
-
-/// The following lines are template definitions for the various state machine
-// hooks defined by Orocos::RTT. See RMLCartesianVelocityTask.hpp for more detailed
-// documentation about them.
-
 bool RMLCartesianVelocityTask::configureHook()
 {
     if (! RMLCartesianVelocityTaskBase::configureHook())

@@ -17,13 +17,6 @@ RMLCartesianTask::RMLCartesianTask(std::string const& name, RTT::ExecutionEngine
 RMLCartesianTask::~RMLCartesianTask()
 {
 }
-
-
-
-/// The following lines are template definitions for the various state machine
-// hooks defined by Orocos::RTT. See RMLCartesianTask.hpp for more detailed
-// documentation about them.
-
 bool RMLCartesianTask::configureHook()
 {
     if (! RMLCartesianTaskBase::configureHook())

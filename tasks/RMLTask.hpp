@@ -4,7 +4,6 @@
 #define TRAJECTORY_GENERATION_RMLTASK_TASK_HPP
 
 #include "trajectory_generation/RMLTaskBase.hpp"
-#include <base/commands/Joints.hpp>
 #include "trajectory_generationTypes.hpp"
 #include <reflexxes/ReflexxesAPI.h>
 
@@ -21,7 +20,7 @@
 
 namespace trajectory_generation{
 
-/** This task generates a feasible, time-stamped trajectory to given a target (position/velocity, depending on the subclass used).
+/** This task generates a feasible, time-stamped trajectory to a given a target (position/velocity, depending on the subclass used).
  *  "Feasible" means here that the output trajectory (command port) will respect the motion constraints defined by the
  *  motion_constraints-property, that is maximum/minimum position (only Reflexxes TypeIV), maximum speed, maximum
  *  acceleration and maximum jerk (derivative of acceleration). The motion constraints structure is define in trajectory_generationTypes.hpp.
@@ -42,12 +41,17 @@ protected:
     base::Time timestamp;                        /** Timestamp if updateHook();*/
     double cycle_time;                           /** Cycle time for interpolation*/
 
-    /** Read the current state from port. If available, update the RML input parameters. Also return the flow state*/
+    /** Read the current state from port. If available, update the RML input parameters. Also return the flow state of the port. */
     virtual RTT::FlowStatus updateCurrentState(const std::vector<std::string> &names,
                                                RMLInputParameters* new_input_parameters) = 0;
 
-    /** Read a new target from port. If available, update the RML input parameters. Also return the flow state*/
+    /** Read a new target from port. If available, update the RML input parameters. Also return the flow state of the port. */
     virtual RTT::FlowStatus updateTarget(const MotionConstraints& default_constraints,
+                                         RMLInputParameters* new_input_parameters) = 0;
+
+    /** Update the motion constraints of a particular joint*/
+    virtual void updateMotionConstraints(const MotionConstraint& constraint,
+                                         const size_t idx,
                                          RMLInputParameters* new_input_parameters) = 0;
 
     /** Perform one step of online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/
@@ -77,8 +81,8 @@ public:
     bool configureHook();
     bool startHook();
     void updateHook();
-    void errorHook(){RMLTaskBase::errorHook();}
-    void stopHook(){RMLTaskBase::stopHook();}
+    void errorHook();
+    void stopHook();
     void cleanupHook();
 };
 }

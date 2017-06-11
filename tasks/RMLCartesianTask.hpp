@@ -4,108 +4,65 @@
 #define TRAJECTORY_GENERATION_RMLCARTESIANTASK_TASK_HPP
 
 #include "trajectory_generation/RMLCartesianTaskBase.hpp"
+#include <base/samples/RigidBodyState.hpp>
 
 namespace trajectory_generation{
 
-    /*! \class RMLCartesianTask
-     * \brief The task context provides and requires services. It uses an ExecutionEngine to perform its functions.
-     * Essential interfaces are operations, data flow ports and properties. These interfaces have been defined using the oroGen specification.
-     * In order to modify the interfaces you should (re)use oroGen and rely on the associated workflow.
-     * 
-Abstract base class for a Cartesian space RML implementation. Implemented by RMLCartesianPositionTask and RMLCartesianVelocityTask
+class RMLCartesianTask : public RMLCartesianTaskBase
+{
+    friend class RMLCartesianTaskBase;
 
-     * \details
-     * The name of a TaskContext is primarily defined via:
-     \verbatim
-     deployment 'deployment_name'
-         task('custom_task_name','trajectory_generation::RMLCartesianTask')
-     end
-     \endverbatim
-     *  It can be dynamically adapted when the deployment is called with a prefix argument.
-     */
-    class RMLCartesianTask : public RMLCartesianTaskBase
-    {
-	friend class RMLCartesianTaskBase;
-    protected:
+protected:
+    base::samples::RigidBodyState cartesian_state; /** From input port: Current Cartesian state. Will only be used for initializing RML */
+    base::samples::RigidBodyState current_sample;  /** From input port: Current Cartesian interpolator status (position/speed/acceleration)*/
+    base::samples::RigidBodyState target;          /** From input port: Target Cartesian position or speed.  */
+    base::samples::RigidBodyState command;         /** To output port: Commanded Cartesian position or speed.  */
+
+    /** Read the current state from port. If available, update the RML input parameters. Also return the flow state of the port. */
+    virtual RTT::FlowStatus updateCurrentState(const std::vector<std::string> &names,
+                                               RMLInputParameters* new_input_parameters);
+
+    /** Read a new target from port. If available, update the RML input parameters. Also return the flow state of the port. */
+    virtual RTT::FlowStatus updateTarget(const MotionConstraints& default_constraints,
+                                         RMLInputParameters* new_input_parameters);
+
+    /** Update the motion constraints of a particular joint*/
+    virtual void updateMotionConstraints(const MotionConstraint& constraint,
+                                         const size_t idx,
+                                         RMLInputParameters* new_input_parameters) = 0;
+
+    /** Perform one step of online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/
+    virtual ReflexxesResultValue performOTG(RMLInputParameters* new_input_parameters,
+                                            RMLOutputParameters* new_output_parameters,
+                                            RMLFlags *rml_flag) = 0;
+
+    /** Write the generated trajectory to port*/
+    virtual void writeCommand(const RMLOutputParameters& new_output_parameters) = 0;
+
+    /** Call echo() method for rml input and output parameters*/
+    virtual void printParams() = 0;
+
+    /** Update the current state of a particular */
+    virtual void updateCurrentState(const base::samples::RigidBodyState &state,
+                                    RMLInputParameters* new_input_parameters) = 0;
+
+    /** Update the target of a particular joint*/
+    virtual void updateTarget(const base::samples::RigidBodyState& cmd,
+                              RMLInputParameters* new_input_parameters) = 0;
 
 
 
-    public:
-        /** TaskContext constructor for RMLCartesianTask
-         * \param name Name of the task. This name needs to be unique to make it identifiable via nameservices.
-         * \param initial_state The initial TaskState of the TaskContext. Default is Stopped state.
-         */
-        RMLCartesianTask(std::string const& name = "trajectory_generation::RMLCartesianTask");
-
-        /** TaskContext constructor for RMLCartesianTask
-         * \param name Name of the task. This name needs to be unique to make it identifiable for nameservices.
-         * \param engine The RTT Execution engine to be used for this task, which serialises the execution of all commands, programs, state machines and incoming events for a task.
-         * 
-         */
-        RMLCartesianTask(std::string const& name, RTT::ExecutionEngine* engine);
-
-        /** Default deconstructor of RMLCartesianTask
-         */
-	~RMLCartesianTask();
-
-        /** This hook is called by Orocos when the state machine transitions
-         * from PreOperational to Stopped. If it returns false, then the
-         * component will stay in PreOperational. Otherwise, it goes into
-         * Stopped.
-         *
-         * It is meaningful only if the #needs_configuration has been specified
-         * in the task context definition with (for example):
-         \verbatim
-         task_context "TaskName" do
-           needs_configuration
-           ...
-         end
-         \endverbatim
-         */
-        bool configureHook();
-
-        /** This hook is called by Orocos when the state machine transitions
-         * from Stopped to Running. If it returns false, then the component will
-         * stay in Stopped. Otherwise, it goes into Running and updateHook()
-         * will be called.
-         */
-        bool startHook();
-
-        /** This hook is called by Orocos when the component is in the Running
-         * state, at each activity step. Here, the activity gives the "ticks"
-         * when the hook should be called.
-         *
-         * The error(), exception() and fatal() calls, when called in this hook,
-         * allow to get into the associated RunTimeError, Exception and
-         * FatalError states.
-         *
-         * In the first case, updateHook() is still called, and recover() allows
-         * you to go back into the Running state.  In the second case, the
-         * errorHook() will be called instead of updateHook(). In Exception, the
-         * component is stopped and recover() needs to be called before starting
-         * it again. Finally, FatalError cannot be recovered.
-         */
-        void updateHook();
-
-        /** This hook is called by Orocos when the component is in the
-         * RunTimeError state, at each activity step. See the discussion in
-         * updateHook() about triggering options.
-         *
-         * Call recover() to go back in the Runtime state.
-         */
-        void errorHook();
-
-        /** This hook is called by Orocos when the state machine transitions
-         * from Running to Stopped after stop() has been called.
-         */
-        void stopHook();
-
-        /** This hook is called by Orocos when the state machine transitions
-         * from Stopped to PreOperational, requiring the call to configureHook()
-         * before calling start() again.
-         */
-        void cleanupHook();
-    };
+public:
+    RMLCartesianTask(std::string const& name = "trajectory_generation::RMLCartesianTask");
+    RMLCartesianTask(std::string const& name, RTT::ExecutionEngine* engine);
+    ~RMLCartesianTask();
+    bool configureHook();
+    bool startHook();
+    void updateHook();
+    void errorHook();
+    void stopHook();
+    void cleanupHook();
+};
 }
 
 #endif

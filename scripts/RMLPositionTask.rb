@@ -18,10 +18,15 @@ Orocos.run "trajectory_generation::RMLPositionTask" => "interpolator" do
         state.position = 0
         joint_state.elements << state
     end
+    joint_state.time = Types::Base::Time.now
+
+    Readline.readline("Press Enter to start")
 
     puts "Writing joint state"
     joint_state_writer = interpolator.joint_state.writer 
     joint_state_writer.write(joint_state)
+
+    Readline.readline("Press Enter to target")
 
     target = Types::Base::Samples::Joints.new
     target.names = interpolator.motion_constraints.names

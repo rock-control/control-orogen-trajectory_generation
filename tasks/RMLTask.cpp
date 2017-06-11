@@ -28,6 +28,9 @@ bool RMLTask::configureHook(){
     }
 
     motion_constraints = _motion_constraints.get();
+    for(size_t i = 0; i < motion_constraints.size(); i++)
+       updateMotionConstraints(motion_constraints[i], i, rml_input_parameters);
+
     rml_flags->SynchronizationBehavior = _synchronization_behavior.get();
 #ifdef USING_REFLEXXES_TYPE_IV
     rml_flags->PositionalLimitsBehavior = _positional_limits_behavior.get();
@@ -108,6 +111,14 @@ void RMLTask::updateHook(){
     _command.write(command);*/
 }
 
+void RMLTask::errorHook(){
+    RMLTaskBase::errorHook();
+}
+
+void RMLTask::stopHook(){
+    RMLTaskBase::stopHook();
+}
+
 void RMLTask::cleanupHook(){
     RMLTaskBase::cleanupHook();
 
@@ -139,15 +150,15 @@ void RMLTask::handleResultValue(ReflexxesResultValue result_value){
         // Bugfix for reflexxes: in case POSITIONAL_LIMITS_ACTIVELY_PREVENT the result value will become RML_ERROR_POSITIONAL_LIMITS if
         // the target value is out of bounds. This behavior is somewhat not intuitive, since violating the joint limits will be prevented.
         // Thus, we check the states manually.
-        if(rml_flags->PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT){
-            if(rml_output_parameters->SynchronizationTime == 0){
-                if(state() != REACHED)
-                    state(REACHED);
-            }else{
-                if(state() != FOLLOWING)
-                    state(FOLLOWING);
-            }
-        }
+//        if(rml_flags->PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT){
+//            if(rml_output_parameters->SynchronizationTime == 0){
+//                if(state() != REACHED)
+//                    state(REACHED);
+//            }else{
+//                if(state() != FOLLOWING)
+//                    state(FOLLOWING);
+//            }
+//        }
 
         if(rml_flags->PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ERROR_MSG_ONLY){
             LOG_ERROR("RML target position out of bounds. To prevent this error, either modify max/min position in your motion constraints,"

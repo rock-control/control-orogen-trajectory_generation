@@ -21,6 +21,9 @@ bool RMLJointTask::configureHook(){
     command.resize(_motion_constraints.get().size());
     command.names = _motion_constraints.get().names;
 
+    current_sample.resize(_motion_constraints.get().size());
+    current_sample.names = _motion_constraints.get().names;
+
     return true;
 }
 
@@ -44,6 +47,11 @@ void RMLJointTask::stopHook(){
 
 void RMLJointTask::cleanupHook(){
     RMLJointTaskBase::cleanupHook();
+
+    current_sample.clear();
+    joint_state.clear();
+    target.clear();
+    command.clear();
 }
 
 RTT::FlowStatus RMLJointTask::updateCurrentState(const std::vector<std::string> &names,
@@ -52,15 +60,20 @@ RTT::FlowStatus RMLJointTask::updateCurrentState(const std::vector<std::string> 
     RTT::FlowStatus fs = _joint_state.readNewest(joint_state);
     if(fs == RTT::NewData){
 
-        for(size_t i = 0; i < names.size(); i++)
+        for(size_t i = 0; i < names.size(); i++){
             try{
-            size_t idx = joint_state.mapNameToIndex(names[i]);
-            setJointState(joint_state[idx], idx, new_input_parameters);
+                size_t idx = joint_state.mapNameToIndex(names[i]);
+                updateCurrentState(joint_state[idx], idx, new_input_parameters);
+            }
+            catch(std::exception e){
+                LOG_ERROR("Element %s has been configured in motion constraints, but is not available in joint state", motion_constraints.names[i].c_str());
+                throw e;
+            }
         }
-        catch(std::exception e){
-            LOG_ERROR("Element %s has been configured in motion constraints, but is not available in joint state", motion_constraints.names[i].c_str());
-            throw e;
-        }
+    }
+    if(fs != RTT::NoData){
+        current_sample.time = joint_state.time;
+        _current_sample.write(current_sample);
     }
     return fs;
 }
@@ -68,9 +81,16 @@ RTT::FlowStatus RMLJointTask::updateCurrentState(const std::vector<std::string> 
 RTT::FlowStatus RMLJointTask::updateTarget(const MotionConstraints& default_constraints,
                                            RMLInputParameters* new_input_parameters){
 
-    RTT::FlowStatus fs = _target.readNewest(target);
-    if(fs != RTT::NewData)
-        fs = _constrained_target.readNewest(target);
+    RTT::FlowStatus fs_target = _target.readNewest(target);
+    RTT::FlowStatus fs_constr_target = _constrained_target.readNewest(target);
+    if(fs_constr_target != RTT::NoData && fs_target != RTT::NoData)
+        throw std::runtime_error("There is data on both, the target AND the constrained_target port. You should use only one of the two ports!");
+
+    RTT::FlowStatus fs = RTT::NoData;
+    if(fs_target != RTT::NoData)
+        fs = fs_target;
+    else if(fs_constr_target != RTT::NoData)
+        fs = fs_constr_target;
 
     if(fs == RTT::NewData){
 
@@ -79,19 +99,21 @@ RTT::FlowStatus RMLJointTask::updateTarget(const MotionConstraints& default_cons
 
         for(size_t i = 0; i < target.size(); i++)
             try{
-                size_t idx = default_constraints.mapNameToIndex(target.names[i]);
+            size_t idx = default_constraints.mapNameToIndex(target.names[i]);
 
+            if(!target.motion_constraints.empty()){
                 MotionConstraint constraint = target.motion_constraints[i];  // Get new motion constraint for target i
                 constraint.applyDefaultIfUnset(default_constraints[idx]);    // Use default entry if new constraints entries are unset
-                setMotionConstraints(constraint, idx, new_input_parameters);
+                updateMotionConstraints(constraint, idx, new_input_parameters);
+            }
 
-                const base::JointState& cmd = target[i];
-                setJointTarget(cmd, idx, new_input_parameters);
-            }
-            catch(std::exception e){
-                LOG_ERROR("Element %s is in target vector but has not been configured in motion constraints", target.names[i].c_str());
-                throw e;
-            }
+            const base::JointState& cmd = target[i];
+            updateTarget(cmd, idx, new_input_parameters);
+        }
+        catch(std::exception e){
+            LOG_ERROR("Element %s is in target vector but has not been configured in motion constraints", target.names[i].c_str());
+            throw e;
+        }
     }
     return fs;
 }

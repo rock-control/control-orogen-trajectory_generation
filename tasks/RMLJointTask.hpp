@@ -4,6 +4,7 @@
 #define TRAJECTORY_GENERATION_RMLJOINTTASK_TASK_HPP
 
 #include "trajectory_generation/RMLJointTaskBase.hpp"
+#include <base/commands/Joints.hpp>
 
 namespace trajectory_generation{
 
@@ -11,21 +12,24 @@ class RMLJointTask : public RMLJointTaskBase
 {
     friend class RMLJointTaskBase;
 
-    RTT::FlowStatus getCurrentState(const std::vector<std::string> &names, base::samples::Joints &current_state);
-
 protected:
     base::samples::Joints joint_state;    /** From input port: Current joint state. Will only be used for initializing RML */
     base::samples::Joints current_sample; /** From input port: Current joint interpolator status (position/speed/acceleration)*/
     ConstrainedJointsCmd target;          /** From input port: Target joint position or speed.  */
-    base::commands::Joints command;       /** From input port: Target joint position or speed.  */
+    base::commands::Joints command;       /** To output port: Commanded joint position or speed.  */
 
-    /** Read the current state from port. If available, update the RML input parameters. Also return the flow state*/
+    /** Read the current state from port. If available, update the RML input parameters. Also return the flow state of the port. */
     virtual RTT::FlowStatus updateCurrentState(const std::vector<std::string> &names,
                                                RMLInputParameters* new_input_parameters);
 
-    /** Read a new target from port. If available, update the RML input parameters. Also return the flow state*/
+    /** Read a new target from port. If available, update the RML input parameters. Also return the flow state of the port. */
     virtual RTT::FlowStatus updateTarget(const MotionConstraints& default_constraints,
                                          RMLInputParameters* new_input_parameters);
+
+    /** Update the motion constraints of a particular joint*/
+    virtual void updateMotionConstraints(const MotionConstraint& constraint,
+                                         const size_t idx,
+                                         RMLInputParameters* new_input_parameters) = 0;
 
     /** Perform one step of online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/
     virtual ReflexxesResultValue performOTG(RMLInputParameters* new_input_parameters,
@@ -38,17 +42,15 @@ protected:
     /** Call echo() method for rml input and output parameters*/
     virtual void printParams() = 0;
 
-    virtual void setJointState(const base::JointState &state,
-                               const size_t idx,
-                               RMLInputParameters* new_input_parameters) = 0;
+    /** Update the current state of a particular joint*/
+    virtual void updateCurrentState(const base::JointState &state,
+                                    const size_t idx,
+                                    RMLInputParameters* new_input_parameters) = 0;
 
-    virtual void setJointTarget(const base::JointState &cmd,
-                                const size_t idx,
-                                RMLInputParameters* new_input_parameters) = 0;
-
-    virtual void setMotionConstraints(const MotionConstraint& constraint,
-                                      const size_t idx,
-                                      RMLInputParameters* new_input_parameters) = 0;
+    /** Update the target of a particular joint*/
+    virtual void updateTarget(const base::JointState &cmd,
+                              const size_t idx,
+                              RMLInputParameters* new_input_parameters) = 0;
 
 public:
     RMLJointTask(std::string const& name = "trajectory_generation::RMLJointTask");
