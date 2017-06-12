@@ -5,22 +5,9 @@
 
 using namespace trajectory_generation;
 
-RMLVelocityTask::RMLVelocityTask(std::string const& name)
-    : RMLVelocityTaskBase(name){
-    rml_flags = new RMLVelocityFlags();
-}
-
-RMLVelocityTask::RMLVelocityTask(std::string const& name, RTT::ExecutionEngine* engine)
-    : RMLVelocityTaskBase(name, engine){
-    rml_flags = new RMLVelocityFlags();
-}
-
-RMLVelocityTask::~RMLVelocityTask(){
-    delete rml_flags;
-}
-
 bool RMLVelocityTask::configureHook(){
 
+    rml_flags = new RMLVelocityFlags();
     rml_input_parameters = new RMLVelocityInputParameters(_motion_constraints.get().size());
     rml_output_parameters = new RMLVelocityOutputParameters(_motion_constraints.get().size());
 
@@ -35,29 +22,11 @@ bool RMLVelocityTask::configureHook(){
     return true;
 }
 
-bool RMLVelocityTask::startHook(){
-    if (! RMLVelocityTaskBase::startHook())
-        return false;
-    return true;
-}
+void RMLVelocityTask::updateMotionConstraints(const MotionConstraint& constraint,
+                                              const size_t idx,
+                                              RMLInputParameters* new_input_parameters){
 
-void RMLVelocityTask::updateHook(){
-    RMLVelocityTaskBase::updateHook();
-}
-
-void RMLVelocityTask::errorHook(){
-    RMLVelocityTaskBase::errorHook();
-}
-
-void RMLVelocityTask::stopHook(){
-    RMLVelocityTaskBase::stopHook();
-}
-
-void RMLVelocityTask::cleanupHook(){
-    RMLVelocityTaskBase::cleanupHook();
-
-    delete rml_input_parameters;
-    delete rml_output_parameters;
+    updateMotionConstraints(constraint, idx, (RMLVelocityInputParameters*)new_input_parameters);
 }
 
 ReflexxesResultValue RMLVelocityTask::performOTG(RMLInputParameters* new_input_parameters,
@@ -66,15 +35,9 @@ ReflexxesResultValue RMLVelocityTask::performOTG(RMLInputParameters* new_input_p
 
     checkVelocityTimeout(time_of_last_reference, no_reference_timeout);
 
-    int result = rml_api->RMLVelocity( *(RMLVelocityInputParameters*)new_input_parameters,
-                                       (RMLVelocityOutputParameters*)new_output_parameters,
-                                       *(RMLVelocityFlags*)rml_flags );
-
-    *new_input_parameters->CurrentPositionVector     = *new_output_parameters->NewPositionVector;
-    *new_input_parameters->CurrentVelocityVector     = *new_output_parameters->NewVelocityVector;
-    *new_input_parameters->CurrentAccelerationVector = *new_output_parameters->NewAccelerationVector;
-
-    return (ReflexxesResultValue)result;
+    return performOTG((RMLVelocityInputParameters*)new_input_parameters,
+                      (RMLVelocityOutputParameters*)new_output_parameters,
+                      (RMLVelocityFlags*)rml_flags);
 }
 
 void RMLVelocityTask::writeCommand(const RMLOutputParameters& new_output_parameters){
@@ -93,11 +56,20 @@ void RMLVelocityTask::writeCommand(const RMLOutputParameters& new_output_paramet
     _command.write(command);
 }
 
-void RMLVelocityTask::printParams(){
-    ((RMLVelocityInputParameters*)rml_input_parameters)->Echo();
-    ((RMLVelocityOutputParameters*)rml_output_parameters)->Echo();
+void RMLVelocityTask::printParams(const RMLInputParameters& in, const RMLOutputParameters& out){
+    ((RMLVelocityInputParameters&  )in).Echo();
+    ((RMLVelocityOutputParameters& )out).Echo();
 }
 
+void RMLVelocityTask::updateTarget(const TargetVector& target_vector,
+                                    RMLInputParameters* new_input_parameters){
+    // Reset velocity watchdog
+    time_of_last_reference = base::Time::now();
+
+    updateTarget(target_vector, (RMLVelocityInputParameters*)new_input_parameters);
+}
+
+/*
 void RMLVelocityTask::updateTarget(const base::JointState &cmd,
                                    const size_t idx,
                                    RMLInputParameters* new_input_parameters){
@@ -128,13 +100,14 @@ void RMLVelocityTask::updateTarget(const base::JointState &cmd,
     }
 #endif
 
+}*/
+
+const ReflexxesInputParameters& RMLVelocityTask::fromRMLTypes(const RMLInputParameters &in, ReflexxesInputParameters& out){
+    out.fromRMLTypes((RMLVelocityInputParameters&)in);
+    return out;
 }
 
 const ReflexxesOutputParameters& RMLVelocityTask::fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out){
-
-    RMLTask::fromRMLTypes(in, out);
-    memcpy(out.position_values_at_target_velocity.data(),
-           ((RMLVelocityOutputParameters&)in).PositionValuesAtTargetVelocity->VecData,
-           sizeof(double) * in.GetNumberOfDOFs());
+    out.fromRMLTypes((RMLVelocityOutputParameters&)in);
     return out;
 }

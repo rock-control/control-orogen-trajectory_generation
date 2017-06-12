@@ -5,21 +5,9 @@
 
 using namespace trajectory_generation;
 
-RMLPositionTask::RMLPositionTask(std::string const& name)
-    : RMLPositionTaskBase(name){
-    rml_flags = new RMLPositionFlags();
-}
-
-RMLPositionTask::RMLPositionTask(std::string const& name, RTT::ExecutionEngine* engine)
-    : RMLPositionTaskBase(name, engine){
-    rml_flags = new RMLPositionFlags();
-}
-
-RMLPositionTask::~RMLPositionTask(){
-    delete rml_flags;
-}
-
 bool RMLPositionTask::configureHook(){
+
+    rml_flags = new RMLPositionFlags();
     rml_input_parameters = new RMLPositionInputParameters(_motion_constraints.get().size());
     rml_output_parameters = new RMLPositionOutputParameters(_motion_constraints.get().size());
 
@@ -28,54 +16,20 @@ bool RMLPositionTask::configureHook(){
     return true;
 }
 
-void RMLPositionTask::updateHook(){
-    RMLPositionTaskBase::updateHook();
-}
-
-void RMLPositionTask::errorHook(){
-    RMLPositionTaskBase::errorHook();
-}
-
-void RMLPositionTask::stopHook(){
-    RMLPositionTaskBase::stopHook();
-}
-
-bool RMLPositionTask::startHook(){
-    if (! RMLPositionTaskBase::startHook())
-        return false;
-    return true;
-}
-
-void RMLPositionTask::cleanupHook(){
-    RMLPositionTaskBase::cleanupHook();
-
-    delete rml_input_parameters;
-    delete rml_output_parameters;
-}
-
 void RMLPositionTask::updateMotionConstraints(const MotionConstraint& constraint,
                                               const size_t idx,
                                               RMLInputParameters* new_input_parameters){
 
-    RMLTask::updateMotionConstraints(constraint, idx, new_input_parameters);
-    ((RMLPositionInputParameters*)new_input_parameters)->MaxVelocityVector->VecData[idx] = constraint.max.speed;
+    updateMotionConstraints(constraint, idx, (RMLPositionInputParameters*)new_input_parameters);
 }
 
 ReflexxesResultValue RMLPositionTask::performOTG(RMLInputParameters* new_input_parameters,
                                                  RMLOutputParameters* new_output_parameters,
                                                  RMLFlags *rml_flags){
 
-    int result = rml_api->RMLPosition( *(RMLPositionInputParameters*)new_input_parameters,
-                                        (RMLPositionOutputParameters*)new_output_parameters,
-                                       *(RMLPositionFlags*)rml_flags );
-
-    // Always feed back the new state as the current state in Position based RML. This means that the current robot position
-    // is completely ignored. However, on a real robot, using the current position as input in RML will NOT work!
-    *new_input_parameters->CurrentPositionVector     = *new_output_parameters->NewPositionVector;
-    *new_input_parameters->CurrentVelocityVector     = *new_output_parameters->NewVelocityVector;
-    *new_input_parameters->CurrentAccelerationVector = *new_output_parameters->NewAccelerationVector;
-
-    return (ReflexxesResultValue)result;
+    return performOTG((RMLPositionInputParameters*)new_input_parameters,
+                      (RMLPositionOutputParameters*)new_output_parameters,
+                      (RMLPositionFlags*)rml_flags);
 }
 
 void RMLPositionTask::writeCommand(const RMLOutputParameters& new_output_parameters){
@@ -89,18 +43,24 @@ void RMLPositionTask::writeCommand(const RMLOutputParameters& new_output_paramet
     _command.write(command);
 }
 
-void RMLPositionTask::printParams(){
-    ((RMLPositionInputParameters*)rml_input_parameters)->Echo();
-    ((RMLPositionOutputParameters*)rml_output_parameters)->Echo();
+void RMLPositionTask::printParams(const RMLInputParameters& in, const RMLOutputParameters& out){
+    ((RMLPositionInputParameters&  )in).Echo();
+    ((RMLPositionOutputParameters& )out).Echo();
 }
 
+void RMLPositionTask::updateTarget(const TargetVector& target_vector,
+                                            RMLInputParameters* new_input_parameters){
+    updateTarget(target_vector, (RMLPositionInputParameters*)new_input_parameters);
+}
+
+/*
 void RMLPositionTask::updateTarget(const base::JointState &cmd,
                                    const size_t idx,
                                    RMLInputParameters* new_input_parameters){
 
     if(!cmd.hasPosition()){
         LOG_ERROR("Target position of element %i is invalid: %f", idx, cmd.position);
-        throw std::invalid_argument("Invalid target position");
+        throw std::invalid_argument("Invalid target");
     }
 
     RMLPositionInputParameters* params = (RMLPositionInputParameters*)new_input_parameters;
@@ -109,8 +69,8 @@ void RMLPositionTask::updateTarget(const base::JointState &cmd,
     double pos = cmd.position;
 #ifdef USING_REFLEXXES_TYPE_IV
     if(rml_flags->PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT){
-        double max = rml_input_parameters->MaxPositionVector->VecData[idx] - 1e-10;
-        double min = rml_input_parameters->MinPositionVector->VecData[idx] + 1e-10;
+        double max = params->MaxPositionVector->VecData[idx] - 1e-10;
+        double min = params->MinPositionVector->VecData[idx] + 1e-10;
         pos = std::max(std::min(max, pos), min);
     }
 #endif
@@ -122,19 +82,14 @@ void RMLPositionTask::updateTarget(const base::JointState &cmd,
     params->TargetVelocityVector->VecData[idx] = 0;
     if(cmd.hasSpeed())
         params->TargetVelocityVector->VecData[idx] = cmd.speed;
-}
+}*/
 
 const ReflexxesInputParameters& RMLPositionTask::fromRMLTypes(const RMLInputParameters &in, ReflexxesInputParameters& out){
-    RMLTask::fromRMLTypes(in, out);
-    memcpy(out.max_velocity_vector.data(), ((RMLPositionInputParameters&)in).MaxVelocityVector->VecData, sizeof(double) * in.GetNumberOfDOFs());
-    memcpy(out.target_position_vector.data(), ((RMLPositionInputParameters&)in).TargetPositionVector->VecData, sizeof(double) * in.GetNumberOfDOFs());
+    out.fromRMLTypes((RMLPositionInputParameters&)in);
     return out;
 }
 
 const ReflexxesOutputParameters& RMLPositionTask::fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out){
-    RMLTask::fromRMLTypes(in, out);
-#ifdef USING_REFLEXXES_TYPE_IV
-    out.trajectory_exceeds_target_position = ((RMLPositionOutputParameters&)in).TrajectoryExceedsTargetPosition;
-#endif
+    out.fromRMLTypes((RMLPositionOutputParameters&)in);
     return out;
 }

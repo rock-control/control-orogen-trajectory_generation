@@ -29,7 +29,8 @@ class RMLTask : public RMLTaskBase
 {
     friend class RMLTaskBase;
 protected:
-
+    TargetVector target_vector;                  /** new target from port*/
+    std::vector<double> current_position;        /** current position used for initialization of RML*/
     MotionConstraints motion_constraints;        /** Motion constraints that define the properties of the output trajectory*/
     ReflexxesAPI* rml_api;                       /** Interface to the Online Trajectory Generation algorithms of the Reflexxes Motion Libraries*/
     RMLInputParameters *rml_input_parameters;    /** Input parameters for the OTG algorithm (target, constraints, flags, ...).*/
@@ -44,32 +45,66 @@ protected:
     /** Update the motion constraints of a particular element*/
     virtual void updateMotionConstraints(const MotionConstraint& constraint,
                                          const size_t idx,
-                                         RMLInputParameters* new_input_parameters);
-
-    /** Read the current state from port. If available, update the RML input parameters. Also return the flow state of the port. */
-    virtual RTT::FlowStatus updateCurrentState(const std::vector<std::string> &names,
-                                               RMLInputParameters* new_input_parameters) = 0;
-
-    /** Read a new target from port. If available, update the RML input parameters. Also return the flow state of the port. */
-    virtual RTT::FlowStatus updateTarget(const MotionConstraints& default_constraints,
                                          RMLInputParameters* new_input_parameters) = 0;
+
+    /** Update the position based motion constraints of a particular element*/
+    void updateMotionConstraints(const MotionConstraint& constraint,
+                                 const size_t idx,
+                                 RMLPositionInputParameters* new_input_parameters);
+
+    /** Update the velocity based motion constraints of a particular element*/
+    void updateMotionConstraints(const MotionConstraint& constraint,
+                                 const size_t idx,
+                                 RMLVelocityInputParameters* new_input_parameters);
+
+    /** Read the current state from port and return position and flow status*/
+    virtual RTT::FlowStatus getCurrentPosition(std::vector<double>& current_position) = 0;
+
+    /** Init the RML input parameters with the current position. Velocity and acceleration will be set to zero initially*/
+    RTT::FlowStatus setInitialState(const std::vector<double>& current_position,
+                                    RMLInputParameters* new_input_parameters);
+
+    /** Read target vector and return the flow status*/
+    virtual RTT::FlowStatus getTarget(TargetVector& target_vector) = 0;
+
+    /** Update the RML input parameters with the new target */
+    virtual void updateTarget(const TargetVector& target_vector,
+                              RMLInputParameters* new_input_parameters) = 0;
+
+    /** Update the RML position input parameters with the new target */
+    void updateTarget(const TargetVector& target_vector,
+                      RMLPositionInputParameters* new_input_parameters);
+
+    /** Update the RML velocity input parameters with the new target */
+    void updateTarget(const TargetVector& target_vector,
+                      RMLVelocityInputParameters* new_input_parameters);
 
     /** Perform one step of online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/
     virtual ReflexxesResultValue performOTG(RMLInputParameters* new_input_parameters,
                                             RMLOutputParameters* new_output_parameters,
-                                            RMLFlags *rml_flag) = 0;
+                                            RMLFlags *rml_flags) = 0;
+
+    /** Perform one step of position based online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/
+    virtual ReflexxesResultValue performOTG(RMLPositionInputParameters* new_input_parameters,
+                                            RMLPositionOutputParameters* new_output_parameters,
+                                            RMLPositionFlags *rml_flags);
+
+    /** Perform one step of velocity based online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/
+    virtual ReflexxesResultValue performOTG(RMLVelocityInputParameters* new_input_parameters,
+                                            RMLVelocityOutputParameters* new_output_parameters,
+                                            RMLVelocityFlags *rml_flags);
 
     /** Write the generated trajectory to port*/
     virtual void writeCommand(const RMLOutputParameters& new_output_parameters) = 0;
 
     /** Call echo() method for rml input and output parameters*/
-    virtual void printParams() = 0;
+    virtual void printParams(const RMLInputParameters& in, const RMLOutputParameters& out) = 0;
 
     /** Convert from RMLInputParameters to orogen type*/
-    virtual const ReflexxesInputParameters& fromRMLTypes(const RMLInputParameters &in, ReflexxesInputParameters& out);
+    virtual const ReflexxesInputParameters& fromRMLTypes(const RMLInputParameters &in, ReflexxesInputParameters& out) = 0;
 
     /** Convert from RMLOutputParameters to orogen type*/
-    virtual const ReflexxesOutputParameters& fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out);
+    virtual const ReflexxesOutputParameters& fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out) = 0;
 
     /** Handle result of the OTG algorithm. Handle errors.*/
     void handleResultValue(ReflexxesResultValue result_value);

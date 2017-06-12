@@ -18,13 +18,20 @@ protected:
     base::samples::RigidBodyState target;          /** From input port: Target Cartesian position or speed.  */
     base::samples::RigidBodyState command;         /** To output port: Commanded Cartesian position or speed.  */
 
-    /** Read the current state from port. If available, update the RML input parameters. Also return the flow state of the port. */
-    virtual RTT::FlowStatus updateCurrentState(const std::vector<std::string> &names,
-                                               RMLInputParameters* new_input_parameters);
+    /** Update the motion constraints of a particular element*/
+    virtual void updateMotionConstraints(const MotionConstraint& constraint,
+                                         const size_t idx,
+                                         RMLInputParameters* new_input_parameters) = 0;
+
+    /** Read the current state from port and return position and flow status*/
+    virtual RTT::FlowStatus getCurrentPosition(std::vector<double> &current_position);
+
+    /** Read target vector and return the flow status*/
+    virtual RTT::FlowStatus getTarget(TargetVector& target_vector);
 
     /** Read a new target from port. If available, update the RML input parameters. Also return the flow state of the port. */
-    virtual RTT::FlowStatus updateTarget(const MotionConstraints& default_constraints,
-                                         RMLInputParameters* new_input_parameters);
+    virtual void updateTarget(const TargetVector& target_vector,
+                              RMLInputParameters* new_input_parameters) = 0;
 
     /** Perform one step of online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/
     virtual ReflexxesResultValue performOTG(RMLInputParameters* new_input_parameters,
@@ -35,24 +42,30 @@ protected:
     virtual void writeCommand(const RMLOutputParameters& new_output_parameters) = 0;
 
     /** Call echo() method for rml input and output parameters*/
-    virtual void printParams() = 0;
+    virtual void printParams(const RMLInputParameters& in, const RMLOutputParameters& out) = 0;
 
-    /** Update the target of a particular joint*/
-    virtual void updateTarget(const base::samples::RigidBodyState& cmd,
-                              RMLInputParameters* new_input_parameters) = 0;
+    /** Convert from RMLInputParameters to orogen type*/
+    virtual const ReflexxesInputParameters& fromRMLTypes(const RMLInputParameters &in, ReflexxesInputParameters& out) = 0;
 
+    /** Convert from RMLOutputParameters to orogen type*/
+    virtual const ReflexxesOutputParameters& fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out) = 0;
 
+    /** Common conversion method for orientation values*/
+    base::Vector3d toEuler(const base::Orientation& orientation);
+
+    /** Common conversion method for orientation values*/
+    base::Orientation fromEuler(const base::Vector3d& euler);
 
 public:
-    RMLCartesianTask(std::string const& name = "trajectory_generation::RMLCartesianTask");
-    RMLCartesianTask(std::string const& name, RTT::ExecutionEngine* engine);
-    ~RMLCartesianTask();
+    RMLCartesianTask(std::string const& name = "trajectory_generation::RMLCartesianTask") : RMLCartesianTaskBase(name){}
+    RMLCartesianTask(std::string const& name, RTT::ExecutionEngine* engine) : RMLCartesianTaskBase(name, engine){}
+    ~RMLCartesianTask(){}
     bool configureHook();
-    bool startHook();
-    void updateHook();
-    void errorHook();
-    void stopHook();
-    void cleanupHook();
+    bool startHook(){return RMLCartesianTaskBase::startHook();}
+    void updateHook(){RMLCartesianTaskBase::updateHook();}
+    void errorHook(){RMLCartesianTaskBase::errorHook();}
+    void stopHook(){RMLCartesianTaskBase::stopHook();}
+    void cleanupHook(){RMLCartesianTaskBase::cleanupHook();}
 };
 }
 

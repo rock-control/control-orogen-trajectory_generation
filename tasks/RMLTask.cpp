@@ -60,19 +60,23 @@ void RMLTask::updateHook(){
 
     RMLTaskBase::updateHook();
 
-    RTT::FlowStatus fs = updateCurrentState(motion_constraints.names, rml_input_parameters);
+    RTT::FlowStatus fs = getCurrentPosition(current_position);
     if(fs == RTT::NoData){
         if(state() != NO_CURRENT_STATE)
             state(NO_CURRENT_STATE);
         return;
     }
+    else if (fs == RTT::NewData && rml_result_value == RML_NOT_INITIALIZED)
+        setInitialState(current_position, rml_input_parameters);
 
-    fs = updateTarget(motion_constraints, rml_input_parameters);
+    fs = getTarget(target_vector);
     if(fs == RTT::NoData){
         if(state() != NO_TARGET)
             state(NO_TARGET);
         return;
     }
+    else if(fs == RTT::NewData)
+        updateTarget(target_vector, rml_input_parameters);
 
     if(state() == NO_TARGET || state() == NO_CURRENT_STATE)
         state(RUNNING);
@@ -101,12 +105,28 @@ void RMLTask::cleanupHook(){
 
     motion_constraints.clear();
     delete rml_api;
+    delete rml_input_parameters;
+    delete rml_output_parameters;
+    delete rml_flags;
 }
 
 void RMLTask::updateMotionConstraints(const MotionConstraint& constraint,
                                       const size_t idx,
-                                      RMLInputParameters* new_input_parameters){
+                                      RMLPositionInputParameters* new_input_parameters){
+    constraint.validate(); // Check if constraints are ok, e.g. max.speed > 0 etc
 
+#ifdef USING_REFLEXXES_TYPE_IV
+    new_input_parameters->MaxPositionVector->VecData[idx] = constraint.max.position;
+    new_input_parameters->MinPositionVector->VecData[idx] = constraint.min.position;
+#endif
+    new_input_parameters->MaxVelocityVector->VecData[idx] = constraint.max.speed;
+    new_input_parameters->MaxAccelerationVector->VecData[idx] = constraint.max.acceleration;
+    new_input_parameters->MaxJerkVector->VecData[idx] = constraint.max_jerk;
+}
+
+void RMLTask::updateMotionConstraints(const MotionConstraint& constraint,
+                                      const size_t idx,
+                                      RMLVelocityInputParameters* new_input_parameters){
     constraint.validate(); // Check if constraints are ok, e.g. max.speed > 0 etc
 
 #ifdef USING_REFLEXXES_TYPE_IV
@@ -115,6 +135,104 @@ void RMLTask::updateMotionConstraints(const MotionConstraint& constraint,
 #endif
     new_input_parameters->MaxAccelerationVector->VecData[idx] = constraint.max.acceleration;
     new_input_parameters->MaxJerkVector->VecData[idx] = constraint.max_jerk;
+}
+
+RTT::FlowStatus RMLTask::setInitialState(const std::vector<double>& current_position,
+                                         RMLInputParameters* new_input_parameters){
+
+    int n_dof = new_input_parameters->NumberOfDOFs;
+    memcpy(new_input_parameters->CurrentPositionVector->VecData,     current_position.data(),  sizeof(double) * n_dof);
+    memset(new_input_parameters->CurrentVelocityVector->VecData,     0,                        sizeof(double) * n_dof);
+    memset(new_input_parameters->CurrentAccelerationVector->VecData, 0,                        sizeof(double) * n_dof);
+}
+
+void RMLTask::updateTarget(const TargetVector& target_vector,
+                           RMLPositionInputParameters* new_input_parameters){
+
+    int n_dof = new_input_parameters->NumberOfDOFs;
+    memcpy(new_input_parameters->TargetPositionVector->VecData, target_vector.position.data(),         sizeof(double) * n_dof);
+    memcpy(new_input_parameters->TargetVelocityVector->VecData, target_vector.velocity.data(),         sizeof(double) * n_dof);
+    memcpy(new_input_parameters->SelectionVector->VecData,      target_vector.selection_vector.data(), n_dof);
+
+#ifdef USING_REFLEXXES_TYPE_IV
+    for(size_t i = 0; i < n_dof; i++){
+        // Crop at limits if POSITIONAL_LIMITS_ACTIVELY_PREVENT is selected
+        double pos =  new_input_parameters->TargetPositionVector->VecData[i];
+        if(rml_flags->PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT){
+            double max = new_input_parameters->MaxPositionVector->VecData[i] - 1e-10;
+            double min = new_input_parameters->MinPositionVector->VecData[i] + 1e-10;
+            new_input_parameters->TargetPositionVector->VecData[i] = std::max(std::min(max, pos), min);
+        }
+    }
+#endif
+
+    for(size_t i = 0; i < target_vector.constraints.size(); i++){
+        MotionConstraint constraint = target_vector.constraints[i];  // Get new motion constraint for target i
+        constraint.applyDefaultIfUnset(motion_constraints[i]);    // Use default entry if new constraints entries are unset
+        updateMotionConstraints(constraint, i, new_input_parameters);
+    }
+}
+
+void RMLTask::updateTarget(const TargetVector& target_vector,
+                           RMLVelocityInputParameters* new_input_parameters){
+
+    int n_dof = new_input_parameters->NumberOfDOFs;
+    memcpy(new_input_parameters->TargetVelocityVector->VecData, target_vector.velocity.data(),         sizeof(double) * n_dof);
+    memcpy(new_input_parameters->SelectionVector->VecData,      target_vector.selection_vector.data(), sizeof(bool) * n_dof);
+
+#ifdef USING_REFLEXXES_TYPE_IV
+    for(size_t i = 0; i < n_dof; i++){
+        // If a joint is at a position limit, the target velocity is non-zero and pointing in direction of the limit, the sychronization time is
+        // computed by RML as if the constrained joint could move freely. This might lead to incorrect synchronization time for all other joints.
+        // Workaround: Set the target velocity to zero if (and only if) POSITIONAL_LIMITS_ACTIVELY_PREVENT is selected
+
+        if(rml_flags->PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT){
+            double cur_pos = new_input_parameters->CurrentPositionVector->VecData[i];
+            double target_vel = new_input_parameters->TargetVelocityVector->VecData[i];
+            double max_pos = new_input_parameters->MaxPositionVector->VecData[i];
+            double min_pos = new_input_parameters->MinPositionVector->VecData[i];
+
+            if( (target_vel*cycle_time + cur_pos > max_pos) || (target_vel*cycle_time + cur_pos < min_pos) )
+                new_input_parameters->TargetVelocityVector->VecData[i] = 0;
+        }
+    }
+#endif
+
+    for(size_t i = 0; i < target_vector.constraints.size(); i++){
+        MotionConstraint constraint = target_vector.constraints[i];  // Get new motion constraint for target i
+        constraint.applyDefaultIfUnset(motion_constraints[i]);    // Use default entry if new constraints entries are unset
+        updateMotionConstraints(constraint, i, new_input_parameters);
+    }
+}
+
+ReflexxesResultValue RMLTask::performOTG(RMLPositionInputParameters* new_input_parameters,
+                                         RMLPositionOutputParameters* new_output_parameters,
+                                         RMLPositionFlags *rml_flags){
+
+    int result = rml_api->RMLPosition( *new_input_parameters, new_output_parameters, *rml_flags );
+
+    // Always feed back the new state as the current state. This means that the current robot position
+    // is completely ignored. However, on a real robot, using the current position as input in RML will NOT work!
+    *new_input_parameters->CurrentPositionVector     = *new_output_parameters->NewPositionVector;
+    *new_input_parameters->CurrentVelocityVector     = *new_output_parameters->NewVelocityVector;
+    *new_input_parameters->CurrentAccelerationVector = *new_output_parameters->NewAccelerationVector;
+
+    return (ReflexxesResultValue)result;
+}
+
+ReflexxesResultValue RMLTask::performOTG(RMLVelocityInputParameters* new_input_parameters,
+                                         RMLVelocityOutputParameters* new_output_parameters,
+                                         RMLVelocityFlags *rml_flags){
+
+    int result = rml_api->RMLVelocity( *new_input_parameters, new_output_parameters, *rml_flags );
+
+    // Always feed back the new state as the current state. This means that the current robot position
+    // is completely ignored. However, on a real robot, using the current position as input in RML will NOT work!
+    *new_input_parameters->CurrentPositionVector     = *new_output_parameters->NewPositionVector;
+    *new_input_parameters->CurrentVelocityVector     = *new_output_parameters->NewVelocityVector;
+    *new_input_parameters->CurrentAccelerationVector = *new_output_parameters->NewAccelerationVector;
+
+    return (ReflexxesResultValue)result;
 }
 
 void RMLTask::handleResultValue(ReflexxesResultValue result_value){
@@ -142,7 +260,7 @@ void RMLTask::handleResultValue(ReflexxesResultValue result_value){
             LOG_ERROR("RML target position out of bounds. Modify your target position and/or positional limits or "
                       "choose POSITIONAL_LIMITS_IGNORE/POSITIONAL_LIMITS_ACTIVELY_PREVENT to avoid this error");
             error(RML_ERROR);
-            printParams();
+            printParams(*rml_input_parameters, *rml_output_parameters);
         }
         break;
     }
@@ -151,54 +269,11 @@ void RMLTask::handleResultValue(ReflexxesResultValue result_value){
 #ifdef USING_REFLEXXES_TYPE_IV
         LOG_ERROR("Error in online trajectory generation algorithm: %s", rml_output_parameters->GetErrorString());
 #endif
-        printParams();
+        printParams(*rml_input_parameters, *rml_output_parameters);
         error(RML_ERROR);
         break;
     }
     }
-}
-
-const ReflexxesInputParameters& RMLTask::fromRMLTypes(const RMLInputParameters &in, ReflexxesInputParameters& out){
-
-    mempcpy(out.selection_vector.data(), in.SelectionVector->VecData, sizeof(bool) * in.GetNumberOfDOFs());
-    memcpy(out.current_position_vector.data(), in.CurrentPositionVector->VecData, sizeof(double) * in.GetNumberOfDOFs());
-    memcpy(out.current_velocity_vector.data(), in.CurrentVelocityVector->VecData, sizeof(double) * in.GetNumberOfDOFs());
-    memcpy(out.current_acceleration_vector.data(), in.CurrentAccelerationVector->VecData, sizeof(double) * in.GetNumberOfDOFs());
-
-    memcpy(out.max_acceleration_vector.data(), in.MaxAccelerationVector->VecData, sizeof(double) * in.GetNumberOfDOFs());
-    memcpy(out.max_jerk_vector.data(), in.MaxJerkVector->VecData, sizeof(double) * in.GetNumberOfDOFs());
-
-    out.min_synchronization_time = in.MinimumSynchronizationTime;
-
-    mempcpy(out.target_velocity_vector.data(), in.TargetVelocityVector->VecData, sizeof(double) * in.GetNumberOfDOFs());
-
-#ifdef USING_REFLEXXES_TYPE_IV
-    memcpy(out.max_position_vector.data(), in.MaxPositionVector->VecData, sizeof(double) * in.GetNumberOfDOFs());
-    memcpy(out.min_position_vector.data(), in.MinPositionVector->VecData, sizeof(double) * in.GetNumberOfDOFs());
-    out.override_value = in.OverrideValue;
-#endif
-
-    return out;
-}
-
-const ReflexxesOutputParameters& RMLTask::fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out){
-
-    memcpy(out.new_position_vector.data(), in.NewPositionVector->VecData, sizeof(double) * in.GetNumberOfDOFs());
-    memcpy(out.new_velocity_vector.data(), in.NewVelocityVector->VecData, sizeof(double) * in.GetNumberOfDOFs());
-    memcpy(out.new_acceleration_vector.data(), in.NewAccelerationVector->VecData, sizeof(double) * in.GetNumberOfDOFs());
-
-    memcpy(out.execution_times.data(), in.ExecutionTimes->VecData, sizeof(double) * in.GetNumberOfDOFs());
-
-    out.a_new_calculation_was_performed = in.ANewCalculationWasPerformed;
-    out.trajectory_is_phase_synchronized = in.TrajectoryIsPhaseSynchronized;
-    out.dof_with_greatest_execution_time = in.DOFWithTheGreatestExecutionTime;
-    out.synchronization_time = in.SynchronizationTime;
-
-#ifdef USING_REFLEXXES_TYPE_IV
-    out.override_filter_is_active = in.OverrideFilterIsActive;
-    out.current_override_value = in.CurrentOverrideValue;
-#endif
-    return out;
 }
 
 void RMLTask::checkVelocityTimeout(const base::Time time_last_reference, const double timeout){
