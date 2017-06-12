@@ -41,17 +41,17 @@ protected:
     base::Time timestamp;                        /** Timestamp if updateHook();*/
     double cycle_time;                           /** Cycle time for interpolation*/
 
+    /** Update the motion constraints of a particular element*/
+    virtual void updateMotionConstraints(const MotionConstraint& constraint,
+                                         const size_t idx,
+                                         RMLInputParameters* new_input_parameters);
+
     /** Read the current state from port. If available, update the RML input parameters. Also return the flow state of the port. */
     virtual RTT::FlowStatus updateCurrentState(const std::vector<std::string> &names,
                                                RMLInputParameters* new_input_parameters) = 0;
 
     /** Read a new target from port. If available, update the RML input parameters. Also return the flow state of the port. */
     virtual RTT::FlowStatus updateTarget(const MotionConstraints& default_constraints,
-                                         RMLInputParameters* new_input_parameters) = 0;
-
-    /** Update the motion constraints of a particular joint*/
-    virtual void updateMotionConstraints(const MotionConstraint& constraint,
-                                         const size_t idx,
                                          RMLInputParameters* new_input_parameters) = 0;
 
     /** Perform one step of online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/
@@ -73,6 +73,9 @@ protected:
 
     /** Handle result of the OTG algorithm. Handle errors.*/
     void handleResultValue(ReflexxesResultValue result_value);
+
+    /** Velocity watchdog: Throw if time_last_reference is bigger than timeout */
+    void checkVelocityTimeout(const base::Time time_last_reference, const double timeout);
 
 public:
     RMLTask(std::string const& name = "trajectory_generation::RMLTask");

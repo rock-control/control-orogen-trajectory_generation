@@ -29,7 +29,7 @@ bool RMLTask::configureHook(){
 
     motion_constraints = _motion_constraints.get();
     for(size_t i = 0; i < motion_constraints.size(); i++)
-       updateMotionConstraints(motion_constraints[i], i, rml_input_parameters);
+        updateMotionConstraints(motion_constraints[i], i, rml_input_parameters);
 
     rml_flags->SynchronizationBehavior = _synchronization_behavior.get();
 #ifdef USING_REFLEXXES_TYPE_IV
@@ -86,29 +86,6 @@ void RMLTask::updateHook(){
     _rml_input_parameters.write(fromRMLTypes(*rml_input_parameters, input_parameters));
     _rml_output_parameters.write(fromRMLTypes(*rml_output_parameters, output_parameters));
     _computation_time.write((base::Time::now() - start_time).toSeconds());
-
-
-    /*else if(fs == RTT::NewData){
-        handleNewJointState(joint_state);
-        current_sample.time = base::Time::now();
-        _current_sample.write(current_sample);
-    }*/
-
-
-    /*RTT::FlowStatus target_status = _target.readNewest(target);
-    RTT::FlowStatus constrained_target_status = _constrained_target.readNewest(target);*/
-
-
-
-    // Handle targets. Notice, that we have implicitly a priorization here: If there is data on target port, it will be preferred over the constrained target port
-    /*if(target_status == RTT::NewData)
-        handleNewTarget(target);
-    else if(constrained_target_status == RTT::NewData)
-        handleNewTarget(target);
-
-    handleResultValue(performOTG(command));
-    command.time = base::Time::now();
-    _command.write(command);*/
 }
 
 void RMLTask::errorHook(){
@@ -124,6 +101,20 @@ void RMLTask::cleanupHook(){
 
     motion_constraints.clear();
     delete rml_api;
+}
+
+void RMLTask::updateMotionConstraints(const MotionConstraint& constraint,
+                                      const size_t idx,
+                                      RMLInputParameters* new_input_parameters){
+
+    constraint.validate(); // Check if constraints are ok, e.g. max.speed > 0 etc
+
+#ifdef USING_REFLEXXES_TYPE_IV
+    new_input_parameters->MaxPositionVector->VecData[idx] = constraint.max.position;
+    new_input_parameters->MinPositionVector->VecData[idx] = constraint.min.position;
+#endif
+    new_input_parameters->MaxAccelerationVector->VecData[idx] = constraint.max.acceleration;
+    new_input_parameters->MaxJerkVector->VecData[idx] = constraint.max_jerk;
 }
 
 void RMLTask::handleResultValue(ReflexxesResultValue result_value){
@@ -147,23 +138,11 @@ void RMLTask::handleResultValue(ReflexxesResultValue result_value){
 #ifdef USING_REFLEXXES_TYPE_IV
     case RML_ERROR_POSITIONAL_LIMITS:{
 
-        // Bugfix for reflexxes: in case POSITIONAL_LIMITS_ACTIVELY_PREVENT the result value will become RML_ERROR_POSITIONAL_LIMITS if
-        // the target value is out of bounds. This behavior is somewhat not intuitive, since violating the joint limits will be prevented.
-        // Thus, we check the states manually.
-//        if(rml_flags->PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT){
-//            if(rml_output_parameters->SynchronizationTime == 0){
-//                if(state() != REACHED)
-//                    state(REACHED);
-//            }else{
-//                if(state() != FOLLOWING)
-//                    state(FOLLOWING);
-//            }
-//        }
-
         if(rml_flags->PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ERROR_MSG_ONLY){
-            LOG_ERROR("RML target position out of bounds. To prevent this error, either modify max/min position in your motion constraints,"
-                      " or set positional_limits_behaviour to POSITIONAL_LIMITS_IGNORE or POSITIONAL_LIMITS_ACTIVELY_PREVENT");
+            LOG_ERROR("RML target position out of bounds. Modify your target position and/or positional limits or "
+                      "choose POSITIONAL_LIMITS_IGNORE/POSITIONAL_LIMITS_ACTIVELY_PREVENT to avoid this error");
             error(RML_ERROR);
+            printParams();
         }
         break;
     }
@@ -222,73 +201,10 @@ const ReflexxesOutputParameters& RMLTask::fromRMLTypes(const RMLOutputParameters
     return out;
 }
 
-/*
-void RMLTask::errorHook(){
-    RMLTaskBase::errorHook();
-}
-
-void RMLTask::stopHook(){
-    RMLTaskBase::stopHook();
-}
-
-void RMLTask::handleNewJointState(const base::samples::Joints &joint_state){
-
-    if(!rml_initialized){
-        current_sample.resize(motion_constraints.size());
-        current_sample.names = motion_constraints.names;
-    }
-
-    for(size_t i = 0; i < motion_constraints.size(); i++)
-    {
-        size_t idx;
-        try{
-            idx = joint_state.mapNameToIndex(motion_constraints.names[i]);
-        }
-        catch(std::exception e){
-            LOG_ERROR("%s: Element %s has been configured in motion constraints, but is not available in joint state",
-                      this->getName().c_str(), motion_constraints.names[i].c_str());
-            throw e;
-        }
-
-        const base::JointState &state = joint_state[idx];
-
-        if(!rml_initialized){ // Init with current joint position and zero velocity/acceleration
-
-            if(state.hasPosition())
-                rml_input_parameters->CurrentPositionVector->VecData[i] = current_sample[i].position = state.position;
-            else
-                throw std::invalid_argument("Joint state contains NaN position elements");
-            rml_input_parameters->CurrentVelocityVector->VecData[i] = current_sample[i].speed = 0;
-            rml_input_parameters->CurrentAccelerationVector->VecData[i] = current_sample[i].acceleration = 0;
-        }
-        else
-            setJointState(state, i);
-    }
-    rml_initialized = true;
-}
-
-void RMLTask::handleNewTarget(const trajectory_generation::ConstrainedJointsCmd &target){
-
-    // Set selection vector to false
-    memset(rml_input_parameters->SelectionVector->VecData, false, motion_constraints.size());
-
-    target.validate();
-
-    for(size_t i = 0; i < target.size(); i++){
-
-        size_t idx = motion_constraints.mapNameToIndex(target.names[i]);
-
-        rml_input_parameters->SelectionVector->VecData[idx] = true;
-        setTarget(target[i], idx);
-
-        if(!target.motion_constraints.empty()){
-
-            // if a value of the new motion constraints is unset, use the default motion constraints:
-            JointMotionConstraints constraints = target.motion_constraints[i];
-            constraints.applyDefaultIfUnset(motion_constraints[idx]);
-
-            setMotionConstraints(constraints, idx);
-        }
+void RMLTask::checkVelocityTimeout(const base::Time time_last_reference, const double timeout){
+    double t_diff = (base::Time::now() - time_last_reference).toSeconds();
+    if(!time_last_reference.isNull() && t_diff > timeout){
+        LOG_ERROR("Timeout: No new reference velocity arrived for %f seconds. Setting target velocity to zero.", t_diff);
+        throw std::runtime_error("Velocity reference timeout");
     }
 }
-*/

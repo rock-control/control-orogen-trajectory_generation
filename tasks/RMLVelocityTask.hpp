@@ -15,11 +15,6 @@ protected:
     base::Time time_of_last_reference;
     bool convert_to_position;
 
-    /** Update the motion constraints of a particular joint*/
-    virtual void updateMotionConstraints(const MotionConstraint& constraint,
-                                         const size_t idx,
-                                         RMLInputParameters* new_input_parameters);
-
     /** Perform one step of online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/
     virtual ReflexxesResultValue performOTG(RMLInputParameters* new_input_parameters,
                                             RMLOutputParameters* new_output_parameters,
@@ -31,11 +26,6 @@ protected:
     /** Call echo() method for rml input and output parameters*/
     virtual void printParams();
 
-    /** Update the current state of a particular joint*/
-    virtual void updateCurrentState(const base::JointState &state,
-                                    const size_t idx,
-                                    RMLInputParameters* new_input_parameters);
-
     /** Update the target of a particular joint*/
     virtual void updateTarget(const base::JointState &cmd,
                               const size_t idx,
@@ -43,9 +33,6 @@ protected:
 
     /** Convert from RMLOutputParameters to orogen type*/
     virtual const ReflexxesOutputParameters& fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out);
-
-    /** Velocity watchdog: Set target velocity to zero if no new reference arrives for more than no_reference_timeout seconds */
-    void checkVelocityTimeout();
 
 public:
     RMLVelocityTask(std::string const& name = "trajectory_generation::RMLVelocityTask");

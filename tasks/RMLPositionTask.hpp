@@ -12,10 +12,10 @@ class RMLPositionTask : public RMLPositionTaskBase
     friend class RMLPositionTaskBase;
 
 protected:
-    /** Update the motion constraints of a particular joint*/
-    virtual void updateMotionConstraints(const MotionConstraint& constraint,
-                                         const size_t idx,
-                                         RMLInputParameters* new_input_parameters);
+    /** Update the motion constraints of a particular element*/
+    void updateMotionConstraints(const MotionConstraint& constraint,
+                                 const size_t idx,
+                                 RMLInputParameters* new_input_parameters);
 
     /** Perform one step of online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/
     virtual ReflexxesResultValue performOTG(RMLInputParameters* new_input_parameters,
@@ -27,11 +27,6 @@ protected:
 
     /** Call echo() method for rml input and output parameters*/
     virtual void printParams();
-
-    /** Update the current state of a particular joint*/
-    virtual void updateCurrentState(const base::JointState &state,
-                                    const size_t idx,
-                                    RMLInputParameters* new_input_parameters);
 
     /** Update the target of a particular joint*/
     virtual void updateTarget(const base::JointState &cmd,

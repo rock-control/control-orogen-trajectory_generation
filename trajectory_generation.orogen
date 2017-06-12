@@ -39,7 +39,7 @@ task_context "RMLTask" do abstract
     # Behaviour at the position limits (only reflexxes TypeIV!!!). Can be one of the following:
     #   - POSITIONAL_LIMITS_IGNORE: Positional limits are completely ignored
     #   - POSITIONAL_LIMITS_ERROR_MSG_ONLY: Component will go into error state if target is out of bounds
-    #   - POSITIONAL_LIMITS_ACTIVELY_PREVENT: Reflexxes will make a smooth transition at the bounds and prevent exceededing them
+    #   - POSITIONAL_LIMITS_ACTIVELY_PREVENT: Reflexxes will provide a smooth transition at the bounds and avoid exceeding them
     # See reflexxes/RMLFlags.h for further details.
     property "positional_limits_behavior", "trajectory_generation/PositionalLimitsBehavior", :POSITIONAL_LIMITS_ACTIVELY_PREVENT
 
@@ -114,7 +114,8 @@ task_context "RMLVelocityTask" do
     subclasses "RMLJointTask"
 
     # Velocity reference timeout in seconds: If no new reference arrives for this amount of time, the target velocity will be set to zero.
-    property "no_reference_timeout", "double", 1.0
+    # Set this value to .inf to disable timeout.
+    property "no_reference_timeout", "double"
 
     # Converts the output to position commands
     property "convert_to_position", "bool", false
@@ -123,42 +124,42 @@ end
 #
 # Abstract base class for a Cartesian space RML implementation. Implemented by RMLCartesianPositionTask and RMLCartesianVelocityTask
 #
-# task_context "RMLCartesianTask" do abstract
+task_context "RMLCartesianTask" do abstract
+
+    subclasses "RMLTask"
+
+    # Current Cartesian state.
+    input_port "cartesian_state", "base/samples/RigidBodyState"
+
+    # Target Cartesian position or speed. The component will generate a trajectory to that position/speed, which complies with the motion constraints given by the
+    # motion_constraints property. Depending on the implementation, the position and/or velocity entries must have valid entries
+    input_port "target", "base/samples/RigidBodyState"
+
+    # Output trajectory. The samples of the generated trajectory will be sent one by one. This port should be connected directly with your
+    # robots actuators. Your joint controllers have to make sure that this trajectory can be followed. Size and names of this command will
+    # be the same as in the motion_constraints property
+    output_port "command", "base/samples/RigidBodyState"
+
+    # Debug: Current full output sample of interpolator (position/speed/acceleration)
+    output_port "current_sample", "base/samples/RigidBodyState"
+end
+
 #
-#     subclasses "RMLTask"
+# Position based implementation of a Cartesian RML task. The given target has to have valid position entries. Velocity entries are optional.
 #
-#     # Current Cartesian state.
-#     input_port "cartesian_state", "base/samples/RigidBodyState"
+task_context "RMLCartesianPositionTask" do
+    subclasses "RMLCartesianTask"
+end
+
 #
-#     # Target Cartesian position or speed. The component will generate a trajectory to that position/speed, which complies with the motion constraints given by the
-#     # motion_constraints property. Depending on the implementation, the position and/or velocity entries must have valid entries
-#     input_port "target", "base/samples/RigidBodyState"
+# Velocity based implementation of a Cartesian RML task. The given target has to have valid velocity entries.
 #
-#     # Output trajectory. The samples of the generated trajectory will be sent one by one. This port should be connected directly with your
-#     # robots actuators. Your joint controllers have to make sure that this trajectory can be followed. Size and names of this command will
-#     # be the same as in the motion_constraints property
-#     output_port "command", "base/samples/RigidBodyState"
-#
-#     # Debug: Current full output sample of interpolator (position/speed/acceleration)
-#     output_port "current_sample", "base/samples/RigidBodyState"
-# end
-#
-# #
-# # Position based implementation of a Cartesian RML task. The given target has to have valid position entries. Velocity entries are optional.
-# #
-# task_context "RMLCartesianPositionTask" do
-#     subclasses "RMLCartesianTask"
-# end
-#
-# #
-# # Velocity based implementation of a Cartesian RML task. The given target has to have valid velocity entries.
-# #
-# task_context "RMLCartesianVelocityTask" do
-#     subclasses "RMLCartesianTask"
-#
-#     # Velocity reference timeout in seconds: If no new reference arrives for this amount of time, the target velocity will be set to zero.
-#     property "no_reference_timeout", "double", 1.0
-#
-#     # Converts the output to position commands
-#     property "convert_to_position", "bool", false
-# end
+task_context "RMLCartesianVelocityTask" do
+    subclasses "RMLCartesianTask"
+
+    # Velocity reference timeout in seconds: If no new reference arrives for this amount of time, the target velocity will be set to zero.
+    property "no_reference_timeout", "double", 1.0
+
+    # Converts the output to position commands
+    property "convert_to_position", "bool", false
+end

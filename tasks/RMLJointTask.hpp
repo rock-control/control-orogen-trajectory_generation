@@ -26,11 +26,6 @@ protected:
     virtual RTT::FlowStatus updateTarget(const MotionConstraints& default_constraints,
                                          RMLInputParameters* new_input_parameters);
 
-    /** Update the motion constraints of a particular joint*/
-    virtual void updateMotionConstraints(const MotionConstraint& constraint,
-                                         const size_t idx,
-                                         RMLInputParameters* new_input_parameters) = 0;
-
     /** Perform one step of online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/
     virtual ReflexxesResultValue performOTG(RMLInputParameters* new_input_parameters,
                                             RMLOutputParameters* new_output_parameters,
@@ -41,11 +36,6 @@ protected:
 
     /** Call echo() method for rml input and output parameters*/
     virtual void printParams() = 0;
-
-    /** Update the current state of a particular joint*/
-    virtual void updateCurrentState(const base::JointState &state,
-                                    const size_t idx,
-                                    RMLInputParameters* new_input_parameters) = 0;
 
     /** Update the target of a particular joint*/
     virtual void updateTarget(const base::JointState &cmd,

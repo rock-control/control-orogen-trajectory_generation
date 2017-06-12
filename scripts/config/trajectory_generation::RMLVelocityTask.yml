@@ -16,3 +16,10 @@ positional_limits_behavior: :POSITIONAL_LIMITS_ACTIVELY_PREVENT
 # Synchronozation behavior for the different joints. Can be one of PHASE_SYNCHRONIZATION_IF_POSSIBLE, ONLY_TIME_SYNCHRONIZATION,
 # ONLY_PHASE_SYNCHRONIZATION and NO_SYNCHRONIZATION. See reflexxes/RMLFlags.h for details.
 synchronization_behavior: :PHASE_SYNCHRONIZATION_IF_POSSIBLE
+
+# Velocity reference timeout in seconds: If no new reference arrives for this amount of time, the target velocity will be set to zero.
+# NaN means no timeout.
+no_reference_timeout: .inf
+
+# Converts the output to position commands
+convert_to_position: true
