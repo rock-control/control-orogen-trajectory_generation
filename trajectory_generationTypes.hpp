@@ -9,11 +9,6 @@
  */
 
 #include <base/commands/Joints.hpp>
-#include <base/NamedVector.hpp>
-#include <reflexxes/RMLPositionInputParameters.h>
-#include <reflexxes/RMLPositionOutputParameters.h>
-#include <reflexxes/RMLVelocityInputParameters.h>
-#include <reflexxes/RMLVelocityOutputParameters.h>
 
 namespace trajectory_generation {
 
@@ -143,77 +138,19 @@ struct ReflexxesInputParameters{
         min_synchronization_time = base::NaN<double>();
         override_value = base::NaN<double>();
     }
-
-    void fromRMLTypes(const RMLInputParameters &params){
-        memcpy(selection_vector.data(), params.SelectionVector->VecData, sizeof(bool) * params.GetNumberOfDOFs());
-        memcpy(current_position_vector.data(), params.CurrentPositionVector->VecData, sizeof(double) * params.GetNumberOfDOFs());
-        memcpy(current_velocity_vector.data(), params.CurrentVelocityVector->VecData, sizeof(double) * params.GetNumberOfDOFs());
-        memcpy(current_acceleration_vector.data(), params.CurrentAccelerationVector->VecData, sizeof(double) * params.GetNumberOfDOFs());
-
-        memcpy(max_acceleration_vector.data(), params.MaxAccelerationVector->VecData, sizeof(double) * params.GetNumberOfDOFs());
-        memcpy(max_jerk_vector.data(), params.MaxJerkVector->VecData, sizeof(double) * params.GetNumberOfDOFs());
-
-        min_synchronization_time = params.MinimumSynchronizationTime;
-
-        memcpy(target_velocity_vector.data(), params.TargetVelocityVector->VecData, sizeof(double) * params.GetNumberOfDOFs());
-
-#ifdef USING_REFLEXXES_TYPE_IV
-        memcpy(max_position_vector.data(), params.MaxPositionVector->VecData, sizeof(double) * params.GetNumberOfDOFs());
-        memcpy(min_position_vector.data(), params.MinPositionVector->VecData, sizeof(double) * params.GetNumberOfDOFs());
-        override_value = params.OverrideValue;
-#endif
-    }
-
-    void fromRMLTypes(const RMLPositionInputParameters &params){
-        fromRMLTypes((RMLInputParameters&)params);
-        memcpy(max_velocity_vector.data(), params.MaxVelocityVector->VecData, sizeof(double) * params.GetNumberOfDOFs());
-        memcpy(target_position_vector.data(), params.TargetPositionVector->VecData, sizeof(double) * params.GetNumberOfDOFs());
-    }
-
-    void fromRMLTypes(const RMLVelocityInputParameters &params){
-        fromRMLTypes((RMLInputParameters&)params);
-    }
-
     std::vector<u_int8_t> selection_vector;
-
     std::vector<double> current_position_vector;
     std::vector<double> current_velocity_vector;
     std::vector<double> current_acceleration_vector;
-
     std::vector<double> max_position_vector;
     std::vector<double> min_position_vector;
     std::vector<double> max_velocity_vector;     /** Only RMLPosition*/
     std::vector<double> max_acceleration_vector;
     std::vector<double> max_jerk_vector;
-
     std::vector<double> target_position_vector;  /** Only RMLPosition*/
     std::vector<double> target_velocity_vector;
-
     double min_synchronization_time;
     double override_value; /** only reflexxes typeIV*/
-};
-
-struct TargetData{
-    std::vector<double> position;
-    std::vector<double> velocity;
-    std::vector<uint>   selection_vector;
-    std::vector<MotionConstraint> constraints;
-    void resize(int n){
-        position.resize(n);
-        velocity.resize(n);
-        selection_vector.resize(n, false);
-    }
-};
-
-struct CurrentStateData{
-    std::vector<double> position;
-    std::vector<double> velocity;
-    std::vector<double> acceleration;
-    void resize(int n){
-        position.resize(n);
-        velocity.resize(n);
-        acceleration.resize(n);
-    }
 };
 
 /** Debug: Output parameters of the reflexxes OTG algorithm*/
@@ -233,44 +170,11 @@ struct ReflexxesOutputParameters{
         override_filter_is_active = false;
         trajectory_exceeds_target_position = false;
     }
-
-    void fromRMLTypes(const RMLOutputParameters& params){
-        memcpy(new_position_vector.data(), params.NewPositionVector->VecData, sizeof(double) * params.GetNumberOfDOFs());
-        memcpy(new_velocity_vector.data(), params.NewVelocityVector->VecData, sizeof(double) * params.GetNumberOfDOFs());
-        memcpy(new_acceleration_vector.data(), params.NewAccelerationVector->VecData, sizeof(double) * params.GetNumberOfDOFs());
-
-        memcpy(execution_times.data(), params.ExecutionTimes->VecData, sizeof(double) * params.GetNumberOfDOFs());
-
-        a_new_calculation_was_performed = params.ANewCalculationWasPerformed;
-        trajectory_is_phase_synchronized = params.TrajectoryIsPhaseSynchronized;
-        dof_with_greatest_execution_time = params.DOFWithTheGreatestExecutionTime;
-        synchronization_time = params.SynchronizationTime;
-
-#ifdef USING_REFLEXXES_TYPE_IV
-        override_filter_is_active = params.OverrideFilterIsActive;
-        current_override_value = params.CurrentOverrideValue;
-#endif
-    }
-
-    void fromRMLTypes(const RMLPositionOutputParameters &params){
-        fromRMLTypes((RMLOutputParameters&)params);
-#ifdef USING_REFLEXXES_TYPE_IV
-        trajectory_exceeds_target_position = params.TrajectoryExceedsTargetPosition;
-#endif
-    }
-
-    void fromRMLTypes(const RMLVelocityOutputParameters &params){
-        fromRMLTypes((RMLOutputParameters&)params);
-        memcpy(position_values_at_target_velocity.data(), params.PositionValuesAtTargetVelocity->VecData, sizeof(double) * params.GetNumberOfDOFs());
-    }
-
     std::vector<double> new_position_vector;
     std::vector<double> new_velocity_vector;
     std::vector<double> new_acceleration_vector;
-
     std::vector<double> execution_times;
     std::vector<double> position_values_at_target_velocity; /** Only RMLVelocity*/
-
     bool a_new_calculation_was_performed;
     bool trajectory_is_phase_synchronized;
     bool override_filter_is_active;   /** only reflexxes typeIV*/

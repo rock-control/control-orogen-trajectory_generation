@@ -21,15 +21,7 @@ void RMLPosition::updateMotionConstraints(const MotionConstraint& constraint,
 
     RMLPositionInputParameters* params = (RMLPositionInputParameters*)new_input_parameters;
 
-    constraint.validate(); // Check if constraints are ok, e.g. max.speed > 0 etc
 
-#ifdef USING_REFLEXXES_TYPE_IV
-    params->MaxPositionVector->VecData[idx] = constraint.max.position;
-    params->MinPositionVector->VecData[idx] = constraint.min.position;
-#endif
-    params->MaxVelocityVector->VecData[idx] = constraint.max.speed;
-    params->MaxAccelerationVector->VecData[idx] = constraint.max.acceleration;
-    params->MaxJerkVector->VecData[idx] = constraint.max_jerk;
 }
 
 void RMLPosition::updateTarget(const TargetData& target_vector,
@@ -37,13 +29,13 @@ void RMLPosition::updateTarget(const TargetData& target_vector,
 
     RMLPositionInputParameters* params = (RMLPositionInputParameters*)new_input_parameters;
 
-    int n_dof = params->NumberOfDOFs;
+    uint n_dof = params->NumberOfDOFs;
     memcpy(params->TargetPositionVector->VecData, target_vector.position.data(),         sizeof(double) * n_dof);
     memcpy(params->TargetVelocityVector->VecData, target_vector.velocity.data(),         sizeof(double) * n_dof);
     memcpy(params->SelectionVector->VecData,      target_vector.selection_vector.data(), n_dof);
 
 #ifdef USING_REFLEXXES_TYPE_IV
-    for(size_t i = 0; i < n_dof; i++){
+    for(uint i = 0; i < n_dof; i++){
         // Crop at limits if POSITIONAL_LIMITS_ACTIVELY_PREVENT is selected
         double pos =  params->TargetPositionVector->VecData[i];
         if(rml_flags->PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT){

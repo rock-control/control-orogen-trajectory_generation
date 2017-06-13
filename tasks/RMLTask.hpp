@@ -30,8 +30,6 @@ class RMLTask : public RMLTaskBase
 {
     friend class RMLTaskBase;
 protected:
-    TargetData target_vector;                    /** new target data from port*/
-    CurrentStateData current_state;              /** current position used for initialization of RML*/
     MotionConstraints motion_constraints;        /** Motion constraints that define the properties of the output trajectory*/
     ReflexxesAPI* rml_api;                       /** Interface to the Online Trajectory Generation algorithms of the Reflexxes Motion Libraries*/
     RMLInputParameters *rml_input_parameters;    /** Input parameters for the OTG algorithm (target, constraints, flags, ...).*/
@@ -49,18 +47,10 @@ protected:
                                          RMLInputParameters* new_input_parameters) = 0;
 
     /** Read the current state from port and return position and flow status*/
-    virtual RTT::FlowStatus getCurrentState(CurrentStateData& current_state) = 0;
-
-    /** Init the RML input parameters with the current position. Velocity and acceleration will be set to zero initially*/
-    void updateCurrentState(const CurrentStateData& current_state,
-                            RMLInputParameters* new_input_parameters);
-
-    /** Read target vector and return the flow status*/
-    virtual RTT::FlowStatus getTarget(TargetData& target_vector) = 0;
+    virtual RTT::FlowStatus updateCurrentState(RMLInputParameters* new_input_parameters) = 0;
 
     /** Update the RML input parameters with the new target */
-    virtual void updateTarget(const TargetData& target_vector,
-                              RMLInputParameters* new_input_parameters) = 0;
+    virtual RTT::FlowStatus updateTarget(RMLInputParameters* new_input_parameters) = 0;
 
     /** Perform one step of online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/
     virtual ReflexxesResultValue performOTG(RMLInputParameters* new_input_parameters,
@@ -74,27 +64,13 @@ protected:
     virtual void printParams(const RMLInputParameters& in, const RMLOutputParameters& out) = 0;
 
     /** Convert from RMLInputParameters to orogen type*/
-    virtual const ReflexxesInputParameters& fromRMLTypes(const RMLInputParameters &in, ReflexxesInputParameters& out) = 0;
+    virtual const ReflexxesInputParameters& convertRMLInputParams(const RMLInputParameters &in, ReflexxesInputParameters& out) = 0;
 
     /** Convert from RMLOutputParameters to orogen type*/
-    virtual const ReflexxesOutputParameters& fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out) = 0;
+    virtual const ReflexxesOutputParameters& convertRMLOutputParams(const RMLOutputParameters &in, ReflexxesOutputParameters& out) = 0;
 
     /** Handle result of the OTG algorithm. Handle errors.*/
     void handleResultValue(ReflexxesResultValue result_value);
-
-    base::Vector3d toEuler(const base::Orientation& orientation){
-        // We use yaw-pitch-roll (ZYX wrt. rotated coordinate system) convention here
-        return orientation.toRotationMatrix().eulerAngles(2,1,0);
-    }
-
-    base::Orientation fromEuler(const base::Vector3d& euler){
-        base::Quaterniond q;
-        // We use yaw-pitch-roll (ZYX wrt. rotated coordinate system) convention here
-        q = Eigen::AngleAxisd(euler(0), base::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(euler(1), base::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(euler(2), base::Vector3d::UnitZ());
-        return q;
-    }
 
 public:
     RMLTask(std::string const& name = "trajectory_generation::RMLTask");

@@ -58,23 +58,9 @@ task_context "RMLTask" do abstract
     periodic 0.01
 end
 
-# Position based implementation of RML.
-task_context "RMLPosition" do abstract
-    subclasses "RMLTask"
-end
-
-# Velocity based implementation of RML.
-task_context "RMLVelocity" do abstract
-    subclasses "RMLTask"
-    # Velocity reference timeout in seconds: If no new reference arrives for this amount of time, the target velocity will be set to zero.
-    property "no_reference_timeout", "double", 1.0
-    # Converts the output to position commands
-    property "convert_to_position", "bool", false
-end
-
 # Position implementation in joint space
 task_context "RMLPositionTask" do
-    subclasses "RMLPosition"
+    subclasses "RMLTask"
     # Current joint state. Must have vaild position entries. Has to contain all joint names configured in the motion_constraints property
     input_port "joint_state", "base/samples/Joints"
     # Target joint position. Must contain valid position and (optionally) speed entries. The given joint names have to be a subset of the
@@ -91,7 +77,11 @@ end
 
 # Velocity implementation in joint space
 task_context "RMLVelocityTask" do
-    subclasses "RMLVelocity"
+    subclasses "RMLTask"
+    # Velocity reference timeout in seconds: If no new reference arrives for this amount of time, the target velocity will be set to zero.
+    property "no_reference_timeout", "double", 1.0
+    # Converts the output to position commands
+    property "convert_to_position", "bool", false
     # Current joint state. Must have vaild position entries. Has to contain all joint names configured in the motion_constraints property
     input_port "joint_state", "base/samples/Joints"
     # Target joint position. Must contain valid speed entries. The given joint names have to be a subset of the
@@ -108,7 +98,7 @@ end
 
 # Position implementation in Cartesian space
 task_context "RMLCartesianPositionTask" do
-    subclasses "RMLPosition"
+    subclasses "RMLTask"
     # Current Cartesian state. Must have valid position/orientation entries!
     input_port "cartesian_state", "base/samples/RigidBodyState"
     # Target twist. Must have valid position/orientation and (optionally)velocity/angular_velocity entries!
@@ -121,7 +111,11 @@ end
 
 # Velocity implementation in Cartesian space
 task_context "RMLCartesianVelocityTask" do
-    subclasses "RMLVelocity"
+    subclasses "RMLTask"
+    # Velocity reference timeout in seconds: If no new reference arrives for this amount of time, the target velocity will be set to zero.
+    property "no_reference_timeout", "double", 1.0
+    # Converts the output to position commands
+    property "convert_to_position", "bool", false
     # Current Cartesian state. Must have valid position/orientation entries!
     input_port "cartesian_state", "base/samples/RigidBodyState"
     # Target twist. Must have valid velocity/angular_velocity entries!

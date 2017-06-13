@@ -1,6 +1,7 @@
 # Generated from orogen/lib/orogen/templates/tasks/CMakeLists.txt
 
 include(trajectory_generationTaskLib)
+set(TRAJECTORY_GENERATION_TASKLIB_SOURCES ${TRAJECTORY_GENERATION_TASKLIB_SOURCES} Conversions.cpp)
 ADD_LIBRARY(${TRAJECTORY_GENERATION_TASKLIB_NAME} SHARED 
     ${TRAJECTORY_GENERATION_TASKLIB_SOURCES})
 add_dependencies(${TRAJECTORY_GENERATION_TASKLIB_NAME}

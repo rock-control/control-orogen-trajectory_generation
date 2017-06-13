@@ -60,23 +60,19 @@ void RMLTask::updateHook(){
 
     RMLTaskBase::updateHook();
 
-    RTT::FlowStatus fs = getCurrentState(current_state);
+    RTT::FlowStatus fs = updateCurrentState(rml_input_parameters);
     if(fs == RTT::NoData){
         if(state() != NO_CURRENT_STATE)
             state(NO_CURRENT_STATE);
         return;
     }
-    else if (fs == RTT::NewData && rml_result_value == RML_NOT_INITIALIZED)
-        updateCurrentState(current_state, rml_input_parameters);
 
-    fs = getTarget(target_vector);
+    fs = updateTarget(rml_input_parameters);
     if(fs == RTT::NoData){
         if(state() != NO_TARGET)
             state(NO_TARGET);
         return;
     }
-    else if(fs == RTT::NewData)
-        updateTarget(target_vector, rml_input_parameters);
 
     if(state() == NO_TARGET || state() == NO_CURRENT_STATE)
         state(RUNNING);
@@ -87,8 +83,8 @@ void RMLTask::updateHook(){
     writeCommand(*rml_output_parameters);
 
     // write debug data
-    _rml_input_parameters.write(fromRMLTypes(*rml_input_parameters, input_parameters));
-    _rml_output_parameters.write(fromRMLTypes(*rml_output_parameters, output_parameters));
+    _rml_input_parameters.write(convertRMLInputParams(*rml_input_parameters, input_parameters));
+    _rml_output_parameters.write(convertRMLOutputParams(*rml_output_parameters, output_parameters));
     _computation_time.write((base::Time::now() - start_time).toSeconds());
 }
 
@@ -108,15 +104,6 @@ void RMLTask::cleanupHook(){
     delete rml_input_parameters;
     delete rml_output_parameters;
     delete rml_flags;
-}
-
-void RMLTask::updateCurrentState(const CurrentStateData& current_state,
-                                 RMLInputParameters* new_input_parameters){
-
-    int n_dof = new_input_parameters->NumberOfDOFs;
-    memcpy(new_input_parameters->CurrentPositionVector->VecData,     current_state.position.data(),     sizeof(double) * n_dof);
-    memcpy(new_input_parameters->CurrentVelocityVector->VecData,     current_state.velocity.data(),     sizeof(double) * n_dof);
-    memcpy(new_input_parameters->CurrentAccelerationVector->VecData, current_state.acceleration.data(), sizeof(double) * n_dof);
 }
 
 void RMLTask::handleResultValue(ReflexxesResultValue result_value){

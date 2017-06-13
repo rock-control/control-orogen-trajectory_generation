@@ -27,8 +27,8 @@ protected:
     virtual RTT::FlowStatus getTarget(TargetData& target_vector) = 0;
 
     /** Update the RML input parameters with the new target */
-    virtual void updateTarget(const TargetData& target_vector,
-                              RMLInputParameters* new_input_parameters);
+    virtual RTT::FlowStatus updateTarget(const TargetData& target_vector,
+                                         RMLInputParameters* new_input_parameters);
 
     /** Perform one step of online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/
     virtual ReflexxesResultValue performOTG(RMLInputParameters* new_input_parameters,
@@ -39,10 +39,10 @@ protected:
     virtual void printParams(const RMLInputParameters& in, const RMLOutputParameters& out);
 
     /** Convert from RMLInputParameters to orogen type*/
-    virtual const ReflexxesInputParameters& fromRMLTypes(const RMLInputParameters &in, ReflexxesInputParameters& out);
+    virtual const ReflexxesInputParameters& convertRMLInputParams(const RMLInputParameters &in, ReflexxesInputParameters& out);
 
     /** Convert from RMLOutputParameters to orogen type*/
-    virtual const ReflexxesOutputParameters& fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out);
+    virtual const ReflexxesOutputParameters& convertRMLOutputParams(const RMLOutputParameters &in, ReflexxesOutputParameters& out);
 
     /** Velocity watchdog: Throw if time_last_reference is bigger than timeout */
     void checkVelocityTimeout(const base::Time time_last_reference, const double timeout);

@@ -39,9 +39,6 @@ protected:
     /** Convert from RMLOutputParameters to orogen type*/
     virtual const ReflexxesOutputParameters& fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out);
 
-    /** Velocity watchdog: Throw if time_last_reference is bigger than timeout */
-    void checkVelocityTimeout(const base::Time time_last_reference, const double timeout);
-
 public:
     RMLPosition(std::string const& name = "trajectory_generation::RMLPosition") : RMLPositionBase(name){}
     RMLPosition(std::string const& name, RTT::ExecutionEngine* engine) : RMLPositionBase(name, engine){}
