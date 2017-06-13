@@ -17,10 +17,10 @@ RTT::FlowStatus RMLCartesianVelocityTask::getCurrentState(CurrentStateData &curr
 
         current_state.resize(6);
         base::Vector3d euler = toEuler(cartesian_state.orientation);
-        memcpy(current_state.position.data(),   cartesian_state.position.data(), sizeof(double)*3);
-        memcpy(current_state.position.data()+3, euler.data(),                    sizeof(double)*3);
-        memset(current_state.velocity,     0, sizeof(double)*6);
-        memset(current_state.acceleration, 0, sizeof(double)*6);
+        memcpy(current_state.position.data(),     cartesian_state.position.data(), sizeof(double)*3);
+        memcpy(current_state.position.data()+3,   euler.data(),                    sizeof(double)*3);
+        memset(current_state.velocity.data(),     0,                               sizeof(double)*6);
+        memset(current_state.acceleration.data(), 0,                               sizeof(double)*6);
 
         current_sample = cartesian_state;
     }

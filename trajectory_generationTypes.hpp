@@ -9,7 +9,6 @@
  */
 
 #include <base/commands/Joints.hpp>
-#include <base/samples/RigidBodyState.hpp>
 #include <base/NamedVector.hpp>
 #include <reflexxes/RMLPositionInputParameters.h>
 #include <reflexxes/RMLPositionOutputParameters.h>
@@ -265,7 +264,6 @@ struct ReflexxesOutputParameters{
         memcpy(position_values_at_target_velocity.data(), params.PositionValuesAtTargetVelocity->VecData, sizeof(double) * params.GetNumberOfDOFs());
     }
 
-
     std::vector<double> new_position_vector;
     std::vector<double> new_velocity_vector;
     std::vector<double> new_acceleration_vector;
@@ -281,6 +279,7 @@ struct ReflexxesOutputParameters{
     double current_override_value;   /** only reflexxes typeIV*/
     bool trajectory_exceeds_target_position; /** Only RMLPosition, only reflexxes typeIV*/
 };
+
 }
 
 #endif

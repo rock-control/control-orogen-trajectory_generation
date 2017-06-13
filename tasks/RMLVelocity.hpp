@@ -10,11 +10,11 @@ class RMLVelocity : public RMLVelocityBase
 {
     friend class RMLVelocityBase;
 
+protected:    
     double no_reference_timeout;
     base::Time time_of_last_reference;
     bool convert_to_position;
 
-protected:
     /** Update the motion constraints of a particular element*/
     virtual void updateMotionConstraints(const MotionConstraint& constraint,
                                          const size_t idx,

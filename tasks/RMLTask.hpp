@@ -6,6 +6,7 @@
 #include "trajectory_generation/RMLTaskBase.hpp"
 #include "trajectory_generationTypes.hpp"
 #include <reflexxes/ReflexxesAPI.h>
+#include <base/samples/RigidBodyState.hpp>
 
 /* TODOs (D.M, 2016/06/28):
  *
@@ -30,7 +31,7 @@ class RMLTask : public RMLTaskBase
     friend class RMLTaskBase;
 protected:
     TargetData target_vector;                    /** new target data from port*/
-    std::vector<double> current_position;        /** current position used for initialization of RML*/
+    CurrentStateData current_state;              /** current position used for initialization of RML*/
     MotionConstraints motion_constraints;        /** Motion constraints that define the properties of the output trajectory*/
     ReflexxesAPI* rml_api;                       /** Interface to the Online Trajectory Generation algorithms of the Reflexxes Motion Libraries*/
     RMLInputParameters *rml_input_parameters;    /** Input parameters for the OTG algorithm (target, constraints, flags, ...).*/
@@ -80,6 +81,20 @@ protected:
 
     /** Handle result of the OTG algorithm. Handle errors.*/
     void handleResultValue(ReflexxesResultValue result_value);
+
+    base::Vector3d toEuler(const base::Orientation& orientation){
+        // We use yaw-pitch-roll (ZYX wrt. rotated coordinate system) convention here
+        return orientation.toRotationMatrix().eulerAngles(2,1,0);
+    }
+
+    base::Orientation fromEuler(const base::Vector3d& euler){
+        base::Quaterniond q;
+        // We use yaw-pitch-roll (ZYX wrt. rotated coordinate system) convention here
+        q = Eigen::AngleAxisd(euler(0), base::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(euler(1), base::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(euler(2), base::Vector3d::UnitZ());
+        return q;
+    }
 
 public:
     RMLTask(std::string const& name = "trajectory_generation::RMLTask");

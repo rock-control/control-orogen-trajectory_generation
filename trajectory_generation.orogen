@@ -72,7 +72,8 @@ task_context "RMLVelocity" do abstract
     property "convert_to_position", "bool", false
 end
 
-task_context "RMLJointPositionTask" do
+# Position implementation in joint space
+task_context "RMLPositionTask" do
     subclasses "RMLPosition"
     # Current joint state. Must have vaild position entries. Has to contain all joint names configured in the motion_constraints property
     input_port "joint_state", "base/samples/Joints"
@@ -88,12 +89,8 @@ task_context "RMLJointPositionTask" do
     output_port "current_sample", "base/samples/Joints"
 end
 
-# For backward compatibility
-task_context "RMLPositionTask" do
-    subclasses "RMLJointPositionTask"
-end
-
-task_context "RMLJointVelocityTask" do
+# Velocity implementation in joint space
+task_context "RMLVelocityTask" do
     subclasses "RMLVelocity"
     # Current joint state. Must have vaild position entries. Has to contain all joint names configured in the motion_constraints property
     input_port "joint_state", "base/samples/Joints"
@@ -109,11 +106,7 @@ task_context "RMLJointVelocityTask" do
     output_port "current_sample", "base/samples/Joints"
 end
 
-# For backward compatibility
-task_context "RMLVelocityTask" do
-    subclasses "RMLJointVelocityTask"
-end
-
+# Position implementation in Cartesian space
 task_context "RMLCartesianPositionTask" do
     subclasses "RMLPosition"
     # Current Cartesian state. Must have valid position/orientation entries!
@@ -126,6 +119,7 @@ task_context "RMLCartesianPositionTask" do
     output_port "current_sample", "base/samples/RigidBodyState"
 end
 
+# Velocity implementation in Cartesian space
 task_context "RMLCartesianVelocityTask" do
     subclasses "RMLVelocity"
     # Current Cartesian state. Must have valid position/orientation entries!

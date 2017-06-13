@@ -7,7 +7,6 @@
 
 namespace trajectory_generation{
 
-/** Position based implementation of a Cartesian RML task. The given target has to have valid position entries. Velocity entries are optional.*/
 class RMLCartesianPositionTask : public RMLCartesianPositionTaskBase
 {
     friend class RMLCartesianPositionTaskBase;
@@ -16,6 +15,7 @@ class RMLCartesianPositionTask : public RMLCartesianPositionTaskBase
     base::samples::RigidBodyState current_sample;  /** From input port: Current Cartesian interpolator status (position/speed/acceleration)*/
     base::samples::RigidBodyState target;          /** From input port: Target Cartesian position or speed.  */
     base::samples::RigidBodyState command;         /** To output port: Commanded Cartesian position or speed.  */
+
 protected:
     /** Read the current state from port and return position and flow status*/
     virtual RTT::FlowStatus getCurrentState(CurrentStateData& current_state);

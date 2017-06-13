@@ -60,14 +60,14 @@ void RMLTask::updateHook(){
 
     RMLTaskBase::updateHook();
 
-    RTT::FlowStatus fs = getCurrentState(current_position);
+    RTT::FlowStatus fs = getCurrentState(current_state);
     if(fs == RTT::NoData){
         if(state() != NO_CURRENT_STATE)
             state(NO_CURRENT_STATE);
         return;
     }
     else if (fs == RTT::NewData && rml_result_value == RML_NOT_INITIALIZED)
-        setInitialState(current_position, rml_input_parameters);
+        updateCurrentState(current_state, rml_input_parameters);
 
     fs = getTarget(target_vector);
     if(fs == RTT::NoData){
@@ -110,120 +110,13 @@ void RMLTask::cleanupHook(){
     delete rml_flags;
 }
 
-void RMLTask::updateMotionConstraints(const MotionConstraint& constraint,
-                                      const size_t idx,
-                                      RMLPositionInputParameters* new_input_parameters){
-}
-
-void RMLTask::updateMotionConstraints(const MotionConstraint& constraint,
-                                      const size_t idx,
-                                      RMLVelocityInputParameters* new_input_parameters){
-    constraint.validate(); // Check if constraints are ok, e.g. max.speed > 0 etc
-
-#ifdef USING_REFLEXXES_TYPE_IV
-    new_input_parameters->MaxPositionVector->VecData[idx] = constraint.max.position;
-    new_input_parameters->MinPositionVector->VecData[idx] = constraint.min.position;
-#endif
-    new_input_parameters->MaxAccelerationVector->VecData[idx] = constraint.max.acceleration;
-    new_input_parameters->MaxJerkVector->VecData[idx] = constraint.max_jerk;
-}
-
-void RMLTask::setInitialState(const std::vector<double>& current_position,
-                              RMLInputParameters* new_input_parameters){
+void RMLTask::updateCurrentState(const CurrentStateData& current_state,
+                                 RMLInputParameters* new_input_parameters){
 
     int n_dof = new_input_parameters->NumberOfDOFs;
-    memcpy(new_input_parameters->CurrentPositionVector->VecData,     current_position.data(),  sizeof(double) * n_dof);
-    memset(new_input_parameters->CurrentVelocityVector->VecData,     0,                        sizeof(double) * n_dof);
-    memset(new_input_parameters->CurrentAccelerationVector->VecData, 0,                        sizeof(double) * n_dof);
-}
-
-void RMLTask::updateTarget(const TargetData& target_vector,
-                           RMLPositionInputParameters* new_input_parameters){
-
-    int n_dof = new_input_parameters->NumberOfDOFs;
-    memcpy(new_input_parameters->TargetPositionVector->VecData, target_vector.position.data(),         sizeof(double) * n_dof);
-    memcpy(new_input_parameters->TargetVelocityVector->VecData, target_vector.velocity.data(),         sizeof(double) * n_dof);
-    memcpy(new_input_parameters->SelectionVector->VecData,      target_vector.selection_vector.data(), n_dof);
-
-#ifdef USING_REFLEXXES_TYPE_IV
-    for(size_t i = 0; i < n_dof; i++){
-        // Crop at limits if POSITIONAL_LIMITS_ACTIVELY_PREVENT is selected
-        double pos =  new_input_parameters->TargetPositionVector->VecData[i];
-        if(rml_flags->PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT){
-            double max = new_input_parameters->MaxPositionVector->VecData[i] - 1e-10;
-            double min = new_input_parameters->MinPositionVector->VecData[i] + 1e-10;
-            new_input_parameters->TargetPositionVector->VecData[i] = std::max(std::min(max, pos), min);
-        }
-    }
-#endif
-
-    for(size_t i = 0; i < target_vector.constraints.size(); i++){
-        MotionConstraint constraint = target_vector.constraints[i];  // Get new motion constraint for target i
-        constraint.applyDefaultIfUnset(motion_constraints[i]);    // Use default entry if new constraints entries are unset
-        updateMotionConstraints(constraint, i, new_input_parameters);
-    }
-}
-
-void RMLTask::updateTarget(const TargetData& target_vector,
-                           RMLVelocityInputParameters* new_input_parameters){
-
-    int n_dof = new_input_parameters->NumberOfDOFs;
-    memcpy(new_input_parameters->TargetVelocityVector->VecData, target_vector.velocity.data(),         sizeof(double) * n_dof);
-    memcpy(new_input_parameters->SelectionVector->VecData,      target_vector.selection_vector.data(), sizeof(bool) * n_dof);
-
-#ifdef USING_REFLEXXES_TYPE_IV
-    for(size_t i = 0; i < n_dof; i++){
-        // If a joint is at a position limit, the target velocity is non-zero and pointing in direction of the limit, the sychronization time is
-        // computed by RML as if the constrained joint could move freely. This might lead to incorrect synchronization time for all other joints.
-        // Workaround: Set the target velocity to zero if (and only if) POSITIONAL_LIMITS_ACTIVELY_PREVENT is selected
-
-        if(rml_flags->PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT){
-            double cur_pos = new_input_parameters->CurrentPositionVector->VecData[i];
-            double target_vel = new_input_parameters->TargetVelocityVector->VecData[i];
-            double max_pos = new_input_parameters->MaxPositionVector->VecData[i];
-            double min_pos = new_input_parameters->MinPositionVector->VecData[i];
-
-            if( (target_vel*cycle_time + cur_pos > max_pos) || (target_vel*cycle_time + cur_pos < min_pos) )
-                new_input_parameters->TargetVelocityVector->VecData[i] = 0;
-        }
-    }
-#endif
-
-    for(size_t i = 0; i < target_vector.constraints.size(); i++){
-        MotionConstraint constraint = target_vector.constraints[i];  // Get new motion constraint for target i
-        constraint.applyDefaultIfUnset(motion_constraints[i]);    // Use default entry if new constraints entries are unset
-        updateMotionConstraints(constraint, i, new_input_parameters);
-    }
-}
-
-ReflexxesResultValue RMLTask::performOTG(RMLPositionInputParameters* new_input_parameters,
-                                         RMLPositionOutputParameters* new_output_parameters,
-                                         RMLPositionFlags *rml_flags){
-
-    int result = rml_api->RMLPosition( *new_input_parameters, new_output_parameters, *rml_flags );
-
-    // Always feed back the new state as the current state. This means that the current robot position
-    // is completely ignored. However, on a real robot, using the current position as input in RML will NOT work!
-    *new_input_parameters->CurrentPositionVector     = *new_output_parameters->NewPositionVector;
-    *new_input_parameters->CurrentVelocityVector     = *new_output_parameters->NewVelocityVector;
-    *new_input_parameters->CurrentAccelerationVector = *new_output_parameters->NewAccelerationVector;
-
-    return (ReflexxesResultValue)result;
-}
-
-ReflexxesResultValue RMLTask::performOTG(RMLVelocityInputParameters* new_input_parameters,
-                                         RMLVelocityOutputParameters* new_output_parameters,
-                                         RMLVelocityFlags *rml_flags){
-
-    int result = rml_api->RMLVelocity( *new_input_parameters, new_output_parameters, *rml_flags );
-
-    // Always feed back the new state as the current state. This means that the current robot position
-    // is completely ignored. However, on a real robot, using the current position as input in RML will NOT work!
-    *new_input_parameters->CurrentPositionVector     = *new_output_parameters->NewPositionVector;
-    *new_input_parameters->CurrentVelocityVector     = *new_output_parameters->NewVelocityVector;
-    *new_input_parameters->CurrentAccelerationVector = *new_output_parameters->NewAccelerationVector;
-
-    return (ReflexxesResultValue)result;
+    memcpy(new_input_parameters->CurrentPositionVector->VecData,     current_state.position.data(),     sizeof(double) * n_dof);
+    memcpy(new_input_parameters->CurrentVelocityVector->VecData,     current_state.velocity.data(),     sizeof(double) * n_dof);
+    memcpy(new_input_parameters->CurrentAccelerationVector->VecData, current_state.acceleration.data(), sizeof(double) * n_dof);
 }
 
 void RMLTask::handleResultValue(ReflexxesResultValue result_value){
