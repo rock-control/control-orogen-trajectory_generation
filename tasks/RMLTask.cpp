@@ -60,7 +60,7 @@ void RMLTask::updateHook(){
 
     RMLTaskBase::updateHook();
 
-    RTT::FlowStatus fs = getCurrentPosition(current_position);
+    RTT::FlowStatus fs = getCurrentState(current_position);
     if(fs == RTT::NoData){
         if(state() != NO_CURRENT_STATE)
             state(NO_CURRENT_STATE);
@@ -113,15 +113,6 @@ void RMLTask::cleanupHook(){
 void RMLTask::updateMotionConstraints(const MotionConstraint& constraint,
                                       const size_t idx,
                                       RMLPositionInputParameters* new_input_parameters){
-    constraint.validate(); // Check if constraints are ok, e.g. max.speed > 0 etc
-
-#ifdef USING_REFLEXXES_TYPE_IV
-    new_input_parameters->MaxPositionVector->VecData[idx] = constraint.max.position;
-    new_input_parameters->MinPositionVector->VecData[idx] = constraint.min.position;
-#endif
-    new_input_parameters->MaxVelocityVector->VecData[idx] = constraint.max.speed;
-    new_input_parameters->MaxAccelerationVector->VecData[idx] = constraint.max.acceleration;
-    new_input_parameters->MaxJerkVector->VecData[idx] = constraint.max_jerk;
 }
 
 void RMLTask::updateMotionConstraints(const MotionConstraint& constraint,
@@ -137,8 +128,8 @@ void RMLTask::updateMotionConstraints(const MotionConstraint& constraint,
     new_input_parameters->MaxJerkVector->VecData[idx] = constraint.max_jerk;
 }
 
-RTT::FlowStatus RMLTask::setInitialState(const std::vector<double>& current_position,
-                                         RMLInputParameters* new_input_parameters){
+void RMLTask::setInitialState(const std::vector<double>& current_position,
+                              RMLInputParameters* new_input_parameters){
 
     int n_dof = new_input_parameters->NumberOfDOFs;
     memcpy(new_input_parameters->CurrentPositionVector->VecData,     current_position.data(),  sizeof(double) * n_dof);
@@ -146,7 +137,7 @@ RTT::FlowStatus RMLTask::setInitialState(const std::vector<double>& current_posi
     memset(new_input_parameters->CurrentAccelerationVector->VecData, 0,                        sizeof(double) * n_dof);
 }
 
-void RMLTask::updateTarget(const TargetVector& target_vector,
+void RMLTask::updateTarget(const TargetData& target_vector,
                            RMLPositionInputParameters* new_input_parameters){
 
     int n_dof = new_input_parameters->NumberOfDOFs;
@@ -173,7 +164,7 @@ void RMLTask::updateTarget(const TargetVector& target_vector,
     }
 }
 
-void RMLTask::updateTarget(const TargetVector& target_vector,
+void RMLTask::updateTarget(const TargetData& target_vector,
                            RMLVelocityInputParameters* new_input_parameters){
 
     int n_dof = new_input_parameters->NumberOfDOFs;
@@ -273,13 +264,5 @@ void RMLTask::handleResultValue(ReflexxesResultValue result_value){
         error(RML_ERROR);
         break;
     }
-    }
-}
-
-void RMLTask::checkVelocityTimeout(const base::Time time_last_reference, const double timeout){
-    double t_diff = (base::Time::now() - time_last_reference).toSeconds();
-    if(!time_last_reference.isNull() && t_diff > timeout){
-        LOG_ERROR("Timeout: No new reference velocity arrived for %f seconds. Setting target velocity to zero.", t_diff);
-        throw std::runtime_error("Velocity reference timeout");
     }
 }

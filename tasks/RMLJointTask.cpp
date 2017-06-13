@@ -52,7 +52,7 @@ RTT::FlowStatus RMLJointTask::getCurrentPosition(std::vector<double> &current_po
 }
 
 
-RTT::FlowStatus RMLJointTask::getTarget(TargetVector& target_vector){
+RTT::FlowStatus RMLJointTask::getTarget(TargetData& target_vector){
     RTT::FlowStatus fs_target = _target.readNewest(target);
     RTT::FlowStatus fs_constr_target = _constrained_target.readNewest(target);
     if(fs_constr_target != RTT::NoData && fs_target != RTT::NoData)

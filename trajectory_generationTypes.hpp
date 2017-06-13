@@ -9,6 +9,7 @@
  */
 
 #include <base/commands/Joints.hpp>
+#include <base/samples/RigidBodyState.hpp>
 #include <base/NamedVector.hpp>
 #include <reflexxes/RMLPositionInputParameters.h>
 #include <reflexxes/RMLPositionOutputParameters.h>
@@ -193,7 +194,7 @@ struct ReflexxesInputParameters{
     double override_value; /** only reflexxes typeIV*/
 };
 
-struct TargetVector{
+struct TargetData{
     std::vector<double> position;
     std::vector<double> velocity;
     std::vector<uint>   selection_vector;
@@ -202,6 +203,17 @@ struct TargetVector{
         position.resize(n);
         velocity.resize(n);
         selection_vector.resize(n, false);
+    }
+};
+
+struct CurrentStateData{
+    std::vector<double> position;
+    std::vector<double> velocity;
+    std::vector<double> acceleration;
+    void resize(int n){
+        position.resize(n);
+        velocity.resize(n);
+        acceleration.resize(n);
     }
 };
 

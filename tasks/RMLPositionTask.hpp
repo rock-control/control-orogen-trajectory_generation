@@ -10,39 +10,11 @@ namespace trajectory_generation{
 class RMLPositionTask : public RMLPositionTaskBase
 {
     friend class RMLPositionTaskBase;
-
-protected:
-    /** Update the motion constraints of a particular element*/
-    void updateMotionConstraints(const MotionConstraint& constraint,
-                                 const size_t idx,
-                                 RMLInputParameters* new_input_parameters);
-
-    /** Perform one step of online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/
-    virtual ReflexxesResultValue performOTG(RMLInputParameters* new_input_parameters,
-                                            RMLOutputParameters* new_output_parameters,
-                                            RMLFlags *rml_flags);
-
-    /** Write the generated trajectory to port*/
-    virtual void writeCommand(const RMLOutputParameters& new_output_parameters);
-
-    /** Call echo() method for rml input and output parameters*/
-    virtual void printParams(const RMLInputParameters& in, const RMLOutputParameters& out);
-
-    /** Update the RML input parameters with the new target */
-    virtual void updateTarget(const TargetVector& target_vector,
-                              RMLInputParameters* new_input_parameters);
-
-    /** Convert from RMLInputParameters to orogen type*/
-    virtual const ReflexxesInputParameters& fromRMLTypes(const RMLInputParameters &in, ReflexxesInputParameters& out);
-
-    /** Convert from RMLOutputParameters to orogen type*/
-    virtual const ReflexxesOutputParameters& fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out);
-
 public:
-    RMLPositionTask(std::string const& name = "trajectory_generation::RMLPositionTask") : RMLPositionTaskBase(name){}
-    RMLPositionTask(std::string const& name, RTT::ExecutionEngine* engine) : RMLPositionTaskBase(name, engine){}
+    RMLPositionTask(std::string const& name = "trajectory_generation::RMLPositionTask");
+    RMLPositionTask(std::string const& name, RTT::ExecutionEngine* engine);
     ~RMLPositionTask(){}
-    bool configureHook();
+    bool configureHook(){return RMLPositionTaskBase::configureHook();}
     bool startHook(){return RMLPositionTaskBase::startHook();}
     void updateHook(){RMLPositionTaskBase::updateHook();}
     void errorHook(){RMLPositionTaskBase::errorHook();}

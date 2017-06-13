@@ -27,10 +27,10 @@ protected:
     virtual RTT::FlowStatus getCurrentPosition(std::vector<double> &current_position);
 
     /** Read target vector and return the flow status*/
-    virtual RTT::FlowStatus getTarget(TargetVector& target_vector);
+    virtual RTT::FlowStatus getTarget(TargetData& target_vector);
 
     /** Read a new target from port. If available, update the RML input parameters. Also return the flow state of the port. */
-    virtual void updateTarget(const TargetVector& target_vector,
+    virtual void updateTarget(const TargetData& target_vector,
                               RMLInputParameters* new_input_parameters) = 0;
 
     /** Perform one step of online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/

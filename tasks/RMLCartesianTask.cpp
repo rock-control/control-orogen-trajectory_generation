@@ -34,7 +34,7 @@ RTT::FlowStatus RMLCartesianTask::getCurrentPosition(std::vector<double>& curren
     return fs;
 }
 
-RTT::FlowStatus RMLCartesianTask::getTarget(TargetVector& target_vector){
+RTT::FlowStatus RMLCartesianTask::getTarget(TargetData& target_vector){
 
     RTT::FlowStatus fs = _target.readNewest(target);
     if(fs == RTT::NewData){

@@ -32,33 +32,25 @@ task_context "RMLTask" do abstract
     # These include the maximum/minimum position (only Reflexxes TypeIV), maximum maximum speed, maximum acceleration and maximum jerk
     # (derivative of acceleration, only Reflexxes TypeIV).
     property "motion_constraints", "trajectory_generation/MotionConstraints"
-
     # Cycle Time is seconds. IMPORTANT: This value has to match the period of the component. Default is 0.01 which matches the default period.
     property "cycle_time", "double", 0.01
-
     # Behaviour at the position limits (only reflexxes TypeIV!!!). Can be one of the following:
     #   - POSITIONAL_LIMITS_IGNORE: Positional limits are completely ignored
     #   - POSITIONAL_LIMITS_ERROR_MSG_ONLY: Component will go into error state if target is out of bounds
     #   - POSITIONAL_LIMITS_ACTIVELY_PREVENT: Reflexxes will provide a smooth transition at the bounds and avoid exceeding them
     # See reflexxes/RMLFlags.h for further details.
     property "positional_limits_behavior", "trajectory_generation/PositionalLimitsBehavior", :POSITIONAL_LIMITS_ACTIVELY_PREVENT
-
     # Synchronozation behavior for the different joints. Can be one of PHASE_SYNCHRONIZATION_IF_POSSIBLE, ONLY_TIME_SYNCHRONIZATION,
     # ONLY_PHASE_SYNCHRONIZATION and NO_SYNCHRONIZATION. See reflexxes/RMLFlags.h for details.
     property "synchronization_behavior", "RMLFlags/SyncBehaviorEnum", :PHASE_SYNCHRONIZATION_IF_POSSIBLE
-
     # Result value of the current call of the RML OTG Algorithm. See ReflexxesAPI.h for possible rml result values
     output_port "rml_result_value", "trajectory_generation/ReflexxesResultValue"
-
     # Debug: Parameters given as input to the current call of the RML OTG Algorithm
     output_port "rml_input_parameters", "trajectory_generation/ReflexxesInputParameters"
-
     # Debug: Output parameters of the current call of the RML OTG Algorithm.
     output_port "rml_output_parameters", "trajectory_generation/ReflexxesOutputParameters"
-
     # Debug: Computation time need for one cycle
     output_port "computation_time", "double"
-
     # Debug: Difference between two consecutive calls of updateHook(). Note that the value given on this port should match as closely as possible the configured cycle time.
     output_port "actual_cycle_time", "double"
 
@@ -66,100 +58,82 @@ task_context "RMLTask" do abstract
     periodic 0.01
 end
 
-# Abstract base class for a joint space RML implementation. Implemented by RMLPositionTask and RMLVelocityTask
-#
-task_context "RMLJointTask" do abstract
-
+# Position based implementation of RML.
+task_context "RMLPosition" do abstract
     subclasses "RMLTask"
+end
 
-    # Current joint state. Has to contains all joint names configured in the motion_constraints property. Joint indices
-    # will be mapped internally by name. The joint state will ONLY be considered at initialization, not at runtime.
+# Velocity based implementation of RML.
+task_context "RMLVelocity" do abstract
+    subclasses "RMLTask"
+    # Velocity reference timeout in seconds: If no new reference arrives for this amount of time, the target velocity will be set to zero.
+    property "no_reference_timeout", "double", 1.0
+    # Converts the output to position commands
+    property "convert_to_position", "bool", false
+end
+
+task_context "RMLJointPositionTask" do
+    subclasses "RMLPosition"
+    # Current joint state. Must have vaild position entries. Has to contain all joint names configured in the motion_constraints property
     input_port "joint_state", "base/samples/Joints"
-
-    # Target joint position or speed. The component will generate a trajectory to that position/speed, which complies with the motion constraints given by the
-    # motion_constraints property. The given joint names have to be a subset of the names in the motion_constraints property. Joint indices
-    # will be mapped internally by name.
+    # Target joint position. Must contain valid position and (optionally) speed entries. The given joint names have to be a subset of the
+    # names in the motion_constraints property.
     input_port "target", "base/commands/Joints"
-
-    # Target joint position/speed + new motion constraints. The component will generate a trajectory to that position/speed, which complies with the motion constraints given
-    # together with this command. If one of the new constraint values (e.g. max.position) is NaN, it will not be changed, so the default motion constraints given
-    # by the motion_constraints property apply.
+    # Target joint position/speed + new motion constraints.  If one of the new constraint values (e.g. max.position) is NaN, it will not be changed,
+    # so the default motion constraints given by the motion_constraints property apply.
     input_port "constrained_target", "trajectory_generation/ConstrainedJointsCmd"
-
-    # Output trajectory. The samples of the generated trajectory will be sent one by one. This port should be connected directly with your
-    # robots actuators. Your joint controllers have to make sure that this trajectory can be followed. Size and names of this command will
-    # be the same as in the motion_constraints property
+    # Output trajectory. Joint positions and velocities.
     output_port "command", "base/commands/Joints"
-
     # Debug: Current interpolator status (position/speed/acceleration)
     output_port "current_sample", "base/samples/Joints"
 end
 
-#
-# Position based implementation of RML. The given target has to have valid position and (optionally) speed entries. The output will be a
-# position trajectory with a trapezoidal acceleration profile. Note that a non-zero target speed will result in a motion, even
-# if the target position has already been reached.
-#
+# For backward compatibility
 task_context "RMLPositionTask" do
-    subclasses "RMLJointTask"
+    subclasses "RMLJointPositionTask"
 end
 
+task_context "RMLJointVelocityTask" do
+    subclasses "RMLVelocity"
+    # Current joint state. Must have vaild position entries. Has to contain all joint names configured in the motion_constraints property
+    input_port "joint_state", "base/samples/Joints"
+    # Target joint position. Must contain valid speed entries. The given joint names have to be a subset of the
+    # names in the motion_constraints property.
+    input_port "target", "base/commands/Joints"
+    # Target joint speed + new motion constraints.  If one of the new constraint values (e.g. max.position) is NaN, it will not be changed,
+    # so the default motion constraints given by the motion_constraints property apply.
+    input_port "constrained_target", "trajectory_generation/ConstrainedJointsCmd"
+    # Output trajectory. Joint velocities or positions if convert_to_position is set to true
+    output_port "command", "base/commands/Joints"
+    # Debug: Current interpolator status (position/speed/acceleration)
+    output_port "current_sample", "base/samples/Joints"
+end
 
-# Velocity based implementation of RML. The given target has to have valid speed entries, position has to be NaN! The output will be a
-# velocity trajectory with a trapezoidal acceleration profile, or, if convert_to_position is set to true, the velocity output
-# will be converted to position by simple integration.
-#
+# For backward compatibility
 task_context "RMLVelocityTask" do
-
-    subclasses "RMLJointTask"
-
-    # Velocity reference timeout in seconds: If no new reference arrives for this amount of time, the target velocity will be set to zero.
-    # Set this value to .inf to disable timeout.
-    property "no_reference_timeout", "double"
-
-    # Converts the output to position commands
-    property "convert_to_position", "bool", false
+    subclasses "RMLJointVelocityTask"
 end
 
-#
-# Abstract base class for a Cartesian space RML implementation. Implemented by RMLCartesianPositionTask and RMLCartesianVelocityTask
-#
-task_context "RMLCartesianTask" do abstract
-
-    subclasses "RMLTask"
-
-    # Current Cartesian state.
+task_context "RMLCartesianPositionTask" do
+    subclasses "RMLPosition"
+    # Current Cartesian state. Must have valid position/orientation entries!
     input_port "cartesian_state", "base/samples/RigidBodyState"
-
-    # Target Cartesian position or speed. The component will generate a trajectory to that position/speed, which complies with the motion constraints given by the
-    # motion_constraints property. Depending on the implementation, the position and/or velocity entries must have valid entries
+    # Target twist. Must have valid position/orientation and (optionally)velocity/angular_velocity entries!
     input_port "target", "base/samples/RigidBodyState"
-
-    # Output trajectory. The samples of the generated trajectory will be sent one by one. This port should be connected directly with your
-    # robots actuators. Your joint controllers have to make sure that this trajectory can be followed. Size and names of this command will
-    # be the same as in the motion_constraints property
+    # Output trajectory (cartesian poses and twists)
     output_port "command", "base/samples/RigidBodyState"
-
     # Debug: Current full output sample of interpolator (position/speed/acceleration)
     output_port "current_sample", "base/samples/RigidBodyState"
 end
 
-#
-# Position based implementation of a Cartesian RML task. The given target has to have valid position entries. Velocity entries are optional.
-#
-task_context "RMLCartesianPositionTask" do
-    subclasses "RMLCartesianTask"
-end
-
-#
-# Velocity based implementation of a Cartesian RML task. The given target has to have valid velocity entries.
-#
 task_context "RMLCartesianVelocityTask" do
-    subclasses "RMLCartesianTask"
-
-    # Velocity reference timeout in seconds: If no new reference arrives for this amount of time, the target velocity will be set to zero.
-    property "no_reference_timeout", "double", 1.0
-
-    # Converts the output to position commands
-    property "convert_to_position", "bool", false
+    subclasses "RMLVelocity"
+    # Current Cartesian state. Must have valid position/orientation entries!
+    input_port "cartesian_state", "base/samples/RigidBodyState"
+    # Target twist. Must have valid velocity/angular_velocity entries!
+    input_port "target", "base/samples/RigidBodyState"
+    # Output trajectory (cartesian twists, or poses if convert_to_position is set to true)
+    output_port "command", "base/samples/RigidBodyState"
+    # Debug: Current full output sample of interpolator (position/speed/acceleration)
+    output_port "current_sample", "base/samples/RigidBodyState"
 end

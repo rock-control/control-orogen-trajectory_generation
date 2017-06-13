@@ -5,31 +5,44 @@
 
 using namespace trajectory_generation;
 
-bool RMLCartesianPositionTask::configureHook(){
+RTT::FlowStatus RMLCartesianPositionTask::getCurrentState(CurrentStateData &current_state){
 
-    rml_flags = new RMLPositionFlags();
-    rml_input_parameters = new RMLPositionInputParameters(_motion_constraints.get().size());
-    rml_output_parameters = new RMLPositionOutputParameters(_motion_constraints.get().size());
+    RTT::FlowStatus fs = _cartesian_state.readNewest(cartesian_state);
+    if(fs == RTT::NewData){
 
-    if (! RMLCartesianPositionTaskBase::configureHook())
-        return false;
-    return true;
+        if(!cartesian_state.hasValidPosition() || !cartesian_state.hasValidOrientation()){
+            LOG_ERROR("Cartesian state has invalid position and/or orientation.");
+            throw std::invalid_argument("Invalid cartesian state");
+        }
+
+        current_state.resize(6);
+        base::Vector3d euler = toEuler(cartesian_state.orientation);
+        memcpy(current_state.position.data(),   cartesian_state.position.data(), sizeof(double)*3);
+        memcpy(current_state.position.data()+3, euler.data(),                    sizeof(double)*3);
+        memset(current_state.velocity,     0, sizeof(double)*6);
+        memset(current_state.acceleration, 0, sizeof(double)*6);
+
+        current_sample = cartesian_state;
+    }
+    if(fs != RTT::NoData){
+        current_sample.time = base::Time::now();
+        _current_sample.write(current_sample);
+    }
+    return fs;
 }
 
-void RMLCartesianPositionTask::updateMotionConstraints(const MotionConstraint& constraint,
-                                                       const size_t idx,
-                                                       RMLInputParameters* new_input_parameters){
+RTT::FlowStatus RMLCartesianPositionTask::getTarget(TargetData& target_vector){
 
-    updateMotionConstraints(constraint, idx, (RMLPositionInputParameters*)new_input_parameters);
-}
-
-ReflexxesResultValue RMLCartesianPositionTask::performOTG(RMLInputParameters* new_input_parameters,
-                                                          RMLOutputParameters* new_output_parameters,
-                                                          RMLFlags *rml_flags){
-
-    return performOTG((RMLPositionInputParameters*)new_input_parameters,
-                      (RMLPositionOutputParameters*)new_output_parameters,
-                      (RMLPositionFlags*)rml_flags);
+    RTT::FlowStatus fs = _target.readNewest(target);
+    if(fs == RTT::NewData){
+        base::Vector3d euler = toEuler(target.orientation);
+        memcpy(target_vector.position.data(),   target.position.data(),         sizeof(double) * 3);
+        memcpy(target_vector.position.data()+3, euler.data(),                   sizeof(double) * 3);
+        memcpy(target_vector.velocity.data(),   target.velocity.data(),         sizeof(double) * 3);
+        memcpy(target_vector.velocity.data()+3, target.angular_velocity.data(), sizeof(double) * 3);
+        memset(target_vector.selection_vector.data(), true, sizeof(double) * 6);
+    }
+    return fs;
 }
 
 void RMLCartesianPositionTask::writeCommand(const RMLOutputParameters& new_output_parameters){
@@ -49,58 +62,4 @@ void RMLCartesianPositionTask::writeCommand(const RMLOutputParameters& new_outpu
     command.sourceFrame = target.sourceFrame;
     command.targetFrame = target.targetFrame;
     _command.write(command);
-}
-
-void RMLCartesianPositionTask::printParams(const RMLInputParameters& in, const RMLOutputParameters& out){
-    ((RMLPositionInputParameters&  )in).Echo();
-    ((RMLPositionOutputParameters& )out).Echo();
-}
-
-void RMLCartesianPositionTask::updateTarget(const TargetVector& target_vector,
-                                            RMLInputParameters* new_input_parameters){
-    updateTarget(target_vector, (RMLPositionInputParameters*)new_input_parameters);
-}
-
-/*
-void RMLCartesianPositionTask::updateTarget(const base::samples::RigidBodyState& cmd,
-                                            RMLInputParameters* new_input_parameters){
-
-    if(!cmd.hasValidPosition() || !cmd.hasValidOrientation()){
-        LOG_ERROR("Target position and/or orientation is invalid");
-        throw std::invalid_argument("Invalid target");
-    }
-
-    RMLPositionInputParameters* params = (RMLPositionInputParameters*)new_input_parameters;
-
-    base::Vector3d euler = toEuler(cmd.orientation);
-
-    memset(params->SelectionVector->VecData,        true,                        sizeof(bool)  *6);
-    memcpy(params->TargetPositionVector->VecData,   cmd.position.data(),         sizeof(double)*3);
-    memcpy(params->TargetPositionVector->VecData+3, euler.data(),                sizeof(double)*3);
-    if(cmd.hasValidVelocity() && cmd.hasValidAngularVelocity()){
-        memcpy(params->TargetVelocityVector->VecData,   cmd.velocity.data(),         sizeof(double)*3);
-        memcpy(params->TargetVelocityVector->VecData+3, cmd.angular_velocity.data(), sizeof(double)*3);
-    }
-
-#ifdef USING_REFLEXXES_TYPE_IV
-    for(int i = 0; i < 6; i++){
-        // Crop at limits if POSITIONAL_LIMITS_ACTIVELY_PREVENT is selected
-        double pos = params->TargetPositionVector->VecData[i];
-        if(rml_flags->PositionalLimitsBehavior == RMLFlags::POSITIONAL_LIMITS_ACTIVELY_PREVENT){
-            double max = params->MaxPositionVector->VecData[i] - 1e-10;
-            double min = params->MinPositionVector->VecData[i] + 1e-10;
-            params->TargetPositionVector->VecData[i] = std::max(std::min(max, pos), min);
-        }
-#endif
-    }
-}*/
-
-const ReflexxesInputParameters& RMLCartesianPositionTask::fromRMLTypes(const RMLInputParameters &in, ReflexxesInputParameters& out){
-    out.fromRMLTypes((RMLPositionInputParameters&)in);
-    return out;
-}
-
-const ReflexxesOutputParameters& RMLCartesianPositionTask::fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out){
-    out.fromRMLTypes((RMLPositionOutputParameters&)in);
-    return out;
 }
