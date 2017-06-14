@@ -7,6 +7,10 @@
 using namespace trajectory_generation;
 
 bool RMLCartesianPositionTask::configureHook(){
+    if(_motion_constraints.get().size() != 6){
+        LOG_ERROR("Size of motion constraint must be 6, but is %i", _motion_constraints.get().size());
+        return false;
+    }
 
     rml_flags = new RMLPositionFlags();
     rml_input_parameters = new RMLPositionInputParameters(_motion_constraints.get().size());
@@ -21,7 +25,6 @@ bool RMLCartesianPositionTask::configureHook(){
 void RMLCartesianPositionTask::updateMotionConstraints(const MotionConstraint& constraint,
                                                        const size_t idx,
                                                        RMLInputParameters* new_input_parameters){
-
     motionConstraint2RmlTypes(constraint, idx, *(RMLPositionInputParameters*)new_input_parameters);
 }
 
@@ -29,17 +32,21 @@ RTT::FlowStatus RMLCartesianPositionTask::updateCurrentState(RMLInputParameters*
     RTT::FlowStatus fs = _cartesian_state.readNewest(cartesian_state);
     if(fs == RTT::NewData && rml_result_value == RML_NOT_INITIALIZED){
         cartesianState2RmlTypes(cartesian_state, *new_input_parameters);
-        current_sample = cartesian_state;
+        current_sample.sourceFrame = cartesian_state.sourceFrame;
+        current_sample.targetFrame = cartesian_state.targetFrame;
+        rmlTypes2CartesianState(*new_input_parameters, current_sample);
     }
-    if(fs != RTT::NoData)
+    if(fs != RTT::NoData){
+        current_sample.time = base::Time::now();
         _current_sample.write(current_sample);
+    }
     return fs;
 }
 
 RTT::FlowStatus RMLCartesianPositionTask::updateTarget(RMLInputParameters* new_input_parameters){
     RTT::FlowStatus fs = _target.readNewest(target);
     if(fs == RTT::NewData){
-        target2RmlTypes(target, *rml_flags, *(RMLPositionInputParameters*)new_input_parameters);
+        target2RmlTypes(target, *(RMLPositionInputParameters*)new_input_parameters);
 #ifdef USING_REFLEXXES_TYPE_IV
         // Crop at limits if POSITIONAL_LIMITS_ACTIVELY_PREVENT is selected, otherwise RML will throw a positional limits error
         if(rml_flags->PositionalLimitsBehavior == POSITIONAL_LIMITS_ACTIVELY_PREVENT)
@@ -68,7 +75,7 @@ ReflexxesResultValue RMLCartesianPositionTask::performOTG(RMLInputParameters* ne
 
 void RMLCartesianPositionTask::writeCommand(const RMLOutputParameters& new_output_parameters){
     rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, command);
-    rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, current_sample);
+    rmlTypes2CartesianState(*rml_input_parameters, current_sample);
     current_sample.time = command.time = base::Time::now();
     command.sourceFrame = target.sourceFrame;
     command.targetFrame = target.targetFrame;

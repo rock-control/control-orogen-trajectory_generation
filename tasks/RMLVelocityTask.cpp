@@ -7,7 +7,6 @@
 using namespace trajectory_generation;
 
 bool RMLVelocityTask::configureHook(){
-
     rml_flags = new RMLVelocityFlags();
     rml_input_parameters = new RMLVelocityInputParameters(_motion_constraints.get().size());
     rml_output_parameters = new RMLVelocityOutputParameters(_motion_constraints.get().size());
@@ -25,19 +24,20 @@ bool RMLVelocityTask::configureHook(){
 void RMLVelocityTask::updateMotionConstraints(const MotionConstraint& constraint,
                                               const size_t idx,
                                               RMLInputParameters* new_input_parameters){
-
     motionConstraint2RmlTypes(constraint, idx, *(RMLVelocityInputParameters*)new_input_parameters);
 }
 
 RTT::FlowStatus RMLVelocityTask::updateCurrentState(RMLInputParameters* new_input_parameters){
-
     RTT::FlowStatus fs = _joint_state.readNewest(joint_state);
     if(fs == RTT::NewData){
         jointState2RmlTypes(joint_state, motion_constraints.names, *new_input_parameters);
-        current_sample = joint_state;
+        current_sample.names = motion_constraints.names;
+        rmlTypes2JointState(*new_input_parameters, current_sample);
     }
-    if(fs != RTT::NoData)
+    if(fs != RTT::NoData){
+        current_sample.time = base::Time::now();
         _current_sample.write(current_sample);
+    }
     return fs;
 }
 
@@ -55,7 +55,8 @@ RTT::FlowStatus RMLVelocityTask::updateTarget(RMLInputParameters* new_input_para
         fs = fs_constr_target;
 
     if(fs == RTT::NewData){
-        target2RmlTypes(target, motion_constraints, *rml_flags, cycle_time, *(RMLVelocityInputParameters*)new_input_parameters);
+        target.validate();
+        target2RmlTypes(target, motion_constraints, *(RMLVelocityInputParameters*)new_input_parameters);
 #ifdef USING_REFLEXXES_TYPE_IV
         // Workaround: If an element is close to a position limit and the target velocity is pointing in direction of the limit, the sychronization time is computed by
         // reflexxes as if the constrained joint could move freely in the direction of the limit. This leads to incorrect synchronization time for all other elements.
@@ -89,7 +90,7 @@ void RMLVelocityTask::writeCommand(const RMLOutputParameters& new_output_paramet
         rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, command);
     else
         rmlTypes2Command((RMLVelocityOutputParameters&)new_output_parameters, command);
-    rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, current_sample);
+    rmlTypes2JointState(*rml_input_parameters, current_sample);
     current_sample.time = command.time = base::Time::now();
     command.names = motion_constraints.names;
     _command.write(command);

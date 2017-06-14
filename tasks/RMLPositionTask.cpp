@@ -7,7 +7,6 @@
 using namespace trajectory_generation;
 
 bool RMLPositionTask::configureHook(){
-
     rml_flags = new RMLPositionFlags();
     rml_input_parameters = new RMLPositionInputParameters(_motion_constraints.get().size());
     rml_output_parameters = new RMLPositionOutputParameters(_motion_constraints.get().size());
@@ -20,19 +19,20 @@ bool RMLPositionTask::configureHook(){
 void RMLPositionTask::updateMotionConstraints(const MotionConstraint& constraint,
                                               const size_t idx,
                                               RMLInputParameters* new_input_parameters){
-
     motionConstraint2RmlTypes(constraint, idx, *(RMLPositionInputParameters*)new_input_parameters);
 }
 
 RTT::FlowStatus RMLPositionTask::updateCurrentState(RMLInputParameters* new_input_parameters){
-
     RTT::FlowStatus fs = _joint_state.readNewest(joint_state);
-    if(fs == RTT::NewData){
+    if(fs == RTT::NewData && rml_result_value == RML_NOT_INITIALIZED){
         jointState2RmlTypes(joint_state, motion_constraints.names, *new_input_parameters);
-        current_sample = joint_state;
+        current_sample.names = motion_constraints.names;
+        rmlTypes2JointState(*new_input_parameters, current_sample);
     }
-    if(fs != RTT::NoData)
+    if(fs != RTT::NoData){
+        current_sample.time = base::Time::now();
         _current_sample.write(current_sample);
+    }
     return fs;
 }
 
@@ -50,7 +50,8 @@ RTT::FlowStatus RMLPositionTask::updateTarget(RMLInputParameters* new_input_para
         fs = fs_constr_target;
 
     if(fs == RTT::NewData){
-        target2RmlTypes(target, motion_constraints, *rml_flags, *(RMLPositionInputParameters*)new_input_parameters);
+        target.validate();
+        target2RmlTypes(target, motion_constraints, *(RMLPositionInputParameters*)new_input_parameters);
 #ifdef USING_REFLEXXES_TYPE_IV
         // Crop at limits if POSITIONAL_LIMITS_ACTIVELY_PREVENT is selected, otherwise RML will throw a positional limits error
         if(rml_flags->PositionalLimitsBehavior == POSITIONAL_LIMITS_ACTIVELY_PREVENT)
@@ -80,7 +81,7 @@ ReflexxesResultValue RMLPositionTask::performOTG(RMLInputParameters* new_input_p
 
 void RMLPositionTask::writeCommand(const RMLOutputParameters& new_output_parameters){
     rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, command);
-    rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, current_sample);
+    rmlTypes2JointState(*rml_input_parameters, current_sample);
     current_sample.time = command.time = base::Time::now();
     command.names = motion_constraints.names;
     _command.write(command);

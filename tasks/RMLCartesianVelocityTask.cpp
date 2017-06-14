@@ -7,6 +7,10 @@
 using namespace trajectory_generation;
 
 bool RMLCartesianVelocityTask::configureHook(){
+    if(_motion_constraints.get().size() != 6){
+        LOG_ERROR("Size of motion constraint must be 6, but is %i", _motion_constraints.get().size());
+        return false;
+    }
 
     rml_flags = new RMLVelocityFlags();
     rml_input_parameters = new RMLVelocityInputParameters(_motion_constraints.get().size());
@@ -25,12 +29,10 @@ bool RMLCartesianVelocityTask::configureHook(){
 void RMLCartesianVelocityTask::updateMotionConstraints(const MotionConstraint& constraint,
                                                        const size_t idx,
                                                        RMLInputParameters* new_input_parameters){
-
     motionConstraint2RmlTypes(constraint, idx, *(RMLVelocityInputParameters*)new_input_parameters);
 }
 
 RTT::FlowStatus RMLCartesianVelocityTask::updateCurrentState(RMLInputParameters* new_input_parameters){
-
     RTT::FlowStatus fs = _cartesian_state.readNewest(cartesian_state);
     if(fs == RTT::NewData && rml_result_value == RML_NOT_INITIALIZED){
         cartesianState2RmlTypes(cartesian_state, *new_input_parameters);
@@ -44,7 +46,7 @@ RTT::FlowStatus RMLCartesianVelocityTask::updateCurrentState(RMLInputParameters*
 RTT::FlowStatus RMLCartesianVelocityTask::updateTarget(RMLInputParameters* new_input_parameters){
     RTT::FlowStatus fs = _target.readNewest(target);
     if(fs == RTT::NewData){
-        target2RmlTypes(target, *rml_flags, cycle_time, *(RMLVelocityInputParameters*)new_input_parameters);
+        target2RmlTypes(target, *(RMLVelocityInputParameters*)new_input_parameters);
 #ifdef USING_REFLEXXES_TYPE_IV
         // Workaround: If an element is close to a position limit and the target velocity is pointing in direction of the limit, the sychronization time is computed by
         // reflexxes as if the constrained joint could move freely in the direction of the limit. This leads to incorrect synchronization time for all other elements.
