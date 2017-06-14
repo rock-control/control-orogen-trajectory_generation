@@ -28,6 +28,10 @@ bool RMLTask::configureHook(){
     }
 
     motion_constraints = _motion_constraints.get();
+    if(motion_constraints.size() != motion_constraints.names.size()){
+        LOG_ERROR("Number of elements in motion constraints must be same as size of the names vector");
+        return false;
+    }
     for(size_t i = 0; i < motion_constraints.size(); i++)
         updateMotionConstraints(motion_constraints[i], i, rml_input_parameters);
 

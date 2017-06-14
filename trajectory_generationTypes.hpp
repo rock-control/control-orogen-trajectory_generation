@@ -85,12 +85,10 @@ struct MotionConstraints : base::NamedVector<MotionConstraint>{
 struct ConstrainedJointsCmd : public base::commands::Joints{
     std::vector<MotionConstraint> motion_constraints;
     void validate() const{
-
         if(names.size() != size())
-            throw std::invalid_argument("ConstrainedJointCmd: Size of name vector should be same as element vector");
-
+            throw std::invalid_argument("Invalid target: Size of name vector should be same as element vector");
         if(!motion_constraints.empty() && motion_constraints.size() != size())
-            throw std::invalid_argument("ConstrainedJointCmd: Motion constraints need to have same size as joint command or empty");
+            throw std::invalid_argument("Invalid target: If not empty, motion constraints must have same size as target element vector");
     }
 };
 

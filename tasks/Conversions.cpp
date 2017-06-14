@@ -86,7 +86,7 @@ void jointState2RmlTypes(const base::samples::Joints& joint_state, const std::ve
             params.CurrentVelocityVector->VecData[i]     = 0;
             params.CurrentAccelerationVector->VecData[i] = 0;
         }
-        catch(base::commands::Joints::InvalidName e){
+        catch(std::runtime_error e){
             LOG_ERROR("Element %s has been configured in motion constraints, but is not available in joint state", names[i].c_str());
             throw e;
         }
@@ -188,8 +188,8 @@ void target2RmlTypes(const ConstrainedJointsCmd& target, const MotionConstraints
                 motionConstraint2RmlTypes(constraint, idx, params);
             }
         }
-        catch(base::commands::Joints::InvalidName e){
-            LOG_ERROR("Joint %s is in target vector but has not been configured in motion constraints", target.names[i].c_str());
+        catch(std::runtime_error e){
+            LOG_ERROR("Joint '%s' is in target vector but has not been configured in motion constraints", target.names[i].c_str());
             throw e;
         }
     }
@@ -208,8 +208,8 @@ void target2RmlTypes(const ConstrainedJointsCmd& target, const MotionConstraints
                 motionConstraint2RmlTypes(constraint, idx, params);
             }
         }
-        catch(base::commands::Joints::InvalidName e){
-            LOG_ERROR("Joint %s is in target vector but has not been configured in motion constraints", target.names[i].c_str());
+        catch(std::runtime_error e){
+            LOG_ERROR("Joint '%s' is in target vector but has not been configured in motion constraints", target.names[i].c_str());
             throw e;
         }
     }
@@ -232,7 +232,7 @@ void target2RmlTypes(const base::samples::RigidBodyState& target, RMLVelocityInp
 
 void target2RmlTypes(const double target_pos, const double target_vel, const uint idx, RMLPositionInputParameters& params){
     if(base::isNaN(target_pos)){
-        LOG_ERROR("Element %i of target has no valid position!");
+        LOG_ERROR("Element %i of target has no valid position!", idx);
         throw std::invalid_argument("Invalid target");
     }
     params.SelectionVector->VecData[idx]      = true;
