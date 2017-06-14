@@ -77,9 +77,15 @@ struct MotionConstraint{
     }
 };
 
+/** For backward compatibility */
+typedef MotionConstraint JointMotionConstraints;
+
 /** Named vector of MotionConstraints, i.e. motion constraints for all the joints of a robot*/
 struct MotionConstraints : base::NamedVector<MotionConstraint>{
 };
+
+/** For backward compatibility */
+typedef MotionConstraints JointsMotionConstraints;
 
 /** Named vector of Joints command with motion constraints, i.e. constrained commands for all the joints of a robot*/
 struct ConstrainedJointsCmd : public base::commands::Joints{
