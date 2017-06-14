@@ -26,13 +26,14 @@ void RMLCartesianVelocityTask::updateMotionConstraints(const MotionConstraint& c
                                                        const size_t idx,
                                                        RMLInputParameters* new_input_parameters){
 
-    toRMLTypes(constraint, idx, *(RMLVelocityInputParameters*)new_input_parameters);
+    motionConstraint2RmlTypes(constraint, idx, *(RMLVelocityInputParameters*)new_input_parameters);
 }
 
 RTT::FlowStatus RMLCartesianVelocityTask::updateCurrentState(RMLInputParameters* new_input_parameters){
+
     RTT::FlowStatus fs = _cartesian_state.readNewest(cartesian_state);
     if(fs == RTT::NewData && rml_result_value == RML_NOT_INITIALIZED){
-        toRMLTypes(cartesian_state, *new_input_parameters);
+        cartesianState2RmlTypes(cartesian_state, *new_input_parameters);
         current_sample = cartesian_state;
     }
     if(fs != RTT::NoData)
@@ -42,8 +43,16 @@ RTT::FlowStatus RMLCartesianVelocityTask::updateCurrentState(RMLInputParameters*
 
 RTT::FlowStatus RMLCartesianVelocityTask::updateTarget(RMLInputParameters* new_input_parameters){
     RTT::FlowStatus fs = _target.readNewest(target);
-    if(fs == RTT::NewData)
-        toRMLTypes(target, *(RMLVelocityInputParameters*)new_input_parameters);
+    if(fs == RTT::NewData){
+        target2RmlTypes(target, *rml_flags, cycle_time, *(RMLVelocityInputParameters*)new_input_parameters);
+#ifdef USING_REFLEXXES_TYPE_IV
+        // Workaround: If an element is close to a position limit and the target velocity is pointing in direction of the limit, the sychronization time is computed by
+        // reflexxes as if the constrained joint could move freely in the direction of the limit. This leads to incorrect synchronization time for all other elements.
+        // Set the target velocity to zero in this case!
+        if(rml_flags->PositionalLimitsBehavior == POSITIONAL_LIMITS_ACTIVELY_PREVENT)
+            fixRmlSynchronizationBug(cycle_time, *(RMLVelocityInputParameters*)new_input_parameters);
+#endif
+    }
     return fs;
 }
 
@@ -52,7 +61,7 @@ ReflexxesResultValue RMLCartesianVelocityTask::performOTG(RMLInputParameters* ne
                                                           RMLFlags *rml_flags){
 
     int result = rml_api->RMLVelocity(*(RMLVelocityInputParameters*)new_input_parameters,
-                                       (RMLVelocityOutputParameters*)new_output_parameters,
+                                      (RMLVelocityOutputParameters*)new_output_parameters,
                                       *(RMLVelocityFlags*)rml_flags );
 
     // Always feed back the new state as the current state. This means that the current robot position
@@ -66,10 +75,10 @@ ReflexxesResultValue RMLCartesianVelocityTask::performOTG(RMLInputParameters* ne
 
 void RMLCartesianVelocityTask::writeCommand(const RMLOutputParameters& new_output_parameters){
     if(convert_to_position)
-        fromRMLTypes((RMLPositionOutputParameters&)new_output_parameters, command);
+        rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, command);
     else
-        fromRMLTypes((RMLVelocityOutputParameters&)new_output_parameters, command);
-    fromRMLTypes((RMLPositionOutputParameters&)new_output_parameters, current_sample);
+        rmlTypes2Command((RMLVelocityOutputParameters&)new_output_parameters, command);
+    rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, current_sample);
     current_sample.time = command.time = base::Time::now();
     command.sourceFrame = target.sourceFrame;
     command.targetFrame = target.targetFrame;
@@ -82,11 +91,11 @@ void RMLCartesianVelocityTask::printParams(const RMLInputParameters& in, const R
 }
 
 const ReflexxesInputParameters& RMLCartesianVelocityTask::convertRMLInputParams(const RMLInputParameters &in, ReflexxesInputParameters& out){
-    fromRMLTypes((RMLVelocityInputParameters&)in, out);
+    rmlTypes2InputParams((RMLVelocityInputParameters&)in, out);
     return out;
 }
 
 const ReflexxesOutputParameters& RMLCartesianVelocityTask::convertRMLOutputParams(const RMLOutputParameters &in, ReflexxesOutputParameters& out){
-    fromRMLTypes((RMLVelocityOutputParameters&)in, out);
+    rmlTypes2OutputParams((RMLVelocityOutputParameters&)in, out);
     return out;
 }

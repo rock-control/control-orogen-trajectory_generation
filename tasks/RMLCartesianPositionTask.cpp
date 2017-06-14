@@ -21,13 +21,14 @@ bool RMLCartesianPositionTask::configureHook(){
 void RMLCartesianPositionTask::updateMotionConstraints(const MotionConstraint& constraint,
                                                        const size_t idx,
                                                        RMLInputParameters* new_input_parameters){
-    toRMLTypes(constraint, idx, *(RMLPositionInputParameters*)new_input_parameters);
+
+    motionConstraint2RmlTypes(constraint, idx, *(RMLPositionInputParameters*)new_input_parameters);
 }
 
 RTT::FlowStatus RMLCartesianPositionTask::updateCurrentState(RMLInputParameters* new_input_parameters){
     RTT::FlowStatus fs = _cartesian_state.readNewest(cartesian_state);
     if(fs == RTT::NewData && rml_result_value == RML_NOT_INITIALIZED){
-        toRMLTypes(cartesian_state, *new_input_parameters);
+        cartesianState2RmlTypes(cartesian_state, *new_input_parameters);
         current_sample = cartesian_state;
     }
     if(fs != RTT::NoData)
@@ -37,8 +38,14 @@ RTT::FlowStatus RMLCartesianPositionTask::updateCurrentState(RMLInputParameters*
 
 RTT::FlowStatus RMLCartesianPositionTask::updateTarget(RMLInputParameters* new_input_parameters){
     RTT::FlowStatus fs = _target.readNewest(target);
-    if(fs == RTT::NewData)
-        toRMLTypes(target, *(RMLPositionInputParameters*)new_input_parameters);
+    if(fs == RTT::NewData){
+        target2RmlTypes(target, *rml_flags, *(RMLPositionInputParameters*)new_input_parameters);
+#ifdef USING_REFLEXXES_TYPE_IV
+        // Crop at limits if POSITIONAL_LIMITS_ACTIVELY_PREVENT is selected, otherwise RML will throw a positional limits error
+        if(rml_flags->PositionalLimitsBehavior == POSITIONAL_LIMITS_ACTIVELY_PREVENT)
+            cropTargetAtPositionLimits(*(RMLPositionInputParameters*)new_input_parameters);
+#endif
+    }
     return fs;
 }
 
@@ -60,8 +67,8 @@ ReflexxesResultValue RMLCartesianPositionTask::performOTG(RMLInputParameters* ne
 }
 
 void RMLCartesianPositionTask::writeCommand(const RMLOutputParameters& new_output_parameters){
-    fromRMLTypes((RMLPositionOutputParameters&)new_output_parameters, command);
-    fromRMLTypes((RMLPositionOutputParameters&)new_output_parameters, current_sample);
+    rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, command);
+    rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, current_sample);
     current_sample.time = command.time = base::Time::now();
     command.sourceFrame = target.sourceFrame;
     command.targetFrame = target.targetFrame;
@@ -74,11 +81,11 @@ void RMLCartesianPositionTask::printParams(const RMLInputParameters& in, const R
 }
 
 const ReflexxesInputParameters& RMLCartesianPositionTask::convertRMLInputParams(const RMLInputParameters &in, ReflexxesInputParameters& out){
-    fromRMLTypes((RMLPositionInputParameters&)in, out);
+    rmlTypes2InputParams((RMLPositionInputParameters&)in, out);
     return out;
 }
 
 const ReflexxesOutputParameters& RMLCartesianPositionTask::convertRMLOutputParams(const RMLOutputParameters &in, ReflexxesOutputParameters& out){
-    fromRMLTypes((RMLPositionOutputParameters&)in, out);
+    rmlTypes2OutputParams((RMLPositionOutputParameters&)in, out);
     return out;
 }

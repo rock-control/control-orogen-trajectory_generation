@@ -26,14 +26,14 @@ void RMLVelocityTask::updateMotionConstraints(const MotionConstraint& constraint
                                               const size_t idx,
                                               RMLInputParameters* new_input_parameters){
 
-    toRMLTypes(constraint, idx, *(RMLVelocityInputParameters*)new_input_parameters);
+    motionConstraint2RmlTypes(constraint, idx, *(RMLVelocityInputParameters*)new_input_parameters);
 }
 
 RTT::FlowStatus RMLVelocityTask::updateCurrentState(RMLInputParameters* new_input_parameters){
 
     RTT::FlowStatus fs = _joint_state.readNewest(joint_state);
     if(fs == RTT::NewData){
-        toRMLTypes(joint_state, motion_constraints.names, *new_input_parameters);
+        jointState2RmlTypes(joint_state, motion_constraints.names, *new_input_parameters);
         current_sample = joint_state;
     }
     if(fs != RTT::NoData)
@@ -54,8 +54,17 @@ RTT::FlowStatus RMLVelocityTask::updateTarget(RMLInputParameters* new_input_para
     else if(fs_constr_target != RTT::NoData)
         fs = fs_constr_target;
 
-    if(fs == RTT::NewData)
-        toRMLTypes(target, *(RMLVelocityInputParameters*)new_input_parameters);
+    if(fs == RTT::NewData){
+        target2RmlTypes(target, motion_constraints, *rml_flags, cycle_time, *(RMLVelocityInputParameters*)new_input_parameters);
+#ifdef USING_REFLEXXES_TYPE_IV
+        // Workaround: If an element is close to a position limit and the target velocity is pointing in direction of the limit, the sychronization time is computed by
+        // reflexxes as if the constrained joint could move freely in the direction of the limit. This leads to incorrect synchronization time for all other elements.
+        // Set the target velocity to zero in this case!
+        if(rml_flags->PositionalLimitsBehavior == POSITIONAL_LIMITS_ACTIVELY_PREVENT)
+            fixRmlSynchronizationBug(cycle_time, *(RMLVelocityInputParameters*)new_input_parameters);
+#endif
+    }
+
 
     return fs;
 }
@@ -77,12 +86,11 @@ ReflexxesResultValue RMLVelocityTask::performOTG(RMLInputParameters* new_input_p
 
 void RMLVelocityTask::writeCommand(const RMLOutputParameters& new_output_parameters){
     if(convert_to_position)
-        fromRMLTypes((RMLPositionOutputParameters&)new_output_parameters, command);
+        rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, command);
     else
-        fromRMLTypes((RMLVelocityOutputParameters&)new_output_parameters, command);
-    fromRMLTypes((RMLPositionOutputParameters&)new_output_parameters, current_sample);
-    current_sample.time = base::Time::now();
-    command.time = base::Time::now();
+        rmlTypes2Command((RMLVelocityOutputParameters&)new_output_parameters, command);
+    rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, current_sample);
+    current_sample.time = command.time = base::Time::now();
     command.names = motion_constraints.names;
     _command.write(command);
 }
@@ -93,11 +101,11 @@ void RMLVelocityTask::printParams(const RMLInputParameters& in, const RMLOutputP
 }
 
 const ReflexxesInputParameters& RMLVelocityTask::convertRMLInputParams(const RMLInputParameters &in, ReflexxesInputParameters& out){
-    fromRMLTypes((RMLVelocityInputParameters&)in, out);
+    rmlTypes2InputParams((RMLVelocityInputParameters&)in, out);
     return out;
 }
 
 const ReflexxesOutputParameters& RMLVelocityTask::convertRMLOutputParams(const RMLOutputParameters &in, ReflexxesOutputParameters& out){
-    fromRMLTypes((RMLVelocityOutputParameters&)in, out);
+    rmlTypes2OutputParams((RMLVelocityOutputParameters&)in, out);
     return out;
 }

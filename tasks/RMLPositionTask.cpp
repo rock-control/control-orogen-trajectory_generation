@@ -21,14 +21,14 @@ void RMLPositionTask::updateMotionConstraints(const MotionConstraint& constraint
                                               const size_t idx,
                                               RMLInputParameters* new_input_parameters){
 
-    toRMLTypes(constraint, idx, *(RMLPositionInputParameters*)new_input_parameters);
+    motionConstraint2RmlTypes(constraint, idx, *(RMLPositionInputParameters*)new_input_parameters);
 }
 
 RTT::FlowStatus RMLPositionTask::updateCurrentState(RMLInputParameters* new_input_parameters){
 
     RTT::FlowStatus fs = _joint_state.readNewest(joint_state);
     if(fs == RTT::NewData){
-        toRMLTypes(joint_state, motion_constraints.names, *new_input_parameters);
+        jointState2RmlTypes(joint_state, motion_constraints.names, *new_input_parameters);
         current_sample = joint_state;
     }
     if(fs != RTT::NoData)
@@ -49,8 +49,14 @@ RTT::FlowStatus RMLPositionTask::updateTarget(RMLInputParameters* new_input_para
     else if(fs_constr_target != RTT::NoData)
         fs = fs_constr_target;
 
-    if(fs == RTT::NewData)
-        toRMLTypes(target, *(RMLPositionInputParameters*)new_input_parameters);
+    if(fs == RTT::NewData){
+        target2RmlTypes(target, motion_constraints, *rml_flags, *(RMLPositionInputParameters*)new_input_parameters);
+#ifdef USING_REFLEXXES_TYPE_IV
+        // Crop at limits if POSITIONAL_LIMITS_ACTIVELY_PREVENT is selected, otherwise RML will throw a positional limits error
+        if(rml_flags->PositionalLimitsBehavior == POSITIONAL_LIMITS_ACTIVELY_PREVENT)
+            cropTargetAtPositionLimits(*(RMLPositionInputParameters*)new_input_parameters);
+#endif
+    }
 
     return fs;
 }
@@ -73,10 +79,9 @@ ReflexxesResultValue RMLPositionTask::performOTG(RMLInputParameters* new_input_p
 }
 
 void RMLPositionTask::writeCommand(const RMLOutputParameters& new_output_parameters){
-    fromRMLTypes((RMLPositionOutputParameters&)new_output_parameters, command);
-    fromRMLTypes((RMLPositionOutputParameters&)new_output_parameters, current_sample);
-    current_sample.time = base::Time::now();
-    command.time = base::Time::now();
+    rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, command);
+    rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, current_sample);
+    current_sample.time = command.time = base::Time::now();
     command.names = motion_constraints.names;
     _command.write(command);
 }
@@ -87,11 +92,11 @@ void RMLPositionTask::printParams(const RMLInputParameters& in, const RMLOutputP
 }
 
 const ReflexxesInputParameters& RMLPositionTask::convertRMLInputParams(const RMLInputParameters &in, ReflexxesInputParameters& out){
-    fromRMLTypes((RMLPositionInputParameters&)in, out);
+    rmlTypes2InputParams((RMLPositionInputParameters&)in, out);
     return out;
 }
 
 const ReflexxesOutputParameters& RMLPositionTask::convertRMLOutputParams(const RMLOutputParameters &in, ReflexxesOutputParameters& out){
-    fromRMLTypes((RMLPositionOutputParameters&)in, out);
+    rmlTypes2OutputParams((RMLPositionOutputParameters&)in, out);
     return out;
 }

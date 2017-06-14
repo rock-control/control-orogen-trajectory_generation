@@ -3,21 +3,21 @@
 
 namespace trajectory_generation{
 
-base::Vector3d toEuler(const base::Orientation& orientation){
+base::Vector3d quaternion2Euler(const base::Orientation& orientation){
     // We use yaw-pitch-roll (ZYX wrt. rotated coordinate system) convention here
     return orientation.toRotationMatrix().eulerAngles(2,1,0);
 }
 
-base::Orientation fromEuler(const base::Vector3d& euler){
+base::Orientation euler2Quaternion(const base::Vector3d& euler){
     base::Quaterniond q;
     // We use yaw-pitch-roll (ZYX wrt. rotated coordinate system) convention here
     q = Eigen::AngleAxisd(euler(0), base::Vector3d::UnitZ()) *
-        Eigen::AngleAxisd(euler(1), base::Vector3d::UnitY()) *
-        Eigen::AngleAxisd(euler(2), base::Vector3d::UnitZ());
+            Eigen::AngleAxisd(euler(1), base::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(euler(2), base::Vector3d::UnitZ());
     return q;
 }
 
-void fromRMLTypes(const RMLInputParameters &in, ReflexxesInputParameters& out){
+void rmlTypes2InputParams(const RMLInputParameters &in, ReflexxesInputParameters& out){
     uint n_dof = in.GetNumberOfDOFs();;
     memcpy(out.selection_vector.data(),                in.SelectionVector->VecData,           sizeof(bool)   * n_dof);
     memcpy(out.current_position_vector.data(),             in.CurrentPositionVector->VecData,     sizeof(double) * n_dof);
@@ -34,18 +34,18 @@ void fromRMLTypes(const RMLInputParameters &in, ReflexxesInputParameters& out){
 #endif
 }
 
-void fromRMLTypes(const RMLPositionInputParameters &in, ReflexxesInputParameters& out){
+void rmlTypes2InputParams(const RMLPositionInputParameters &in, ReflexxesInputParameters& out){
     uint n_dof = in.GetNumberOfDOFs();;
-    fromRMLTypes((RMLInputParameters&)in, out);
+    rmlTypes2InputParams((RMLInputParameters&)in, out);
     memcpy(out.max_velocity_vector.data(),    in.MaxVelocityVector->VecData,    sizeof(double) * n_dof);
     memcpy(out.target_position_vector.data(), in.TargetPositionVector->VecData, sizeof(double) * n_dof);
 }
 
-void fromRMLTypes(const RMLVelocityInputParameters &in, ReflexxesInputParameters& out){
-    fromRMLTypes((RMLInputParameters&)in, out);
+void rmlTypes2InputParams(const RMLVelocityInputParameters &in, ReflexxesInputParameters& out){
+    rmlTypes2InputParams((RMLInputParameters&)in, out);
 }
 
-void fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out){
+void rmlTypes2OutputParams(const RMLOutputParameters &in, ReflexxesOutputParameters& out){
     uint n_dof = in.GetNumberOfDOFs();
     memcpy(out.new_position_vector.data(),     in.NewPositionVector->VecData,     sizeof(double) * n_dof);
     memcpy(out.new_velocity_vector.data(),     in.NewVelocityVector->VecData,     sizeof(double) * n_dof);
@@ -61,20 +61,20 @@ void fromRMLTypes(const RMLOutputParameters &in, ReflexxesOutputParameters& out)
 #endif
 }
 
-void fromRMLTypes(const RMLPositionOutputParameters &in, ReflexxesOutputParameters& out){
-    fromRMLTypes((RMLOutputParameters&)in, out);
+void rmlTypes2OutputParams(const RMLPositionOutputParameters &in, ReflexxesOutputParameters& out){
+    rmlTypes2OutputParams((RMLOutputParameters&)in, out);
 #ifdef USING_REFLEXXES_TYPE_IV
     out.trajectory_exceeds_target_position = in.TrajectoryExceedsTargetPosition;
 #endif
 }
 
-void fromRMLTypes(const RMLVelocityOutputParameters &in, ReflexxesOutputParameters& out){
+void rmlTypes2OutputParams(const RMLVelocityOutputParameters &in, ReflexxesOutputParameters& out){
     uint n_dof = in.GetNumberOfDOFs();
-    fromRMLTypes((RMLOutputParameters&)in, out);
+    rmlTypes2OutputParams((RMLOutputParameters&)in, out);
     memcpy(out.position_values_at_target_velocity.data(), in.PositionValuesAtTargetVelocity->VecData, sizeof(double) * n_dof);
 }
 
-void toRMLTypes(const base::samples::Joints& joint_state, const std::vector<std::string> &names, RMLInputParameters& params){
+void jointState2RmlTypes(const base::samples::Joints& joint_state, const std::vector<std::string> &names, RMLInputParameters& params){
     for(size_t i = 0; i < names.size(); i++){
         try{
             const base::JointState &state = joint_state.getElementByName(names[i]);
@@ -93,19 +93,19 @@ void toRMLTypes(const base::samples::Joints& joint_state, const std::vector<std:
     }
 }
 
-void toRMLTypes(const base::samples::RigidBodyState& cartesian_state, RMLInputParameters& params){
+void cartesianState2RmlTypes(const base::samples::RigidBodyState& cartesian_state, RMLInputParameters& params){
     if(!cartesian_state.hasValidPosition() || !cartesian_state.hasValidOrientation()){
         LOG_ERROR("Cartesian state has invalid position and/or orientation.");
         throw std::invalid_argument("Invalid cartesian state");
     }
-    base::Vector3d euler = toEuler(cartesian_state.orientation);
+    base::Vector3d euler = quaternion2Euler(cartesian_state.orientation);
     memcpy(params.CurrentPositionVector->VecData,   cartesian_state.position.data(), sizeof(double)*3);
     memcpy(params.CurrentPositionVector->VecData+3, euler.data(),                    sizeof(double)*3);
     memset(params.CurrentVelocityVector->VecData,   0,                               sizeof(double)*6);
     memset(params.CurrentVelocityVector->VecData,   0,                               sizeof(double)*6);
 }
 
-void toRMLTypes(const MotionConstraint& constraint, const uint idx, RMLInputParameters& params){
+void motionConstraint2RmlTypes(const MotionConstraint& constraint, const uint idx, RMLInputParameters& params){
     constraint.validate(); // Check if constraints are ok, e.g. max.speed > 0 etc
 #ifdef USING_REFLEXXES_TYPE_IV
     params.MaxPositionVector->VecData[idx] = constraint.max.position;
@@ -115,16 +115,16 @@ void toRMLTypes(const MotionConstraint& constraint, const uint idx, RMLInputPara
     params.MaxJerkVector->VecData[idx] = constraint.max_jerk;
 }
 
-void toRMLTypes(const MotionConstraint& constraint, const uint idx, RMLPositionInputParameters& params){
-    toRMLTypes(constraint, idx, (RMLInputParameters&)params);
+void motionConstraint2RmlTypes(const MotionConstraint& constraint, const uint idx, RMLPositionInputParameters& params){
+    motionConstraint2RmlTypes(constraint, idx, (RMLInputParameters&)params);
     params.MaxVelocityVector->VecData[idx] = constraint.max.speed;
 }
 
-void toRMLTypes(const MotionConstraint& constraint, const uint idx, RMLVelocityInputParameters& params){
-    toRMLTypes(constraint, idx, (RMLInputParameters&)params);
+void motionConstraint2RmlTypes(const MotionConstraint& constraint, const uint idx, RMLVelocityInputParameters& params){
+    motionConstraint2RmlTypes(constraint, idx, (RMLInputParameters&)params);
 }
 
-void fromRMLTypes(const RMLPositionOutputParameters& params, base::commands::Joints& command){
+void rmlTypes2Command(const RMLPositionOutputParameters& params, base::commands::Joints& command){
     uint n_dof = params.GetNumberOfDOFs();
     command.resize(n_dof);
     for(size_t i = 0; i < n_dof; i++){
@@ -134,16 +134,16 @@ void fromRMLTypes(const RMLPositionOutputParameters& params, base::commands::Joi
     }
 }
 
-void fromRMLTypes(const RMLPositionOutputParameters& params, base::samples::RigidBodyState& command){
+void rmlTypes2Command(const RMLPositionOutputParameters& params, base::samples::RigidBodyState& command){
     base::Vector3d euler;
     memcpy(command.position.data(),         params.NewPositionVector->VecData,   sizeof(double)*3);
     memcpy(euler.data(),                    params.NewPositionVector->VecData+3, sizeof(double)*3);
     memcpy(command.velocity.data(),         params.NewVelocityVector->VecData,   sizeof(double)*3);
     memcpy(command.angular_velocity.data(), params.NewVelocityVector->VecData+3, sizeof(double)*3);
-    command.orientation = fromEuler(euler);
+    command.orientation = euler2Quaternion(euler);
 }
 
-void fromRMLTypes(const RMLVelocityOutputParameters& params, base::commands::Joints& command){
+void rmlTypes2Command(const RMLVelocityOutputParameters& params, base::commands::Joints& command){
     uint n_dof = params.GetNumberOfDOFs();
     command.resize(n_dof);
     for(size_t i = 0; i < n_dof; i++){
@@ -152,25 +152,95 @@ void fromRMLTypes(const RMLVelocityOutputParameters& params, base::commands::Joi
     }
 }
 
-void fromRMLTypes(const RMLVelocityOutputParameters& params, base::samples::RigidBodyState& command){
+void rmlTypes2Command(const RMLVelocityOutputParameters& params, base::samples::RigidBodyState& command){
     memcpy(command.velocity.data(),         params.NewVelocityVector->VecData,   sizeof(double)*3);
     memcpy(command.angular_velocity.data(), params.NewVelocityVector->VecData+3, sizeof(double)*3);
 }
 
-void toRMLTypes(const ConstrainedJointsCmd& target, RMLPositionInputParameters& params){
-
+void target2RmlTypes(const ConstrainedJointsCmd& target, const MotionConstraints& default_constraints, const RMLFlags& flags, RMLPositionInputParameters& params){
+    // Set selection vector to false. Select individual elements below
+    memset(params.SelectionVector->VecData, false, params.GetNumberOfDOFs());
+    for(size_t i = 0; i < target.size(); i++){
+        try{
+            size_t idx = default_constraints.mapNameToIndex(target.names[i]);
+            target2RmlTypes(target[i].position, target[i].speed, idx, flags, params);
+        }
+        catch(base::commands::Joints::InvalidName e){
+            LOG_ERROR("Joint %s is in target vector but has not been configured in motion constraints", target.names[i].c_str());
+            throw e;
+        }
+    }
 }
 
-void toRMLTypes(const ConstrainedJointsCmd& target, RMLVelocityInputParameters& params){
-
+void target2RmlTypes(const ConstrainedJointsCmd& target, const MotionConstraints& default_constraints, const RMLFlags& flags, const double cycle_time, RMLVelocityInputParameters& params){
+    // Set selection vector to false. Select individual elements below
+    memset(params.SelectionVector->VecData, false, params.GetNumberOfDOFs());
+    for(size_t i = 0; i < target.size(); i++){
+        try{
+            size_t idx = default_constraints.mapNameToIndex(target.names[i]);
+            target2RmlTypes(target[i].speed, idx, flags, cycle_time, params);
+        }
+        catch(base::commands::Joints::InvalidName e){
+            LOG_ERROR("Joint %s is in target vector but has not been configured in motion constraints", target.names[i].c_str());
+            throw e;
+        }
+    }
 }
 
-void toRMLTypes(const base::samples::RigidBodyState& target, RMLPositionInputParameters& params){
-
+void target2RmlTypes(const base::samples::RigidBodyState& target, const RMLFlags& flags, RMLPositionInputParameters& params){
+    base::Vector3d euler = quaternion2Euler(target.orientation);
+    for(int i = 0; i < 3; i++)
+        target2RmlTypes(target.position(i), target.velocity(i), i, flags, params);
+    for(int i = 0; i < 3; i++)
+        target2RmlTypes(euler(i), target.angular_velocity(i), i+3, flags, params);
 }
 
-void toRMLTypes(const base::samples::RigidBodyState& target, RMLVelocityInputParameters& params){
+void target2RmlTypes(const base::samples::RigidBodyState& target, const RMLFlags& flags, const double cycle_time, RMLVelocityInputParameters& params){
+    for(int i = 0; i < 3; i++)
+        target2RmlTypes(target.velocity(i), i, flags, cycle_time, params);
+    for(int i = 0; i < 3; i++)
+        target2RmlTypes(target.angular_velocity(i), i+3, flags, cycle_time, params);
+}
 
+void target2RmlTypes(const double target_pos, const double target_vel, const uint idx, const RMLFlags& flags, RMLPositionInputParameters& params){
+    if(base::isNaN(target_pos)){
+        LOG_ERROR("Element %i of target has no valid position!");
+        throw std::invalid_argument("Invalid target");
+    }
+    params.SelectionVector->VecData[idx]      = true;
+    params.TargetPositionVector->VecData[idx] = target_pos;
+    params.TargetVelocityVector->VecData[idx] = 0;
+    if(!base::isNaN(target_vel))
+        params.TargetVelocityVector->VecData[idx] = target_vel;
+}
+
+void target2RmlTypes(const double target_vel, const uint idx, const RMLFlags& flags, const double cycle_time, RMLVelocityInputParameters& params){
+    if(base::isNaN(target_vel)){
+        LOG_ERROR("Element %i of target has no valid velocity!");
+        throw std::invalid_argument("Invalid target");
+    }
+    params.SelectionVector->VecData[idx]      = true;
+    params.TargetVelocityVector->VecData[idx] = target_vel;
+}
+
+void cropTargetAtPositionLimits(RMLPositionInputParameters& params){
+    for(uint i = 0; i < params.GetNumberOfDOFs(); i++){
+        double pos = params.TargetPositionVector->VecData[i];
+        double max = params.MaxPositionVector->VecData[i];
+        double min = params.MinPositionVector->VecData[i];
+        params.TargetPositionVector->VecData[i] = std::max(std::min(max, pos), min);
+    }
+}
+
+void fixRmlSynchronizationBug(const double cycle_time, RMLVelocityInputParameters& params){
+    for(uint i = 0; i < params.GetNumberOfDOFs(); i++){
+        double vel     = params.TargetVelocityVector->VecData[i];
+        double cur_pos = params.CurrentPositionVector->VecData[i];
+        double max_pos = params.MaxPositionVector->VecData[i];
+        double min_pos = params.MinPositionVector->VecData[i];
+        if( (vel*cycle_time + cur_pos > max_pos) || (vel*cycle_time + cur_pos < min_pos) )
+            params.TargetVelocityVector->VecData[i] = 0;
+    }
 }
 
 }

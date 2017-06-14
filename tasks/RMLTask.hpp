@@ -6,7 +6,6 @@
 #include "trajectory_generation/RMLTaskBase.hpp"
 #include "trajectory_generationTypes.hpp"
 #include <reflexxes/ReflexxesAPI.h>
-#include <base/samples/RigidBodyState.hpp>
 
 /* TODOs (D.M, 2016/06/28):
  *
