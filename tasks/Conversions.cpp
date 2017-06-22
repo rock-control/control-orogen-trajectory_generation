@@ -13,7 +13,7 @@ base::Orientation euler2Quaternion(const base::Vector3d& euler){
     // We use yaw-pitch-roll (ZYX wrt. rotated coordinate system) convention here
     q = Eigen::AngleAxisd(euler(0), base::Vector3d::UnitZ()) *
             Eigen::AngleAxisd(euler(1), base::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(euler(2), base::Vector3d::UnitZ());
+            Eigen::AngleAxisd(euler(2), base::Vector3d::UnitX());
     return q;
 }
 
