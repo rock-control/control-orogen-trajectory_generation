@@ -30,7 +30,7 @@ void RMLVelocityTask::updateMotionConstraints(const MotionConstraint& constraint
 RTT::FlowStatus RMLVelocityTask::updateCurrentState(RMLInputParameters* new_input_parameters){
     RTT::FlowStatus fs = _joint_state.readNewest(joint_state);
     if(fs == RTT::NewData && rml_result_value == RML_NOT_INITIALIZED){
-        jointState2RmlTypes(joint_state, motion_constraints.names, *new_input_parameters);
+        jointState2RmlTypes(joint_state, motion_constraints.names, *rml_flags, *new_input_parameters);
         current_sample.names = motion_constraints.names;
         rmlTypes2JointState(*new_input_parameters, current_sample);
     }

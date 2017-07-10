@@ -74,7 +74,7 @@ void rmlTypes2OutputParams(const RMLVelocityOutputParameters &in, ReflexxesOutpu
     memcpy(out.position_values_at_target_velocity.data(), in.PositionValuesAtTargetVelocity->VecData, sizeof(double) * n_dof);
 }
 
-void jointState2RmlTypes(const base::samples::Joints& joint_state, const std::vector<std::string> &names, RMLInputParameters& params){
+void jointState2RmlTypes(const base::samples::Joints& joint_state, const std::vector<std::string> &names, const RMLFlags& flags, RMLInputParameters& params){
     for(size_t i = 0; i < names.size(); i++){
         try{
             const base::JointState &state = joint_state.getElementByName(names[i]);
@@ -82,6 +82,16 @@ void jointState2RmlTypes(const base::samples::Joints& joint_state, const std::ve
                 LOG_ERROR("Element %s of joint state does not have a valid position entry", names[i].c_str());
                 throw std::invalid_argument("Invalid joint state");
             }
+#ifdef USING_REFLEXXES_TYPE_IV
+            if(flags.PositionalLimitsBehavior == POSITIONAL_LIMITS_ACTIVELY_PREVENT ||
+               flags.PositionalLimitsBehavior == POSITIONAL_LIMITS_ERROR_MSG_ONLY){
+                if(state.position > params.MaxPositionVector->VecData[i] ||
+                   state.position < params.MinPositionVector->VecData[i]){
+                    LOG_ERROR("Position of joint %s is outside joint limits", names[i].c_str());
+                    throw std::invalid_argument("Invalid joint state");
+                }
+            }
+#endif
             params.CurrentPositionVector->VecData[i]     = state.position;
             params.CurrentVelocityVector->VecData[i]     = 0;
             params.CurrentAccelerationVector->VecData[i] = 0;

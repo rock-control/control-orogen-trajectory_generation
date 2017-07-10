@@ -18,7 +18,7 @@ void rmlTypes2OutputParams(const RMLOutputParameters &in,         ReflexxesOutpu
 void rmlTypes2OutputParams(const RMLPositionOutputParameters &in, ReflexxesOutputParameters& out);
 void rmlTypes2OutputParams(const RMLVelocityOutputParameters &in, ReflexxesOutputParameters& out);
 
-void jointState2RmlTypes(const base::samples::Joints& joint_state, const std::vector<std::string> &names, RMLInputParameters& params);
+void jointState2RmlTypes(const base::samples::Joints& joint_state, const std::vector<std::string> &names, const RMLFlags& flags, RMLInputParameters& params);
 void rmlTypes2JointState(const RMLInputParameters& params, base::samples::Joints& joint_state);
 void cartesianState2RmlTypes(const base::samples::RigidBodyState& cartesian_state, RMLInputParameters& params);
 void rmlTypes2CartesianState(const RMLInputParameters& params, base::samples::RigidBodyState& cartesian_state);
