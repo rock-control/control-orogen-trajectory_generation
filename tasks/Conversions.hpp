@@ -3,7 +3,7 @@
 
 #include "trajectory_generationTypes.hpp"
 #include <base/samples/RigidBodyState.hpp>
-#include <reflexxes/ReflexxesAPI.h>
+#include <ReflexxesAPI.h>
 
 namespace trajectory_generation{
 
