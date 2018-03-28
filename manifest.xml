@@ -1,9 +1,24 @@
 <package>
   <description brief="Instantaneous trajectory generation component">
-  This component uses the reflexxes library to generate motion commands based on the current state of the system, the target state and motion constraints.
+  The components in this task library use Reflexxes to generate smooth motion commands based on the current state of the system, the target state and motion constraints. 
   </description>
   <author>Dennis Mronga/dennis.mronga@dfki.de</author>
   <license>LGPL</license>
+  <keywords>
+     <keyword>Control</keyword>
+     <keyword>Interpolation</keyword>
+   </keywords>
+
+  <stage>0</stage>
+  <use>multi project</use>
+  <activity>active</activity>
+
+  <classifiers>
+    <classifier>c++</classifier>
+    <classifier>rock</classifier>
+    <classifier>ubuntu</classifier>
+  </classifiers>
+
   <depend package="base/types" />
   <depend package="control/reflexxes" />
 </package>
