@@ -36,7 +36,7 @@ task_context "RMLTask" do abstract
     # (derivative of acceleration, only Reflexxes TypeIV).
     property "motion_constraints", "trajectory_generation/MotionConstraints"
 
-    # Cycle Time is seconds. IMPORTANT: This value has to match the period of the component. Default is 0.01 which matches the default period.
+    # Cycle Time in seconds. IMPORTANT: This value has to match the period of the component. Default is 0.01 which matches the default period.
     property "cycle_time", "double", 0.01
 
     # Behaviour at the position limits (only reflexxes TypeIV!!!). Can be one of the following:

@@ -1,6 +1,6 @@
 <package>
   <description brief="Instantaneous trajectory generation component">
-  The components in this task library use Reflexxes to generate smooth motion commands based on the current state of the system, the target state and motion constraints. 
+  The components in this task library uses Reflexxes Motion Libraries (RML) to generate smooth motion commands based on the current state of the system, the target state and motion constraints. 
   </description>
   <author>Dennis Mronga/dennis.mronga@dfki.de</author>
   <license>LGPL</license>
