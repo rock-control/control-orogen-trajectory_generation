@@ -1,9 +1,10 @@
 name "trajectory_generation"
 
-import_types_from "base"
-import_types_from "reflexxes/RMLFlags.h"
-import_types_from "trajectory_generationTypes.hpp"
 using_library "reflexxes"
+
+import_types_from "base"
+import_types_from "RMLFlags.h"
+import_types_from "trajectory_generationTypes.hpp"
 
 # This task generates a feasible, time-stamped trajectory to a given a target (joint position/velocity or Cartesian position/velocity, depending on the subclass used).
 # "Feasible" means here that the output trajectory (command port) will respect the motion constraints defined by the motion_constraints-property, that is maximum/minimum

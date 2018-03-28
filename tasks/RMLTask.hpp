@@ -5,7 +5,7 @@
 
 #include "trajectory_generation/RMLTaskBase.hpp"
 #include "trajectory_generationTypes.hpp"
-#include <reflexxes/ReflexxesAPI.h>
+#include <ReflexxesAPI.h>
 
 /* TODOs (D.M, 2016/06/28):
  *
@@ -85,4 +85,3 @@ public:
 }
 
 #endif
-
