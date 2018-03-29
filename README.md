@@ -32,36 +32,36 @@ The Rock componenents within this task library provide the following features:
 
 Check the [scripts folder](https://github.com/rock-control/control-orogen-trajectory_generation/tree/master/scripts) for examples on each of the components. There are four different implementations:
 1. `RMLPositionTask`: Position based implementation in joint space
- * Inputs:
-  * Current joint state
-  * Target position and (optionally) target velocity for each joint (target port). If velocity is unset, zero target velocity is assumed.
-  * (Optionally) Target position / velocity for each joint, plus new motion constraints. Note that changing the motion constraints online might lead to an unresolvable situation, in which case RML will throw an error
- * Outputs:
-  * Smooth motion command (position/speed/acceleration)
+  * Inputs:
+    * Current joint state
+    * Target position and (optionally) target velocity for each joint (target port). If velocity is unset, zero target velocity is assumed.
+    * (Optionally) Target position / velocity for each joint, plus new motion constraints. Note that changing the motion constraints online might lead to an unresolvable situation, in which case RML will throw an error
+  * Outputs:
+    * Smooth motion command (position/speed/acceleration)
 
 2. `RMLVelocityTask`: Velocity based implementation in joint space
- * Inputs:
-  * Current joint state
-  * Target velocity for each joint (target port)
-  * (Optionally) Target velocity for each joint, plus new motion constraints. Note that changing the motion constraints online might lead to an unresolvable situation, in which case RML will throw an error
- * Outputs:
-  * Smooth motion command. Will be speed/acceleration if `convert_to_position` is set to false or position/speed/acceleration if `convert_to_position` is set to true
-  * The output velocity will be set to zero if no new target value arrived for more than `no_reference_timeout` seconds. You can disable the timeout by setting `no_reference_timeout` to infinity.
+  * Inputs:
+    * Current joint state
+    * Target velocity for each joint (target port)
+    * (Optionally) Target velocity for each joint, plus new motion constraints. Note that changing the motion constraints online might lead to an unresolvable situation, in which case RML will throw an error
+  * Outputs:
+    * Smooth motion command. Will be speed/acceleration if `convert_to_position` is set to false or position/speed/acceleration if `convert_to_position` is set to true
+    * The output velocity will be set to zero if no new target value arrived for more than `no_reference_timeout` seconds. You can disable the timeout by setting `no_reference_timeout` to infinity.
 
 3. `RMLCartesianPositionTask`: Position based implementation in Cartesian space
- * Inputs:
-  * Current Cartesian state
-  * Target Cartesian position/orientation and (optionally) target translations/rotational velocity (target port). Note that in the current implementation, the orientation is converted to ZYX-euler angles (wrt. rotated coordinate system). Euler angles are prone to stability problems near singular configurations. These problems can be avoided by limiting the target orientation accordingly.
- * Outputs:
-  * Smooth motion command (position/speed)
+  * Inputs:
+    * Current Cartesian state
+    * Target Cartesian position/orientation and (optionally) target translations/rotational velocity (target port). Note that in the current implementation, the orientation is converted to ZYX-euler angles (wrt. rotated coordinate system). Euler angles are prone to stability problems near singular configurations. These problems can be avoided by limiting the target orientation accordingly.
+  * Outputs:
+    * Smooth motion command (position/speed)
 
 4. `RMLCartesianVelocityTask`: Velocity based implementation in Cartesian space
- * Inputs:
-  * Current Cartesian state
-  * Target target translational/angular velocity (target port)
- * Outputs:
-  * Smooth motion command. Will be speed/acceleration if `convert_to_position` is set to false or position/speed/acceleration if `convert_to_position` is set to true
-  * The output velocity will be set to zero if no new target value arrived for more than `no_reference_timeout` seconds. You can disable the timeout by setting `no_reference_timeout` to infinity.
+  * Inputs:
+    * Current Cartesian state
+    * Target target translational/angular velocity (target port)
+  * Outputs:
+    * Smooth motion command. Will be speed/acceleration if `convert_to_position` is set to false or position/speed/acceleration if `convert_to_position` is set to true
+    * The output velocity will be set to zero if no new target value arrived for more than `no_reference_timeout` seconds. You can disable the timeout by setting `no_reference_timeout` to infinity.
 
 Each component is based on the `RMLTask` task context. An example configuration looks as follows (for the RMLPositionTask):
 
@@ -93,4 +93,4 @@ Each component is based on the `RMLTask` task context. An example configuration 
 * The quality of the trajectory depends on the accuracy of this component's period. Real-time systems may significantly improve performance. Furthermore, the cycle time property has to match the period of the component, otherwise the generated motion will be too fast or slow.
 * The current state of the robot will NOT be considered at runtime, simply because (a) RML is not meant to be used this way and (b) it is the job of your robot's joint controllers to be able to follow the given reference. If the reference trajectory is too challenging for your robot controllers, make the motion constraints more conservative. However, if you use e.g. a compliant system and hold the robot so that it is unable to follow the reference trajectory, the components in this task library will currently not realize the (possibly increasing) difference between reference and actual state.
 * The RML parameters `MinimumSynchronizationTime` and `OverrideValue` are currently not used by the components in this task library
-* In the RMLCartesianPosition implementation, the orientation is internally converted to euler angles, which is prone to stability problems near singularities. 
+* In the RMLCartesianPosition implementation, the orientation is internally converted to euler angles, which is prone to stability problems near singularities.
