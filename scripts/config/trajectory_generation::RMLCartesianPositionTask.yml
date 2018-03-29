@@ -5,7 +5,7 @@ cycle_time: 0.01
 # These include the maximum/minimum position (only Reflexxes TypeIV), maximum maximum speed, maximum acceleration and maximum jerk
 # (derivative of acceleration, only Reflexxes TypeIV).
 motion_constraints:
-  names: []
+  names: ["X", "Y", "Z", "rotZ", "rotY", "rotX"]
   elements: [{max: {position: 1.0, speed: 0.3, acceleration: 0.5}, min: {position: -1.0}, max_jerk: 1.0},
              {max: {position: 1.0, speed: 0.6, acceleration: 1.0}, min: {position: -1.0}, max_jerk: 1.0},
              {max: {position: 1.0, speed: 0.6, acceleration: 1.0}, min: {position: -1.0}, max_jerk: 1.0},
