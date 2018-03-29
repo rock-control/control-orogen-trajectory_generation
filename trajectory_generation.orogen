@@ -69,7 +69,7 @@ task_context "RMLTask" do abstract
     periodic 0.01
 end
 
-# Position implementation in joint space
+# Position based implementation in joint space
 task_context "RMLPositionTask" do
     subclasses "RMLTask"
 
@@ -90,7 +90,7 @@ task_context "RMLPositionTask" do
     output_port "current_sample", "base/samples/Joints"
 end
 
-# Velocity implementation in joint space
+# Velocity  based implementation in joint space
 task_context "RMLVelocityTask" do
     subclasses "RMLTask"
 
@@ -119,7 +119,7 @@ task_context "RMLVelocityTask" do
     output_port "current_sample", "base/samples/Joints"
 end
 
-# Position implementation in Cartesian space
+# Position based implementation in Cartesian space
 task_context "RMLCartesianPositionTask" do
     subclasses "RMLTask"
 
@@ -136,7 +136,7 @@ task_context "RMLCartesianPositionTask" do
     output_port "current_sample", "base/samples/RigidBodyState"
 end
 
-# Velocity implementation in Cartesian space
+# Velocity based implementation in Cartesian space
 task_context "RMLCartesianVelocityTask" do
     subclasses "RMLTask"
 
