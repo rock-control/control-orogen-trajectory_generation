@@ -87,7 +87,8 @@ void jointState2RmlTypes(const base::samples::Joints& joint_state, const std::ve
                flags.PositionalLimitsBehavior == POSITIONAL_LIMITS_ERROR_MSG_ONLY){
                 if(state.position > params.MaxPositionVector->VecData[i] ||
                    state.position < params.MinPositionVector->VecData[i]){
-                    LOG_ERROR("Position of joint %s is outside joint limits", names[i].c_str());
+                    LOG_ERROR("Position of joint %s is outside joint limits, Upper: %f, Lower: %f, Actual: %f",
+                              names[i].c_str(), params.MaxPositionVector->VecData[i], params.MinPositionVector->VecData[i], state.position);
                     throw std::invalid_argument("Invalid joint state");
                 }
             }
