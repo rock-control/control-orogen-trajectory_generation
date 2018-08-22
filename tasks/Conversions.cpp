@@ -265,15 +265,18 @@ void target2RmlTypes(const double target_vel, const uint idx, RMLVelocityInputPa
 }
 
 void cropTargetAtPositionLimits(RMLPositionInputParameters& params){
+#ifdef USING_REFLEXXES_TYPE_IV
     for(uint i = 0; i < params.GetNumberOfDOFs(); i++){
         double pos = params.TargetPositionVector->VecData[i];
         double max = params.MaxPositionVector->VecData[i];
         double min = params.MinPositionVector->VecData[i];
         params.TargetPositionVector->VecData[i] = std::max(std::min(max, pos), min);
     }
+#endif
 }
 
 void fixRmlSynchronizationBug(const double cycle_time, RMLVelocityInputParameters& params){
+#ifdef USING_REFLEXXES_TYPE_IV
     for(uint i = 0; i < params.GetNumberOfDOFs(); i++){
         double vel     = params.TargetVelocityVector->VecData[i];
         double cur_pos = params.CurrentPositionVector->VecData[i];
@@ -282,6 +285,7 @@ void fixRmlSynchronizationBug(const double cycle_time, RMLVelocityInputParameter
         if( (vel*cycle_time + cur_pos > max_pos) || (vel*cycle_time + cur_pos < min_pos) )
             params.TargetVelocityVector->VecData[i] = 0;
     }
+#endif
 }
 
 }
