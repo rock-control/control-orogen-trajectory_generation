@@ -257,7 +257,7 @@ void target2RmlTypes(const double target_pos, const double target_vel, const uin
 
 void target2RmlTypes(const double target_vel, const uint idx, RMLVelocityInputParameters& params){
     if(base::isNaN(target_vel)){
-        LOG_ERROR("Element %i of target has no valid velocity!");
+        LOG_ERROR("Element %i of target has no valid velocity!", idx);
         throw std::invalid_argument("Invalid target");
     }
     params.SelectionVector->VecData[idx]      = true;
