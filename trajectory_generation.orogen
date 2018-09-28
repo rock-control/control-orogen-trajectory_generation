@@ -70,8 +70,7 @@ task_context "RMLTask" do abstract
 end
 
 # Position based implementation in joint space
-task_context "RMLPositionTask" do
-    subclasses "RMLTask"
+task_context "RMLPositionTask", subclasses: "RMLTask" do
 
     # Current joint state. Must have valid position entries. Has to contain all joint names configured in the motion_constraints property
     input_port "joint_state", "base/samples/Joints"
@@ -91,8 +90,7 @@ task_context "RMLPositionTask" do
 end
 
 # Velocity  based implementation in joint space
-task_context "RMLVelocityTask" do
-    subclasses "RMLTask"
+task_context "RMLVelocityTask", subclasses: "RMLTask" do
 
     # Velocity reference timeout in seconds: If no new reference arrives for this amount of time, the target velocity will be set to zero.
     # Set to .inf to disable timeout
@@ -120,8 +118,7 @@ task_context "RMLVelocityTask" do
 end
 
 # Position based implementation in Cartesian space
-task_context "RMLCartesianPositionTask" do
-    subclasses "RMLTask"
+task_context "RMLCartesianPositionTask", subclasses: "RMLTask" do
 
     # Current Cartesian state. Must have valid position/orientation entries!
     input_port "cartesian_state", "base/samples/RigidBodyState"
@@ -137,8 +134,7 @@ task_context "RMLCartesianPositionTask" do
 end
 
 # Velocity based implementation in Cartesian space
-task_context "RMLCartesianVelocityTask" do
-    subclasses "RMLTask"
+task_context "RMLCartesianVelocityTask", subclasses: "RMLTask" do
 
     # Velocity reference timeout in seconds: If no new reference arrives for this amount of time, the target velocity will be set to zero.
     # Set to .inf to disable timeout
