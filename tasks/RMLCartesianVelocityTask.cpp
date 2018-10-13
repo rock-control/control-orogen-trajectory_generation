@@ -32,20 +32,26 @@ void RMLCartesianVelocityTask::updateMotionConstraints(const MotionConstraint& c
     motionConstraint2RmlTypes(constraint, idx, *(RMLVelocityInputParameters*)new_input_parameters);
 }
 
-RTT::FlowStatus RMLCartesianVelocityTask::updateCurrentState(RMLInputParameters* new_input_parameters){
+bool RMLCartesianVelocityTask::updateCurrentState(RMLInputParameters* new_input_parameters){
     RTT::FlowStatus fs = _cartesian_state.readNewest(cartesian_state);
-    if(fs == RTT::NewData && rml_result_value == RML_NOT_INITIALIZED){
+    if(fs == RTT::NewData && !has_current_state){
         cartesianState2RmlTypes(cartesian_state, *new_input_parameters);
+        current_sample.sourceFrame = cartesian_state.sourceFrame;
+        current_sample.targetFrame = cartesian_state.targetFrame;
         current_sample = cartesian_state;
+        has_current_state = true;
     }
-    if(fs != RTT::NoData)
+    if(fs != RTT::NoData){
         _current_sample.write(current_sample);
-    return fs;
+        _current_sample.write(current_sample);
+    }
+    return has_current_state;
 }
 
-RTT::FlowStatus RMLCartesianVelocityTask::updateTarget(RMLInputParameters* new_input_parameters){
+bool RMLCartesianVelocityTask::updateTarget(RMLInputParameters* new_input_parameters){
     RTT::FlowStatus fs = _target.readNewest(target);
     if(fs == RTT::NewData){
+        has_target = true;
         target2RmlTypes(target, *(RMLVelocityInputParameters*)new_input_parameters);
 #ifdef USING_REFLEXXES_TYPE_IV
         // Workaround: If an element is close to a position limit and the target velocity is pointing in direction of the limit, the sychronization time is computed by
@@ -55,7 +61,7 @@ RTT::FlowStatus RMLCartesianVelocityTask::updateTarget(RMLInputParameters* new_i
             fixRmlSynchronizationBug(cycle_time, *(RMLVelocityInputParameters*)new_input_parameters);
 #endif
     }
-    return fs;
+    return has_target;
 }
 
 ReflexxesResultValue RMLCartesianVelocityTask::performOTG(RMLInputParameters* new_input_parameters,

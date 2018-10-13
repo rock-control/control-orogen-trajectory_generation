@@ -39,6 +39,8 @@ protected:
     ReflexxesOutputParameters output_parameters; /** RMLOutputParameters do not work with orogen, so use own type*/
     base::Time timestamp;                        /** Timestamp if updateHook();*/
     double cycle_time;                           /** Cycle time for interpolation*/
+    bool has_current_state;                      /** True if an initial state could be read from port*/
+    bool has_target;                             /** True if a target could be read from port*/
 
     /** Update the motion constraints of a particular element*/
     virtual void updateMotionConstraints(const MotionConstraint& constraint,
@@ -46,10 +48,10 @@ protected:
                                          RMLInputParameters* new_input_parameters) = 0;
 
     /** Read the current state from port and return position and flow status*/
-    virtual RTT::FlowStatus updateCurrentState(RMLInputParameters* new_input_parameters) = 0;
+    virtual bool updateCurrentState(RMLInputParameters* new_input_parameters) = 0;
 
     /** Update the RML input parameters with the new target */
-    virtual RTT::FlowStatus updateTarget(RMLInputParameters* new_input_parameters) = 0;
+    virtual bool updateTarget(RMLInputParameters* new_input_parameters) = 0;
 
     /** Perform one step of online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/
     virtual ReflexxesResultValue performOTG(RMLInputParameters* new_input_parameters,

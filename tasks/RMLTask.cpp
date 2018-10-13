@@ -42,6 +42,7 @@ bool RMLTask::configureHook(){
 
     rml_api = new ReflexxesAPI(motion_constraints.size(), cycle_time);
     rml_result_value = RML_NOT_INITIALIZED;
+    has_current_state = has_target = false;
 
     input_parameters = ReflexxesInputParameters(rml_input_parameters->NumberOfDOFs);
     output_parameters = ReflexxesOutputParameters(rml_input_parameters->NumberOfDOFs);
@@ -64,15 +65,13 @@ void RMLTask::updateHook(){
 
     RMLTaskBase::updateHook();
 
-    RTT::FlowStatus fs = updateCurrentState(rml_input_parameters);
-    if(fs == RTT::NoData){
+    if(!updateCurrentState(rml_input_parameters)){
         if(state() != NO_CURRENT_STATE)
             state(NO_CURRENT_STATE);
         return;
     }
 
-    fs = updateTarget(rml_input_parameters);
-    if(fs == RTT::NoData){
+    if(!updateTarget(rml_input_parameters)){
         if(state() != NO_TARGET)
             state(NO_TARGET);
         return;

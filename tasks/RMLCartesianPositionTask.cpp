@@ -28,24 +28,26 @@ void RMLCartesianPositionTask::updateMotionConstraints(const MotionConstraint& c
     motionConstraint2RmlTypes(constraint, idx, *(RMLPositionInputParameters*)new_input_parameters);
 }
 
-RTT::FlowStatus RMLCartesianPositionTask::updateCurrentState(RMLInputParameters* new_input_parameters){
+bool RMLCartesianPositionTask::updateCurrentState(RMLInputParameters* new_input_parameters){
     RTT::FlowStatus fs = _cartesian_state.readNewest(cartesian_state);
-    if(fs == RTT::NewData && rml_result_value == RML_NOT_INITIALIZED){
+    if(fs == RTT::NewData && !has_current_state){
         cartesianState2RmlTypes(cartesian_state, *new_input_parameters);
         current_sample.sourceFrame = cartesian_state.sourceFrame;
         current_sample.targetFrame = cartesian_state.targetFrame;
         rmlTypes2CartesianState(*new_input_parameters, current_sample);
+        has_current_state = true;
     }
     if(fs != RTT::NoData){
         current_sample.time = base::Time::now();
         _current_sample.write(current_sample);
     }
-    return fs;
+    return has_current_state;
 }
 
-RTT::FlowStatus RMLCartesianPositionTask::updateTarget(RMLInputParameters* new_input_parameters){
+bool RMLCartesianPositionTask::updateTarget(RMLInputParameters* new_input_parameters){
     RTT::FlowStatus fs = _target.readNewest(target);
     if(fs == RTT::NewData){
+        has_target = true;
         target2RmlTypes(target, *(RMLPositionInputParameters*)new_input_parameters);
 #ifdef USING_REFLEXXES_TYPE_IV
         // Crop at limits if POSITIONAL_LIMITS_ACTIVELY_PREVENT is selected, otherwise RML will throw a positional limits error
@@ -53,7 +55,7 @@ RTT::FlowStatus RMLCartesianPositionTask::updateTarget(RMLInputParameters* new_i
             cropTargetAtPositionLimits(*(RMLPositionInputParameters*)new_input_parameters);
 #endif
     }
-    return fs;
+    return has_target;
 }
 
 ReflexxesResultValue RMLCartesianPositionTask::performOTG(RMLInputParameters* new_input_parameters,

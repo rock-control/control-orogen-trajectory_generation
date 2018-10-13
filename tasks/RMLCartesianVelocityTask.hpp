@@ -27,10 +27,10 @@ protected:
                                          RMLInputParameters* new_input_parameters);
 
     /** Read the current state from port and return position and flow status*/
-    virtual RTT::FlowStatus updateCurrentState(RMLInputParameters* new_input_parameters);
+    virtual bool updateCurrentState(RMLInputParameters* new_input_parameters);
 
     /** Update the RML input parameters with the new target */
-    virtual RTT::FlowStatus updateTarget(RMLInputParameters* new_input_parameters);
+    virtual bool updateTarget(RMLInputParameters* new_input_parameters);
 
     /** Perform one step of online trajectory generation (call the RML algorithm with the given parameters). Return the RML result value*/
     virtual ReflexxesResultValue performOTG(RMLInputParameters* new_input_parameters,

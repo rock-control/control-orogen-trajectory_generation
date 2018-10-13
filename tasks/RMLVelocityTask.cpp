@@ -27,21 +27,22 @@ void RMLVelocityTask::updateMotionConstraints(const MotionConstraint& constraint
     motionConstraint2RmlTypes(constraint, idx, *(RMLVelocityInputParameters*)new_input_parameters);
 }
 
-RTT::FlowStatus RMLVelocityTask::updateCurrentState(RMLInputParameters* new_input_parameters){
+bool RMLVelocityTask::updateCurrentState(RMLInputParameters* new_input_parameters){
     RTT::FlowStatus fs = _joint_state.readNewest(joint_state);
-    if(fs == RTT::NewData && rml_result_value == RML_NOT_INITIALIZED){
+    if(fs == RTT::NewData && !has_current_state){
         jointState2RmlTypes(joint_state, motion_constraints.names, *rml_flags, *new_input_parameters);
         current_sample.names = motion_constraints.names;
         rmlTypes2JointState(*new_input_parameters, current_sample);
+        has_current_state = true;
     }
     if(fs != RTT::NoData){
         current_sample.time = base::Time::now();
         _current_sample.write(current_sample);
     }
-    return fs;
+    return has_current_state;
 }
 
-RTT::FlowStatus RMLVelocityTask::updateTarget(RMLInputParameters* new_input_parameters){
+bool RMLVelocityTask::updateTarget(RMLInputParameters* new_input_parameters){
     RTT::FlowStatus fs_target = _target.readNewest(target);
     RTT::FlowStatus fs_constr_target = _constrained_target.readNewest(target);
 
@@ -55,6 +56,7 @@ RTT::FlowStatus RMLVelocityTask::updateTarget(RMLInputParameters* new_input_para
         fs = fs_constr_target;
 
     if(fs == RTT::NewData){
+        has_target = true;
         target.validate();
         target2RmlTypes(target, motion_constraints, *(RMLVelocityInputParameters*)new_input_parameters);
 #ifdef USING_REFLEXXES_TYPE_IV
@@ -67,7 +69,7 @@ RTT::FlowStatus RMLVelocityTask::updateTarget(RMLInputParameters* new_input_para
     }
 
 
-    return fs;
+    return has_target;
 }
 
 ReflexxesResultValue RMLVelocityTask::performOTG(RMLInputParameters* new_input_parameters, RMLOutputParameters* new_output_parameters, RMLFlags *rml_flags){
