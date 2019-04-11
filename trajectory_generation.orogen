@@ -36,9 +36,6 @@ task_context "RMLTask" do abstract
     # (derivative of acceleration, only Reflexxes TypeIV).
     property "motion_constraints", "trajectory_generation/MotionConstraints"
 
-    # Cycle Time in seconds. IMPORTANT: This value has to match the period of the component. Default is 0.01 which matches the default period.
-    property "cycle_time", "double", 0.01
-
     # Behaviour at the position limits (only reflexxes TypeIV!!!). Can be one of the following:
     #   - POSITIONAL_LIMITS_IGNORE: Positional limits are completely ignored
     #   - POSITIONAL_LIMITS_ERROR_MSG_ONLY: Component will go into error state if target is out of bounds

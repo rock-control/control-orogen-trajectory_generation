@@ -21,11 +21,7 @@ bool RMLTask::configureHook(){
     if (! RMLTaskBase::configureHook())
         return false;
 
-    cycle_time = _cycle_time.get();
-    if(cycle_time <= 0){
-        LOG_ERROR("Cycle time should be > 0, but is %i", cycle_time);
-        return false;
-    }
+    cycle_time = this->getPeriod();
 
     motion_constraints = _motion_constraints.get();
     if(motion_constraints.size() != motion_constraints.names.size()){
