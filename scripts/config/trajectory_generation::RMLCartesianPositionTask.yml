@@ -1,6 +1,4 @@
 --- name:default
-# Cycle Time is seconds. IMPORTANT: This value has to match the period of the component. Default is 0.01 which matches the default period.
-cycle_time: 0.01
 # Motion constraints that define the properties of the output trajectory that is sent on the command-port.
 # These include the maximum/minimum position (only Reflexxes TypeIV), maximum maximum speed, maximum acceleration and maximum jerk
 # (derivative of acceleration, only Reflexxes TypeIV).
