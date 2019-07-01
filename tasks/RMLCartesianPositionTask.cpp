@@ -77,11 +77,13 @@ ReflexxesResultValue RMLCartesianPositionTask::performOTG(RMLInputParameters* ne
 
 void RMLCartesianPositionTask::writeCommand(const RMLOutputParameters& new_output_parameters){
     rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, command);
+    rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, command_with_acc);
     rmlTypes2CartesianState(*rml_input_parameters, current_sample);
-    current_sample.time = command.time = base::Time::now();
-    command.sourceFrame = target.sourceFrame;
-    command.targetFrame = target.targetFrame;
+    current_sample.time = command.time = command_with_acc.time = base::Time::now();
+    command.sourceFrame = command_with_acc.source_frame = target.sourceFrame;
+    command.targetFrame = command_with_acc.target_frame = target.targetFrame;
     _command.write(command);
+    _command_with_acc.write(command_with_acc);
 }
 
 void RMLCartesianPositionTask::printParams(const RMLInputParameters& in, const RMLOutputParameters& out){

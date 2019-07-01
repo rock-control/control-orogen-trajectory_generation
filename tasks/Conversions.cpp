@@ -173,6 +173,17 @@ void rmlTypes2Command(const RMLPositionOutputParameters& params, base::samples::
     command.orientation = euler2Quaternion(euler);
 }
 
+void rmlTypes2Command(const RMLPositionOutputParameters& params, base::samples::CartesianState& command){
+    base::Vector3d euler;
+    memcpy(command.pose.position.data(),        params.NewPositionVector->VecData,   sizeof(double)*3);
+    memcpy(euler.data(),                        params.NewPositionVector->VecData+3, sizeof(double)*3);
+    memcpy(command.twist.linear.data(),         params.NewVelocityVector->VecData,   sizeof(double)*3);
+    memcpy(command.twist.angular.data(),        params.NewVelocityVector->VecData+3, sizeof(double)*3);
+    memcpy(command.acceleration.linear.data(),  params.NewAccelerationVector->VecData,   sizeof(double)*3);
+    memcpy(command.acceleration.angular.data(), params.NewAccelerationVector->VecData+3, sizeof(double)*3);
+    command.pose.orientation = euler2Quaternion(euler);
+}
+
 void rmlTypes2Command(const RMLVelocityOutputParameters& params, base::commands::Joints& command){
     uint n_dof = params.GetNumberOfDOFs();
     command.resize(n_dof);
@@ -185,6 +196,13 @@ void rmlTypes2Command(const RMLVelocityOutputParameters& params, base::commands:
 void rmlTypes2Command(const RMLVelocityOutputParameters& params, base::samples::RigidBodyState& command){
     memcpy(command.velocity.data(),         params.NewVelocityVector->VecData,   sizeof(double)*3);
     memcpy(command.angular_velocity.data(), params.NewVelocityVector->VecData+3, sizeof(double)*3);
+}
+
+void rmlTypes2Command(const RMLVelocityOutputParameters& params, base::samples::CartesianState& command){
+    memcpy(command.twist.linear.data(),         params.NewVelocityVector->VecData,       sizeof(double)*3);
+    memcpy(command.twist.angular.data(),        params.NewVelocityVector->VecData+3,     sizeof(double)*3);
+    memcpy(command.acceleration.linear.data(),  params.NewAccelerationVector->VecData,   sizeof(double)*3);
+    memcpy(command.acceleration.angular.data(), params.NewAccelerationVector->VecData+3, sizeof(double)*3);
 }
 
 void target2RmlTypes(const ConstrainedJointsCmd& target, const MotionConstraints& default_constraints, RMLPositionInputParameters& params){

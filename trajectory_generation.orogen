@@ -1,9 +1,12 @@
 name "trajectory_generation"
 
 using_library "reflexxes"
+using_library "base-types"
+using_library "ctrl_types"
 
 import_types_from "base"
 import_types_from "RMLFlags.h"
+import_types_from "ctrl_types/CartesianState.hpp"
 import_types_from "trajectory_generationTypes.hpp"
 
 # This task generates a feasible, time-stamped trajectory to a given a target (joint position/velocity or Cartesian position/velocity, depending on the subclass used).
@@ -13,7 +16,7 @@ import_types_from "trajectory_generationTypes.hpp"
 # point-to-point motions. RML is not meant to be used for interpolating full trajectories.
 #
 # Note: The quality of the trajectory depends on the accuracy of this component's period. Real-time systems may significantly improve performance.
-# Also not that the robot should always be able to follow the given trajectory. The current state of the robot will NOT be considered at runtime,
+# Also note that the robot should always be able to follow the given trajectory. The current state of the robot will NOT be considered at runtime,
 # simply because RML is not meant to be used this way.
 #
 # Before using this component, please refer to the RML documentation on http://www.reflexxes.ws
@@ -126,8 +129,14 @@ task_context "RMLCartesianPositionTask", subclasses: "RMLTask" do
     # Output trajectory (cartesian poses and twists)
     output_port "command", "base/samples/RigidBodyState"
 
-    # Internal interpolator state (position/speed/acceleration)
+    # Output trajectory (cartesian poses, twists and accelerations)
+    output_port "command_with_acc", "base/samples/CartesianState"
+
+    # Internal interpolator state (position/speed)
     output_port "current_sample", "base/samples/RigidBodyState"
+
+    # Internal interpolator state (position/speed/acceleration)
+    output_port "current_sample_with_acc", "base/samples/CartesianState"
 end
 
 # Velocity based implementation in Cartesian space
@@ -149,6 +158,12 @@ task_context "RMLCartesianVelocityTask", subclasses: "RMLTask" do
     # Output trajectory (cartesian twists, or poses if convert_to_position is set to true)
     output_port "command", "base/samples/RigidBodyState"
 
+    # Output trajectory (cartesian poses, twists and accelerations)
+    output_port "command_with_acc", "base/samples/CartesianState"
+
     # Internal interpolator state (position/speed/acceleration)
     output_port "current_sample", "base/samples/RigidBodyState"
+
+    # Internal interpolator state (position/speed/acceleration)
+    output_port "current_sample_with_acc", "base/samples/CartesianState"
 end

@@ -3,6 +3,7 @@
 
 #include "trajectory_generationTypes.hpp"
 #include <base/samples/RigidBodyState.hpp>
+#include <ctrl_types/CartesianState.hpp>
 #include <ReflexxesAPI.h>
 
 namespace trajectory_generation{
@@ -29,8 +30,10 @@ void motionConstraint2RmlTypes(const MotionConstraint& constraint, const uint id
 
 void rmlTypes2Command(const RMLPositionOutputParameters& params, base::commands::Joints& command);
 void rmlTypes2Command(const RMLPositionOutputParameters& params, base::samples::RigidBodyState& command);
+void rmlTypes2Command(const RMLPositionOutputParameters& params, base::samples::CartesianState& command);
 void rmlTypes2Command(const RMLVelocityOutputParameters& params, base::commands::Joints& command);
 void rmlTypes2Command(const RMLVelocityOutputParameters& params, base::samples::RigidBodyState& command);
+void rmlTypes2Command(const RMLVelocityOutputParameters& params, base::samples::CartesianState& command);
 
 void target2RmlTypes(const ConstrainedJointsCmd& target, const MotionConstraints& default_constraints, RMLPositionInputParameters& params);
 void target2RmlTypes(const ConstrainedJointsCmd& target, const MotionConstraints& default_constraints, RMLVelocityInputParameters& params);

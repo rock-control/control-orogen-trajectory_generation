@@ -82,15 +82,20 @@ ReflexxesResultValue RMLCartesianVelocityTask::performOTG(RMLInputParameters* ne
 }
 
 void RMLCartesianVelocityTask::writeCommand(const RMLOutputParameters& new_output_parameters){
-    if(convert_to_position)
+    if(convert_to_position){
         rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, command);
-    else
+        rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, command_with_acc);
+    }
+    else{
         rmlTypes2Command((RMLVelocityOutputParameters&)new_output_parameters, command);
+        rmlTypes2Command((RMLVelocityOutputParameters&)new_output_parameters, command_with_acc);
+    }
     rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, current_sample);
-    current_sample.time = command.time = base::Time::now();
-    command.sourceFrame = target.sourceFrame;
-    command.targetFrame = target.targetFrame;
+    current_sample.time = command.time = command_with_acc.time = base::Time::now();
+    command.sourceFrame = command_with_acc.source_frame = target.sourceFrame;
+    command.targetFrame = command_with_acc.target_frame = target.targetFrame;
     _command.write(command);
+    _command_with_acc.write(command_with_acc);
 }
 
 void RMLCartesianVelocityTask::printParams(const RMLInputParameters& in, const RMLOutputParameters& out){
