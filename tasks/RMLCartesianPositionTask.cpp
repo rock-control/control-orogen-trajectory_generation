@@ -32,8 +32,8 @@ bool RMLCartesianPositionTask::updateCurrentState(RMLInputParameters* new_input_
     RTT::FlowStatus fs = _cartesian_state.readNewest(cartesian_state);
     if(fs == RTT::NewData && !has_current_state){
         cartesianState2RmlTypes(cartesian_state, *new_input_parameters);
-        current_sample.sourceFrame = cartesian_state.sourceFrame;
-        current_sample.targetFrame = cartesian_state.targetFrame;
+        current_sample.source_frame = cartesian_state.source_frame;
+        current_sample.target_frame = cartesian_state.target_frame;
         rmlTypes2CartesianState(*new_input_parameters, current_sample);
         has_current_state = true;
     }
@@ -77,13 +77,11 @@ ReflexxesResultValue RMLCartesianPositionTask::performOTG(RMLInputParameters* ne
 
 void RMLCartesianPositionTask::writeCommand(const RMLOutputParameters& new_output_parameters){
     rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, command);
-    rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, command_with_acc);
     rmlTypes2CartesianState(*rml_input_parameters, current_sample);
-    current_sample.time = command.time = command_with_acc.time = base::Time::now();
-    command.sourceFrame = command_with_acc.source_frame = target.sourceFrame;
-    command.targetFrame = command_with_acc.target_frame = target.targetFrame;
+    current_sample.time = command.time = base::Time::now();
+    command.source_frame = target.source_frame;
+    command.target_frame = target.target_frame;
     _command.write(command);
-    _command_with_acc.write(command_with_acc);
 }
 
 void RMLCartesianPositionTask::printParams(const RMLInputParameters& in, const RMLOutputParameters& out){

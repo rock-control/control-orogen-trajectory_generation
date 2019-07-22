@@ -36,8 +36,8 @@ bool RMLCartesianVelocityTask::updateCurrentState(RMLInputParameters* new_input_
     RTT::FlowStatus fs = _cartesian_state.readNewest(cartesian_state);
     if(fs == RTT::NewData && !has_current_state){
         cartesianState2RmlTypes(cartesian_state, *new_input_parameters);
-        current_sample.sourceFrame = cartesian_state.sourceFrame;
-        current_sample.targetFrame = cartesian_state.targetFrame;
+        current_sample.source_frame = cartesian_state.source_frame;
+        current_sample.target_frame = cartesian_state.target_frame;
         current_sample = cartesian_state;
         has_current_state = true;
     }
@@ -82,20 +82,16 @@ ReflexxesResultValue RMLCartesianVelocityTask::performOTG(RMLInputParameters* ne
 }
 
 void RMLCartesianVelocityTask::writeCommand(const RMLOutputParameters& new_output_parameters){
-    if(convert_to_position){
+    if(convert_to_position)
         rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, command);
-        rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, command_with_acc);
-    }
-    else{
+    else
         rmlTypes2Command((RMLVelocityOutputParameters&)new_output_parameters, command);
-        rmlTypes2Command((RMLVelocityOutputParameters&)new_output_parameters, command_with_acc);
-    }
+
     rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, current_sample);
-    current_sample.time = command.time = command_with_acc.time = base::Time::now();
-    command.sourceFrame = command_with_acc.source_frame = target.sourceFrame;
-    command.targetFrame = command_with_acc.target_frame = target.targetFrame;
+    current_sample.time = command.time = base::Time::now();
+    command.source_frame  = target.source_frame;
+    command.target_frame  = target.target_frame;
     _command.write(command);
-    _command_with_acc.write(command_with_acc);
 }
 
 void RMLCartesianVelocityTask::printParams(const RMLInputParameters& in, const RMLOutputParameters& out){
