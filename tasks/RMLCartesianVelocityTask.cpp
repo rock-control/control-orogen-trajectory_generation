@@ -89,8 +89,8 @@ void RMLCartesianVelocityTask::writeCommand(const RMLOutputParameters& new_outpu
 
     rmlTypes2Command((RMLPositionOutputParameters&)new_output_parameters, current_sample);
     current_sample.time = command.time = base::Time::now();
-    command.source_frame  = target.source_frame;
-    command.target_frame  = target.target_frame;
+    command.source_frame  = target.sourceFrame;
+    command.target_frame  = target.targetFrame;
     _command.write(command);
 }
 

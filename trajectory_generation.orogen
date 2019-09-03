@@ -124,7 +124,7 @@ task_context "RMLCartesianPositionTask", subclasses: "RMLTask" do
     input_port "cartesian_state", "base/samples/CartesianState"
 
     # Target twist. Must have valid position/orientation and (optionally)velocity/angular_velocity entries!
-    input_port "target", "base/samples/CartesianState"
+    input_port "target", "base/samples/RigidBodyState"
 
     # Output trajectory (cartesian poses, twists and accelerations)
     output_port "command", "base/samples/CartesianState"
@@ -147,7 +147,7 @@ task_context "RMLCartesianVelocityTask", subclasses: "RMLTask" do
     input_port "cartesian_state", "base/samples/CartesianState"
 
     # Target twist. Must have valid velocity/angular_velocity entries!
-    input_port "target", "base/samples/CartesianState"
+    input_port "target", "base/samples/RigidBodyState"
 
     # Output trajectory (cartesian poses, twists and accelerations)
     output_port "command", "base/samples/CartesianState"

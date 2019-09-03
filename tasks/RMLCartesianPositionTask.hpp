@@ -13,7 +13,7 @@ class RMLCartesianPositionTask : public RMLCartesianPositionTaskBase
 
     base::samples::CartesianState cartesian_state;  /** Current Cartesian state. Will only be used for initializing RML */
     base::samples::CartesianState current_sample;   /** Current Cartesian interpolator status (position/speed)*/
-    base::samples::CartesianState target;           /** Target Cartesian position or speed.  */
+    base::samples::RigidBodyState target;           /** Target Cartesian position or speed.  */
     base::samples::CartesianState command;          /** Commanded Cartesian position/speed.  */
 
 protected:

@@ -243,6 +243,21 @@ void target2RmlTypes(const base::samples::CartesianState& target, RMLVelocityInp
         target2RmlTypes(target.twist.angular(i), i+3, params);
 }
 
+void target2RmlTypes(const base::samples::RigidBodyState& target, RMLPositionInputParameters& params){
+    base::Vector3d euler = quaternion2Euler(target.orientation);
+    for(int i = 0; i < 3; i++)
+        target2RmlTypes(target.position(i), target.velocity(i), i, params);
+    for(int i = 0; i < 3; i++)
+        target2RmlTypes(euler(i), target.angular_velocity(i), i+3, params);
+}
+
+void target2RmlTypes(const base::samples::RigidBodyState& target, RMLVelocityInputParameters& params){
+    for(int i = 0; i < 3; i++)
+        target2RmlTypes(target.velocity(i), i, params);
+    for(int i = 0; i < 3; i++)
+        target2RmlTypes(target.angular_velocity(i), i+3, params);
+}
+
 void target2RmlTypes(const double target_pos, const double target_vel, const uint idx, RMLPositionInputParameters& params){
     if(base::isNaN(target_pos)){
         LOG_ERROR("Element %i of target has no valid position!", idx);
