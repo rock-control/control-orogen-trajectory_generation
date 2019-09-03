@@ -119,7 +119,6 @@ void cartesianState2RmlTypes(const base::samples::CartesianState& cartesian_stat
         throw std::invalid_argument("Invalid cartesian state");
     }
     base::Vector3d euler = quaternion2Euler(cartesian_state.pose.orientation);
-    euler.setZero();
     memcpy(params.CurrentPositionVector->VecData,   cartesian_state.pose.position.data(), sizeof(double)*3);
     memcpy(params.CurrentPositionVector->VecData+3, euler.data(),                    sizeof(double)*3);
     memset(params.CurrentVelocityVector->VecData,   0,                               sizeof(double)*6);
@@ -233,7 +232,6 @@ void target2RmlTypes(const base::samples::CartesianState& target, RMLPositionInp
     base::Vector3d euler = quaternion2Euler(target.pose.orientation);
     for(int i = 0; i < 3; i++)
         target2RmlTypes(target.pose.position(i), target.twist.linear(i), i, params);
-    euler.setZero();
     for(int i = 0; i < 3; i++)
         target2RmlTypes(euler(i), target.twist.angular(i), i+3, params);
 }
