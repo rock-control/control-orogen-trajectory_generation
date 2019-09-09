@@ -41,6 +41,7 @@ protected:
     double cycle_time;                           /** Cycle time for interpolation*/
     bool has_current_state;                      /** True if an initial state could be read from port*/
     bool has_target;                             /** True if a target could be read from port*/
+    base::Time ping;
 
     /** Update the motion constraints of a particular element*/
     virtual void updateMotionConstraints(const MotionConstraint& constraint,
@@ -72,6 +73,8 @@ protected:
 
     /** Handle result of the OTG algorithm. Handle errors.*/
     void handleResultValue(ReflexxesResultValue result_value);
+
+    virtual void writePing();
 
 public:
     RMLTask(std::string const& name = "trajectory_generation::RMLTask");

@@ -72,6 +72,10 @@ void RMLTask::updateHook(){
             state(NO_TARGET);
         return;
     }
+    if(_ping_in.read(ping) == RTT::NewData)
+        _delay_sec.write((base::Time::now() - ping).toSeconds());
+    else
+        ping.microseconds = 0;
 
     if(state() == NO_TARGET || state() == NO_CURRENT_STATE)
         state(RUNNING);
@@ -80,6 +84,8 @@ void RMLTask::updateHook(){
     handleResultValue(rml_result_value);
 
     writeCommand(*rml_output_parameters);
+    if(!ping.isNull())
+        _ping_out.write(ping);
 
     // write debug data
     _rml_input_parameters.write(convertRMLInputParams(*rml_input_parameters, input_parameters));
@@ -144,4 +150,8 @@ void RMLTask::handleResultValue(ReflexxesResultValue result_value){
         break;
     }
     }
+}
+
+void RMLTask::writePing(){
+    _ping_out.write(base::Time::now());
 }

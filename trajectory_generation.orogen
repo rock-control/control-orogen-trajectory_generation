@@ -65,8 +65,11 @@ task_context "RMLTask" do abstract
     # Difference between two consecutive calls of updateHook(). The value given on this port should match as closely as possible the configured cycle time.
     output_port "actual_cycle_time", "double"
 
-    # This value has to be the same as the cycle_time property. Don't forget to change the cycle_time when you change the period.
-    periodic 0.01
+    operation "writePing"
+
+    input_port "ping_in", "base/Time"
+    output_port "ping_out", "base/Time"
+    output_port "delay_sec", "double"
 end
 
 # Position based implementation in joint space
@@ -87,6 +90,9 @@ task_context "RMLPositionTask", subclasses: "RMLTask" do
 
     # Internal interpolator state (position/speed/acceleration)
     output_port "current_sample", "base/samples/Joints"
+
+    # This value has to be the same as the cycle_time property. Don't forget to change the cycle_time when you change the period.
+    periodic 0.01
 end
 
 # Velocity  based implementation in joint space
@@ -115,6 +121,9 @@ task_context "RMLVelocityTask", subclasses: "RMLTask" do
 
     # Internal interpolator state (position/speed/acceleration)
     output_port "current_sample", "base/samples/Joints"
+
+    # This value has to be the same as the cycle_time property. Don't forget to change the cycle_time when you change the period.
+    port_driven "ping_in"
 end
 
 # Position based implementation in Cartesian space
@@ -131,6 +140,9 @@ task_context "RMLCartesianPositionTask", subclasses: "RMLTask" do
 
     # Internal interpolator state (position/speed/acceleration)
     output_port "current_sample", "base/samples/CartesianState"
+
+    # This value has to be the same as the cycle_time property. Don't forget to change the cycle_time when you change the period.
+    periodic 0.01
 end
 
 # Velocity based implementation in Cartesian space
@@ -154,4 +166,7 @@ task_context "RMLCartesianVelocityTask", subclasses: "RMLTask" do
 
     # Internal interpolator state (position/speed/acceleration)
     output_port "current_sample", "base/samples/CartesianState"
+
+    # This value has to be the same as the cycle_time property. Don't forget to change the cycle_time when you change the period.
+    periodic 0.01
 end
