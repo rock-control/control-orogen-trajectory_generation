@@ -1,6 +1,8 @@
 #include "Conversions.hpp"
 #include <base-logging/Logging.hpp>
 
+using namespace joint_control_base;
+
 namespace trajectory_generation{
 
 base::Vector3d quaternion2Euler(const base::Orientation& orientation){
@@ -136,8 +138,12 @@ void rmlTypes2CartesianState(const RMLInputParameters& params, base::samples::Ri
 }
 
 void motionConstraint2RmlTypes(const MotionConstraint& constraint, const uint idx, RMLInputParameters& params){
-    constraint.validate(); // Check if constraints are ok, e.g. max.speed > 0 etc
+    // Check if constraints are ok, e.g. speed > 0 etc.
+    constraint.validateVelocityLimit();
+    constraint.validateAccelerationLimit();
+    constraint.validateJerkLimit();
 #ifdef USING_REFLEXXES_TYPE_IV
+    constraint.validatePositionLimits();
     params.MaxPositionVector->VecData[idx] = constraint.max.position;
     params.MinPositionVector->VecData[idx] = constraint.min.position;
 #endif

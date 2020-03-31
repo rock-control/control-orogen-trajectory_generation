@@ -1,9 +1,12 @@
 name "trajectory_generation"
 
 using_library "reflexxes"
+using_library "joint_control_base"
 
 import_types_from "base"
 import_types_from "RMLFlags.h"
+import_types_from "joint_control_base/MotionConstraint.hpp"
+import_types_from "joint_control_base/ConstrainedJointsCmd.hpp"
 import_types_from "trajectory_generationTypes.hpp"
 
 # This task generates a feasible, time-stamped trajectory to a given a target (joint position/velocity or Cartesian position/velocity, depending on the subclass used).
@@ -34,7 +37,7 @@ task_context "RMLTask" do abstract
     # Motion constraints that define the properties of the output trajectory that is sent on the command-port.
     # These include the maximum/minimum position (only Reflexxes TypeIV), maximum maximum speed, maximum acceleration and maximum jerk
     # (derivative of acceleration, only Reflexxes TypeIV).
-    property "motion_constraints", "trajectory_generation/MotionConstraints"
+    property "motion_constraints", "joint_control_base/MotionConstraints"
 
     # Behaviour at the position limits (only reflexxes TypeIV!!!). Can be one of the following:
     #   - POSITIONAL_LIMITS_IGNORE: Positional limits are completely ignored
@@ -77,7 +80,7 @@ task_context "RMLPositionTask", subclasses: "RMLTask" do
 
     # Target joint position/speed + new motion constraints.  If one of the new constraint values (e.g. max.position) is NaN, the default motion
     # constraints given by the motion_constraints property will be applied
-    input_port "constrained_target", "trajectory_generation/ConstrainedJointsCmd"
+    input_port "constrained_target", "joint_control_base/ConstrainedJointsCmd"
 
     # Output trajectory. Joint positions, velocities and accelerations
     output_port "command", "base/commands/Joints"
@@ -104,7 +107,7 @@ task_context "RMLVelocityTask", subclasses: "RMLTask" do
 
     # Target joint speed + new motion constraints.  If one of the new constraint values (e.g. max.position) is NaN, the default motion constraints
     # given by the motion_constraints property will be applied
-    input_port "constrained_target", "trajectory_generation/ConstrainedJointsCmd"
+    input_port "constrained_target", "joint_control_base/ConstrainedJointsCmd"
 
     # Output trajectory. If convert_to_position is set to true, this will contain joint velocities and accelerations. Otherwise
     # only joint velocities and accelerations.

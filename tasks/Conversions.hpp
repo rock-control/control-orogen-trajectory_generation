@@ -3,6 +3,8 @@
 
 #include "trajectory_generationTypes.hpp"
 #include <base/samples/RigidBodyState.hpp>
+#include <joint_control_base/MotionConstraint.hpp>
+#include <joint_control_base/ConstrainedJointsCmd.hpp>
 #include <ReflexxesAPI.h>
 
 namespace trajectory_generation{
@@ -23,17 +25,17 @@ void rmlTypes2JointState(const RMLInputParameters& params, base::samples::Joints
 void cartesianState2RmlTypes(const base::samples::RigidBodyState& cartesian_state, RMLInputParameters& params);
 void rmlTypes2CartesianState(const RMLInputParameters& params, base::samples::RigidBodyState& cartesian_state);
 
-void motionConstraint2RmlTypes(const MotionConstraint& constraint, const uint idx, RMLInputParameters& params);
-void motionConstraint2RmlTypes(const MotionConstraint& constraint, const uint idx, RMLPositionInputParameters& params);
-void motionConstraint2RmlTypes(const MotionConstraint& constraint, const uint idx, RMLVelocityInputParameters& params);
+void motionConstraint2RmlTypes(const joint_control_base::MotionConstraint& constraint, const uint idx, RMLInputParameters& params);
+void motionConstraint2RmlTypes(const joint_control_base::MotionConstraint& constraint, const uint idx, RMLPositionInputParameters& params);
+void motionConstraint2RmlTypes(const joint_control_base::MotionConstraint& constraint, const uint idx, RMLVelocityInputParameters& params);
 
 void rmlTypes2Command(const RMLPositionOutputParameters& params, base::commands::Joints& command);
 void rmlTypes2Command(const RMLPositionOutputParameters& params, base::samples::RigidBodyState& command);
 void rmlTypes2Command(const RMLVelocityOutputParameters& params, base::commands::Joints& command);
 void rmlTypes2Command(const RMLVelocityOutputParameters& params, base::samples::RigidBodyState& command);
 
-void target2RmlTypes(const ConstrainedJointsCmd& target, const MotionConstraints& default_constraints, RMLPositionInputParameters& params);
-void target2RmlTypes(const ConstrainedJointsCmd& target, const MotionConstraints& default_constraints, RMLVelocityInputParameters& params);
+void target2RmlTypes(const joint_control_base::ConstrainedJointsCmd& target, const joint_control_base::MotionConstraints& default_constraints, RMLPositionInputParameters& params);
+void target2RmlTypes(const joint_control_base::ConstrainedJointsCmd& target, const joint_control_base::MotionConstraints& default_constraints, RMLVelocityInputParameters& params);
 void target2RmlTypes(const base::samples::RigidBodyState& target, RMLPositionInputParameters& params);
 void target2RmlTypes(const base::samples::RigidBodyState& target, RMLVelocityInputParameters& params);
 void target2RmlTypes(const double target_pos, const double target_vel, const uint idx, RMLPositionInputParameters& params);

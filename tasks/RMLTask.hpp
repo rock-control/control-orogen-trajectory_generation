@@ -4,7 +4,9 @@
 #define TRAJECTORY_GENERATION_RMLTASK_TASK_HPP
 
 #include "trajectory_generation/RMLTaskBase.hpp"
-#include "trajectory_generationTypes.hpp"
+#include <joint_control_base/MotionConstraint.hpp>
+#include <joint_control_base/ConstrainedJointsCmd.hpp>
+#include <base/Time.hpp>
 #include <ReflexxesAPI.h>
 
 /* TODOs (D.M, 2016/06/28):
@@ -19,6 +21,10 @@
  */
 
 namespace trajectory_generation{
+
+typedef joint_control_base::MotionConstraint MotionConstraint;
+typedef joint_control_base::MotionConstraints MotionConstraints;
+typedef joint_control_base::ConstrainedJointsCmd ConstrainedJointsCmd;
 
 /** This task generates a feasible, time-stamped trajectory to a given a target (position/velocity, depending on the subclass used).
  *  "Feasible" means here that the output trajectory (command port) will respect the motion constraints defined by the
