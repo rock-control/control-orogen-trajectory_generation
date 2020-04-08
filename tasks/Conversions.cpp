@@ -113,7 +113,7 @@ void rmlTypes2JointState(const RMLInputParameters& params, base::samples::Joints
     }
 }
 
-void cartesianState2RmlTypes(const base::samples::CartesianState& cartesian_state, RMLInputParameters& params){
+void cartesianState2RmlTypes(const base::samples::RigidBodyStateSE3& cartesian_state, RMLInputParameters& params){
     if(!cartesian_state.hasValidPose()){
         LOG_ERROR("Cartesian state has invalid position and/or orientation.");
         throw std::invalid_argument("Invalid cartesian state");
@@ -125,7 +125,7 @@ void cartesianState2RmlTypes(const base::samples::CartesianState& cartesian_stat
     memset(params.CurrentVelocityVector->VecData,   0,                               sizeof(double)*6);
 }
 
-void rmlTypes2CartesianState(const RMLInputParameters& params, base::samples::CartesianState& cartesian_state){
+void rmlTypes2CartesianState(const RMLInputParameters& params, base::samples::RigidBodyStateSE3& cartesian_state){
     base::Vector3d euler;
     memcpy(cartesian_state.pose.position.data(),         params.CurrentPositionVector->VecData,   sizeof(double)*3);
     memcpy(euler.data(),                            params.CurrentPositionVector->VecData+3, sizeof(double)*3);
@@ -163,7 +163,7 @@ void rmlTypes2Command(const RMLPositionOutputParameters& params, base::commands:
     }
 }
 
-void rmlTypes2Command(const RMLPositionOutputParameters& params, base::samples::CartesianState& command){
+void rmlTypes2Command(const RMLPositionOutputParameters& params, base::samples::RigidBodyStateSE3& command){
     base::Vector3d euler;
     memcpy(command.pose.position.data(),         params.NewPositionVector->VecData,   sizeof(double)*3);
     memcpy(euler.data(),                    params.NewPositionVector->VecData+3, sizeof(double)*3);
@@ -181,7 +181,7 @@ void rmlTypes2Command(const RMLVelocityOutputParameters& params, base::commands:
     }
 }
 
-void rmlTypes2Command(const RMLVelocityOutputParameters& params, base::samples::CartesianState& command){
+void rmlTypes2Command(const RMLVelocityOutputParameters& params, base::samples::RigidBodyStateSE3& command){
     memcpy(command.twist.linear.data(),         params.NewVelocityVector->VecData,       sizeof(double)*3);
     memcpy(command.twist.angular.data(),        params.NewVelocityVector->VecData+3,     sizeof(double)*3);
     memcpy(command.acceleration.linear.data(),  params.NewAccelerationVector->VecData,   sizeof(double)*3);
@@ -228,7 +228,7 @@ void target2RmlTypes(const ConstrainedJointsCmd& target, const MotionConstraints
     }
 }
 
-void target2RmlTypes(const base::samples::CartesianState& target, RMLPositionInputParameters& params){
+void target2RmlTypes(const base::samples::RigidBodyStateSE3& target, RMLPositionInputParameters& params){
     base::Vector3d euler = quaternion2Euler(target.pose.orientation);
     for(int i = 0; i < 3; i++)
         target2RmlTypes(target.pose.position(i), target.twist.linear(i), i, params);
@@ -236,7 +236,7 @@ void target2RmlTypes(const base::samples::CartesianState& target, RMLPositionInp
         target2RmlTypes(euler(i), target.twist.angular(i), i+3, params);
 }
 
-void target2RmlTypes(const base::samples::CartesianState& target, RMLVelocityInputParameters& params){
+void target2RmlTypes(const base::samples::RigidBodyStateSE3& target, RMLVelocityInputParameters& params){
     for(int i = 0; i < 3; i++)
         target2RmlTypes(target.twist.linear(i), i, params);
     for(int i = 0; i < 3; i++)

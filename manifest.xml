@@ -21,5 +21,4 @@
 
   <depend package="base/types" />
   <depend package="control/reflexxes" />
-  <depend package="control/ctrl_types" />
 </package>

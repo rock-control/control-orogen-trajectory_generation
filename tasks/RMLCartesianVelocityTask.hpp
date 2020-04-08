@@ -11,10 +11,10 @@ class RMLCartesianVelocityTask : public RMLCartesianVelocityTaskBase
 {
     friend class RMLCartesianVelocityTaskBase;
 
-    base::samples::CartesianState cartesian_state;  /** Current Cartesian state. Will only be used for initializing RML */
-    base::samples::CartesianState current_sample;   /** Current Cartesian interpolator status (position/speed)*/
-    base::samples::RigidBodyState target;           /** Target Cartesian position or speed.  */
-    base::samples::CartesianState command;          /** Commanded Cartesian position/speed.  */
+    base::samples::RigidBodyStateSE3 cartesian_state;  /** Current Cartesian state. Will only be used for initializing RML */
+    base::samples::RigidBodyStateSE3 current_sample;   /** Current Cartesian interpolator status (position/speed)*/
+    base::samples::RigidBodyState target;              /** Target Cartesian position or speed.  */
+    base::samples::RigidBodyStateSE3 command;          /** Commanded Cartesian position/speed.  */
 
     double no_reference_timeout;
     base::Time time_of_last_reference;

@@ -11,10 +11,10 @@ class RMLCartesianPositionTask : public RMLCartesianPositionTaskBase
 {
     friend class RMLCartesianPositionTaskBase;
 
-    base::samples::CartesianState cartesian_state;  /** Current Cartesian state. Will only be used for initializing RML */
-    base::samples::CartesianState current_sample;   /** Current Cartesian interpolator status (position/speed)*/
-    base::samples::RigidBodyState target;           /** Target Cartesian position or speed.  */
-    base::samples::CartesianState command;          /** Commanded Cartesian position/speed.  */
+    base::samples::RigidBodyStateSE3 cartesian_state;  /** Current Cartesian state. Will only be used for initializing RML */
+    base::samples::RigidBodyStateSE3 current_sample;   /** Current Cartesian interpolator status (position/speed)*/
+    base::samples::RigidBodyState target;              /** Target Cartesian position or speed.  */
+    base::samples::RigidBodyStateSE3 command;          /** Commanded Cartesian position/speed.  */
 
 protected:
     /** Update the motion constraints of a particular element*/
