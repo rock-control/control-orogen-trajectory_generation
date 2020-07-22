@@ -4,6 +4,7 @@ using_library "reflexxes"
 using_library "base-types"
 
 import_types_from "base"
+import_types_from "base/samples/RigidBodyStateSE3.hpp" # Workaround until RigidBodyStateSE3 is in base/orogen/types
 import_types_from "RMLFlags.h"
 import_types_from "trajectory_generationTypes.hpp"
 
