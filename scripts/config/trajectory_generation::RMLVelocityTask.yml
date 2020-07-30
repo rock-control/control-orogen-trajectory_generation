@@ -3,8 +3,8 @@
 # maximum maximum speed, maximum acceleration and maximum jerk (derivative of acceleration).
 motion_constraints:
   names: ["Joint1", "Joint2"]
-  elements: [{max: {position: 1.0, speed: 0.3, acceleration: 0.5}, min: {position: -1.0}, max_jerk: 1.0},
-             {max: {position: 1.5, speed: 0.6, acceleration: 1.0}, min: {position: -1.0}, max_jerk: 1.0}]
+  elements: [{max: {position: 10.0, speed: 0.3, acceleration: 50}, min: {position: -10.0}, max_jerk: 200.0},
+             {max: {position: 10.5, speed: 0.6, acceleration: 50}, min: {position: -10.0}, max_jerk: 200.0}]
 
 # Behaviour on the position limits (only reflexxes TypeIV!!!). Can be one of POSITIONAL_LIMITS_IGNORE, POSITIONAL_LIMITS_ERROR_MSG_ONLY
 # and POSITIONAL_LIMITS_ACTIVELY_PREVENT. See reflexxes/RMLFlags.h for details.
@@ -20,3 +20,10 @@ no_reference_timeout: .inf
 
 # Converts the output to position commands
 convert_to_position: true
+
+--- name:windup
+# Max. integrator windup. Size has to be same as number of joints or empty, in which case no windup is used.
+# Only used if convert_to_position is set ot true. Output velocity will be set to zero if
+# the difference between actual position and interpolator position is bigger than the given windup.
+max_pos_diff:
+    data: [0.1, 0.1]

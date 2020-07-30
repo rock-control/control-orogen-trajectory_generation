@@ -19,6 +19,7 @@ class RMLVelocityTask : public RMLVelocityTaskBase
     double no_reference_timeout;
     base::Time time_of_last_reference;
     bool convert_to_position;
+    base::VectorXd max_pos_diff;
 
 protected:
     /** Update the motion constraints of a particular element*/
@@ -49,6 +50,11 @@ protected:
     /** Convert from RMLOutputParameters to orogen type*/
     virtual const ReflexxesOutputParameters& convertRMLOutputParams(const RMLOutputParameters &in, ReflexxesOutputParameters& out);
 
+    /** Correct the given RMLOutputParameters if the difference between actual joint position and interpolator position is bigger than max_diff*/
+    void correctInterpolatorState(RMLInputParameters *in,
+                                  RMLOutputParameters *out,
+                                  const base::samples::Joints &act,
+                                  const base::VectorXd& max_diff);
 public:
     RMLVelocityTask(std::string const& name = "trajectory_generation::RMLVelocityTask") : RMLVelocityTaskBase(name){}
     RMLVelocityTask(std::string const& name, RTT::ExecutionEngine* engine) : RMLVelocityTaskBase(name, engine){}
