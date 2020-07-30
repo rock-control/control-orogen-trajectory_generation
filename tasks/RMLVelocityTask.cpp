@@ -15,9 +15,17 @@ bool RMLVelocityTask::configureHook(){
     if(base::isNaN(no_reference_timeout))
         no_reference_timeout = base::infinity<double>();
     convert_to_position = _convert_to_position.get();
+    max_pos_diff = _max_pos_diff.get();
 
     if (! RMLVelocityTaskBase::configureHook())
         return false;
+
+    if(max_pos_diff.size() > 0 && max_pos_diff.size() != rml_input_parameters->NumberOfDOFs){
+        LOG_ERROR("%s: Max pos. diff has %i entries but configured number of DOF is %i",
+                  this->getName().c_str(), max_pos_diff.size(), rml_input_parameters->NumberOfDOFs);
+        return false;
+    }
+
     return true;
 }
 
@@ -72,7 +80,23 @@ bool RMLVelocityTask::updateTarget(RMLInputParameters* new_input_parameters){
     return has_target;
 }
 
+void RMLVelocityTask::correctInterpolatorState(RMLInputParameters *in,
+                                               RMLOutputParameters *out,
+                                               const base::samples::Joints &act,
+                                               const base::VectorXd& max_diff){
+
+    target2RmlTypes(target, motion_constraints, *(RMLVelocityInputParameters*)in);
+    for(uint i = 0; i < in->NumberOfDOFs; i++){
+        const base::JointState& js = act.getElementByName(motion_constraints.names[i]);
+        if(fabs(out->NewPositionVector->VecData[i] - js.position) > max_diff(i))
+            in->TargetVelocityVector->VecData[i]     = 0.0;
+    }
+}
+
 ReflexxesResultValue RMLVelocityTask::performOTG(RMLInputParameters* new_input_parameters, RMLOutputParameters* new_output_parameters, RMLFlags *rml_flags){
+
+    if(convert_to_position && max_pos_diff.size() > 0)
+        correctInterpolatorState(new_input_parameters, new_output_parameters, joint_state, max_pos_diff);
 
     int result = rml_api->RMLVelocity(*(RMLVelocityInputParameters*)new_input_parameters,
                                        (RMLVelocityOutputParameters*)new_output_parameters,

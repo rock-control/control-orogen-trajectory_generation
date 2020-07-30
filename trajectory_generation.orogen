@@ -50,6 +50,12 @@ task_context "RMLTask" do abstract
     # ONLY_PHASE_SYNCHRONIZATION and NO_SYNCHRONIZATION. See reflexxes/RMLFlags.h for details.
     property "synchronization_behavior", "RMLFlags/SyncBehaviorEnum", :PHASE_SYNCHRONIZATION_IF_POSSIBLE
 
+
+    # Max. integrator windup. Size has to be same as number of joints or empty, in which case no windup is used.
+    # Only used if convert_to_position is set ot true. Output velocity will be set to zero if
+    # the difference between actual position and interpolator position is bigger than the given windup.
+    property "max_pos_diff", "base/VectorXd"
+
     # Result value of the current call of the RML OTG Algorithm. See ReflexxesAPI.h for possible rml result values
     output_port "rml_result_value", "trajectory_generation/ReflexxesResultValue"
 
