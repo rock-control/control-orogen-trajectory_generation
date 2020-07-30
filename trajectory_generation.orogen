@@ -2,8 +2,10 @@ name "trajectory_generation"
 
 using_library "reflexxes"
 using_library "joint_control_base"
+using_library "base-types"
 
 import_types_from "base"
+import_types_from "base/samples/RigidBodyStateSE3.hpp" # Workaround until RigidBodyStateSE3 is in base/orogen/types
 import_types_from "RMLFlags.h"
 import_types_from "joint_control_base/MotionConstraint.hpp"
 import_types_from "joint_control_base/ConstrainedJointsCmd.hpp"
@@ -121,16 +123,16 @@ end
 task_context "RMLCartesianPositionTask", subclasses: "RMLTask" do
 
     # Current Cartesian state. Must have valid position/orientation entries!
-    input_port "cartesian_state", "base/samples/RigidBodyState"
+    input_port "cartesian_state", "base/samples/RigidBodyStateSE3"
 
     # Target twist. Must have valid position/orientation and (optionally)velocity/angular_velocity entries!
     input_port "target", "base/samples/RigidBodyState"
 
-    # Output trajectory (cartesian poses and twists)
-    output_port "command", "base/samples/RigidBodyState"
+    # Output trajectory (cartesian poses, twists and accelerations)
+    output_port "command", "base/samples/RigidBodyStateSE3"
 
     # Internal interpolator state (position/speed/acceleration)
-    output_port "current_sample", "base/samples/RigidBodyState"
+    output_port "current_sample", "base/samples/RigidBodyStateSE3"
 end
 
 # Velocity based implementation in Cartesian space
@@ -144,14 +146,14 @@ task_context "RMLCartesianVelocityTask", subclasses: "RMLTask" do
     property "convert_to_position", "bool", false
 
     # Current Cartesian state. Must have valid position/orientation entries!
-    input_port "cartesian_state", "base/samples/RigidBodyState"
+    input_port "cartesian_state", "base/samples/RigidBodyStateSE3"
 
     # Target twist. Must have valid velocity/angular_velocity entries!
     input_port "target", "base/samples/RigidBodyState"
 
-    # Output trajectory (cartesian twists, or poses if convert_to_position is set to true)
-    output_port "command", "base/samples/RigidBodyState"
+    # Output trajectory (cartesian poses, twists and accelerations)
+    output_port "command", "base/samples/RigidBodyStateSE3"
 
     # Internal interpolator state (position/speed/acceleration)
-    output_port "current_sample", "base/samples/RigidBodyState"
+    output_port "current_sample", "base/samples/RigidBodyStateSE3"
 end

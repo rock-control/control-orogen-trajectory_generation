@@ -11,12 +11,12 @@ Orocos.run "trajectory_generation::RMLCartesianPositionTask" => "interpolator" d
     interpolator.configure
     interpolator.start
 
-    cartesian_state             = Types::Base::Samples::RigidBodyState.new
-    cartesian_state.position    = Types::Base::Vector3d.new(0,0,0)
-    cartesian_state.orientation = Types::Base::Quaterniond.from_euler(Types::Base::Vector3d.new(-Math::PI,-Math::PI/2,Math::PI/2),2,1,0)
-    cartesian_state.time        = Types::Base::Time.now
-    cartesian_state.sourceFrame = "current_state_tip"
-    cartesian_state.targetFrame = "current_state_root"
+    cartesian_state                  = Types.base.samples.CartesianState.new
+    cartesian_state.pose.position    = Types.base.Vector3d.new(0,0,0)
+    cartesian_state.pose.orientation = Types.base.Quaterniond.from_euler(Types.base.Vector3d.new(-Math::PI,-Math::PI/2,Math::PI/2),2,1,0)
+    cartesian_state.time             = Types.base.Time.now
+    cartesian_state.source_frame     = "current_state_tip"
+    cartesian_state.target_frame     = "current_state_root"
 
     Readline.readline("Press Enter to start")
 
@@ -25,12 +25,12 @@ Orocos.run "trajectory_generation::RMLCartesianPositionTask" => "interpolator" d
 
     Readline.readline("Press Enter to send target")
 
-    target             = Types::Base::Samples::RigidBodyState.new
-    target.position    = Types::Base::Vector3d.new(1,2,3)
-    target.orientation = Types::Base::Quaterniond.from_euler(Types::Base::Vector3d.new(Math::PI,Math::PI/2,-Math::PI/2),2,1,0)
-    target.time        = Types::Base::Time.now
-    target.sourceFrame = "target_tip"
-    target.targetFrame = "target_root"
+    target                  = Types.base.samples.CartesianState.new
+    target.pose.position    = Types.base.Vector3d.new(1,2,3)
+    target.pose.orientation = Types.base.Quaterniond.from_euler(Types.base.Vector3d.new(Math::PI,Math::PI/2,-Math::PI/2),2,1,0)
+    target.time             = Types.base.Time.now
+    target.source_frame     = "target_tip"
+    target.target_frame     = "target_root"
 
     target_writer = interpolator.target.writer
     target_writer.write(target)
@@ -39,11 +39,11 @@ Orocos.run "trajectory_generation::RMLCartesianPositionTask" => "interpolator" d
     while true
         command = command_reader.read
         if command
-            puts "Target position: "    + target.position[0].to_s  + " " + target.position[1].to_s  + " " + target.position[2].to_s
-            puts "Commanded position: " + command.position[0].to_s + " " + command.position[1].to_s + " " + command.position[2].to_s
-            euler = target.orientation.to_euler
+            puts "Target position: "    + target.pose.position[0].to_s  + " " + target.pose.position[1].to_s  + " " + target.pose.position[2].to_s
+            puts "Commanded position: " + command.pose.position[0].to_s + " " + command.pose.position[1].to_s + " " + command.pose.position[2].to_s
+            euler = target.pose.orientation.to_euler
             puts "Target orientation: "    + euler[0].to_s  + " " + euler[1].to_s  + " " + euler[2].to_s
-            euler = command.orientation.to_euler
+            euler = command.pose.orientation.to_euler
             puts "Commanded orientation: " + euler[0].to_s  + " " + euler[1].to_s  + " " + euler[2].to_s
             puts "---------------------------------------------------"
         end
