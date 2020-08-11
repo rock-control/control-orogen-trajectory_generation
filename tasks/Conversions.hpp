@@ -10,8 +10,10 @@
 
 namespace trajectory_generation{
 
-base::Vector3d quaternion2Euler(const base::Orientation& orientation);
-base::Orientation euler2Quaternion(const base::Vector3d& euler);
+void logMap(const base::Matrix3d& rot_mat, base::Vector3d& u, double& phi);
+base::Matrix3d expMap(const base::Vector3d& rot_vect);
+base::Vector3d inverseSkew(const base::Matrix3d& rot_mat);
+base::Matrix3d makeSkew(const base::Vector3d& vect);
 
 void rmlTypes2InputParams(const RMLInputParameters &in,         ReflexxesInputParameters& out);
 void rmlTypes2InputParams(const RMLPositionInputParameters &in, ReflexxesInputParameters& out);

@@ -4,7 +4,7 @@ require 'readline'
 Orocos.initialize
 Orocos.conf.load_dir('config')
 
-Orocos.run "trajectory_generation::RMLCartesianPositionTask" => "interpolator" do
+Orocos.run "trajectory_generation::RMLCartesianPositionTask" => "interpolator", :output=>nil do
 
     interpolator = Orocos::TaskContext.get "interpolator"
     Orocos.conf.apply(interpolator, ["default"], true)
@@ -33,19 +33,29 @@ Orocos.run "trajectory_generation::RMLCartesianPositionTask" => "interpolator" d
 
     target_writer = interpolator.target.writer
     target_writer.write(target)
-
     command_reader = interpolator.command.reader
+    start_time = Types.base.Time::now
+    sleep 5
     while true
         command = command_reader.read
         if command
-            puts "Target position: "    + target.position[0].to_s  + " " + target.position[1].to_s  + " " + target.position[2].to_s
-            puts "Commanded position: " + command.pose.position[0].to_s + " " + command.pose.position[1].to_s + " " + command.pose.position[2].to_s
-            euler = target.orientation.to_euler
-            puts "Target orientation: "    + euler[0].to_s  + " " + euler[1].to_s  + " " + euler[2].to_s
-            euler = command.pose.orientation.to_euler
-            puts "Commanded orientation: " + euler[0].to_s  + " " + euler[1].to_s  + " " + euler[2].to_s
-            puts "---------------------------------------------------"
+            #puts "Target position: "    + target.position[0].to_s  + " " + target.position[1].to_s  + " " + target.position[2].to_s
+            #puts "Commanded position: " + command.pose.position[0].to_s + " " + command.pose.position[1].to_s + " " + command.pose.position[2].to_s
+            #euler = target.orientation.to_euler
+            #puts "Target orientation: "    + euler[0].to_s  + " " + euler[1].to_s  + " " + euler[2].to_s
+            #euler = command.pose.orientation.to_euler
+            #puts "Commanded orientation: " + euler[0].to_s  + " " + euler[1].to_s  + " " + euler[2].to_s
+            #puts "---------------------------------------------------"
         end
+        #cur_time = Types.base.Time::now
+        #if cur_time - start_time > 5
+        #    puts "Setting new Target"
+        #    target.position = Types.base.Vector3d.new(rand(),rand()*2,rand()*3)
+        #    target.orientation = Types.base.Quaterniond.from_euler(Types.base.Vector3d.new(rand(),rand(),rand()),2,1,0)
+        #    target.time = cur_time
+        #    target_writer.write target
+        #    start_time = cur_time
+        #end
         sleep 0.01
     end
 

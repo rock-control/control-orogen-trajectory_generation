@@ -1,22 +1,52 @@
 #include "Conversions.hpp"
 #include <base-logging/Logging.hpp>
+#include <unsupported/Eigen/src/MatrixFunctions/MatrixExponential.h>
 
 using namespace joint_control_base;
 
 namespace trajectory_generation{
 
-base::Vector3d quaternion2Euler(const base::Orientation& orientation){
-    // We use yaw-pitch-roll (ZYX wrt. rotated coordinate system) convention here
-    return orientation.toRotationMatrix().eulerAngles(2,1,0);
+
+base::Vector3d inverseSkew(const base::Matrix3d& mat){
+    return base::Vector3d(mat(2,1),mat(0,2),mat(1,0));
 }
 
-base::Orientation euler2Quaternion(const base::Vector3d& euler){
-    base::Quaterniond q;
-    // We use yaw-pitch-roll (ZYX wrt. rotated coordinate system) convention here
-    q = Eigen::AngleAxisd(euler(0), base::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(euler(1), base::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(euler(2), base::Vector3d::UnitX());
-    return q;
+base::Matrix3d makeSkew(const base::Vector3d& vect){
+    base::Matrix3d mat;
+    mat<<0,-vect[2],vect[1],
+         vect[2],0,-vect[0],
+         -vect[1],vect[0],0;
+    return mat;
+}
+
+void logMap(const base::Matrix3d& rot_mat, base::Vector3d& u, double& phi){
+
+     // If orientation is approx. Identity, the rotaton axis is undefined, return zero vector in this case
+    if(rot_mat.diagonal().isApprox(base::Vector3d(1,1,1))){
+        u = base::Vector3d::Zero();
+        phi = 0;
+    }
+    else{
+        phi = acos((rot_mat.trace()-1.0)/2.0); //Rotation angle
+
+        // If trace is -1, phi is approx. Pi, use approximaton in this case
+        if((rot_mat.trace()+1) < 1e-9){
+            if((rot_mat(2,2)+1) > 1e-9)
+                u = (1.0/(sqrt(2*(1+rot_mat(2,2))))) * base::Vector3d(rot_mat(0,2), rot_mat(1,2), 1+rot_mat(2,2));
+            else if((rot_mat(1,1)+1) > 1e-9)
+                u = 1/(sqrt(2*(1+rot_mat(1,1)))) * base::Vector3d(rot_mat(0,1), 1+rot_mat(1,1), rot_mat(2,1));
+            else if((rot_mat(0,0)+1))
+                u = 1/(sqrt(2*(1+rot_mat(0,0)))) * base::Vector3d(1+rot_mat(0,0), 1+rot_mat(1,0), rot_mat(2,0));
+            else
+                throw std::runtime_error("Unable to compute logarithmic map for given matrix");
+        }
+        else // "normal" case
+            u = inverseSkew(rot_mat-rot_mat.transpose())/(2*sin(phi));
+    }
+}
+
+base::Matrix3d expMap(const base::Vector3d& rot_vect){
+    return makeSkew(rot_vect).exp();
 }
 
 void rmlTypes2InputParams(const RMLInputParameters &in, ReflexxesInputParameters& out){
@@ -120,20 +150,25 @@ void cartesianState2RmlTypes(const base::samples::RigidBodyStateSE3& cartesian_s
         LOG_ERROR("Cartesian state has invalid position and/or orientation.");
         throw std::invalid_argument("Invalid cartesian state");
     }
-    base::Vector3d euler = quaternion2Euler(cartesian_state.pose.orientation);
+    base::Vector3d u;
+    double phi;
+    logMap(cartesian_state.pose.orientation.toRotationMatrix(), u, phi);
+    base::Vector3d rot_vect = phi*u;
     memcpy(params.CurrentPositionVector->VecData,   cartesian_state.pose.position.data(), sizeof(double)*3);
-    memcpy(params.CurrentPositionVector->VecData+3, euler.data(),                    sizeof(double)*3);
+    memcpy(params.CurrentPositionVector->VecData+3, rot_vect.data(),                    sizeof(double)*3);
     memset(params.CurrentVelocityVector->VecData,   0,                               sizeof(double)*6);
     memset(params.CurrentVelocityVector->VecData,   0,                               sizeof(double)*6);
 }
 
 void rmlTypes2CartesianState(const RMLInputParameters& params, base::samples::RigidBodyStateSE3& cartesian_state){
-    base::Vector3d euler;
+    base::Vector3d rot_vect;
     memcpy(cartesian_state.pose.position.data(),         params.CurrentPositionVector->VecData,   sizeof(double)*3);
-    memcpy(euler.data(),                            params.CurrentPositionVector->VecData+3, sizeof(double)*3);
+    memcpy(rot_vect.data(),                            params.CurrentPositionVector->VecData+3, sizeof(double)*3);
+    cartesian_state.pose.orientation = Eigen::Quaterniond(expMap(rot_vect));
     memcpy(cartesian_state.twist.linear.data(),         params.CurrentVelocityVector->VecData,   sizeof(double)*3);
     memcpy(cartesian_state.twist.angular.data(), params.CurrentVelocityVector->VecData+3, sizeof(double)*3);
-    cartesian_state.pose.orientation = euler2Quaternion(euler);
+    memcpy(cartesian_state.acceleration.linear.data(),         params.CurrentAccelerationVector->VecData,   sizeof(double)*3);
+    memcpy(cartesian_state.acceleration.angular.data(), params.CurrentAccelerationVector->VecData+3, sizeof(double)*3);
 }
 
 void motionConstraint2RmlTypes(const MotionConstraint& constraint, const uint idx, RMLInputParameters& params){
@@ -170,12 +205,14 @@ void rmlTypes2Command(const RMLPositionOutputParameters& params, base::commands:
 }
 
 void rmlTypes2Command(const RMLPositionOutputParameters& params, base::samples::RigidBodyStateSE3& command){
-    base::Vector3d euler;
+    base::Vector3d rot_vect;
     memcpy(command.pose.position.data(),         params.NewPositionVector->VecData,   sizeof(double)*3);
-    memcpy(euler.data(),                    params.NewPositionVector->VecData+3, sizeof(double)*3);
+    memcpy(rot_vect.data(),                    params.NewPositionVector->VecData+3, sizeof(double)*3);
+    command.pose.orientation = Eigen::Quaterniond(expMap(rot_vect));
     memcpy(command.twist.linear.data(),         params.NewVelocityVector->VecData,   sizeof(double)*3);
     memcpy(command.twist.angular.data(), params.NewVelocityVector->VecData+3, sizeof(double)*3);
-    command.pose.orientation = euler2Quaternion(euler);
+    memcpy(command.acceleration.linear.data(),         params.NewAccelerationVector->VecData,   sizeof(double)*3);
+    memcpy(command.acceleration.angular.data(), params.NewAccelerationVector->VecData+3, sizeof(double)*3);
 }
 
 void rmlTypes2Command(const RMLVelocityOutputParameters& params, base::commands::Joints& command){
@@ -234,27 +271,25 @@ void target2RmlTypes(const ConstrainedJointsCmd& target, const MotionConstraints
     }
 }
 
-void target2RmlTypes(const base::samples::RigidBodyStateSE3& target, RMLPositionInputParameters& params){
-    base::Vector3d euler = quaternion2Euler(target.pose.orientation);
-    for(int i = 0; i < 3; i++)
-        target2RmlTypes(target.pose.position(i), target.twist.linear(i), i, params);
-    for(int i = 0; i < 3; i++)
-        target2RmlTypes(euler(i), target.twist.angular(i), i+3, params);
-}
-
-void target2RmlTypes(const base::samples::RigidBodyStateSE3& target, RMLVelocityInputParameters& params){
-    for(int i = 0; i < 3; i++)
-        target2RmlTypes(target.twist.linear(i), i, params);
-    for(int i = 0; i < 3; i++)
-        target2RmlTypes(target.twist.angular(i), i+3, params);
-}
-
 void target2RmlTypes(const base::samples::RigidBodyState& target, RMLPositionInputParameters& params){
-    base::Vector3d euler = quaternion2Euler(target.orientation);
+    base::Vector3d u;
+    double phi;
+    logMap(target.orientation.toRotationMatrix(), u, phi);
+    base::Vector3d option_one, option_two, new_target, current_state;
+    option_one = u*phi;
+    option_two = -u*(2*M_PI-phi);
+    current_state = base::Vector3d(params.CurrentPositionVector->VecData[3],
+                                    params.CurrentPositionVector->VecData[4],
+                                    params.CurrentPositionVector->VecData[5]);
+
+     if((current_state - option_one).norm() < (current_state - option_two).norm())
+        new_target = option_one;
+    else
+        new_target = option_two;
     for(int i = 0; i < 3; i++)
         target2RmlTypes(target.position(i), target.velocity(i), i, params);
     for(int i = 0; i < 3; i++)
-        target2RmlTypes(euler(i), target.angular_velocity(i), i+3, params);
+        target2RmlTypes(new_target(i), target.angular_velocity(i), i+3, params);
 }
 
 void target2RmlTypes(const base::samples::RigidBodyState& target, RMLVelocityInputParameters& params){
