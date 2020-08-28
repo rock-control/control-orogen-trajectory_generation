@@ -100,7 +100,7 @@ void jointState2RmlTypes(const base::samples::Joints& joint_state, const std::ve
             params.CurrentAccelerationVector->VecData[i] = 0;
         }
         catch(const base::samples::Joints::InvalidName &e){
-            LOG_ERROR("Element %s has been configured in motion constraints, but is not available in joint state", names[i].c_str());
+            LOG_ERROR("Element %s has been configured in motion constraints, but is not available in joint state", e.name.c_str());
             throw e;
         }
     }
@@ -208,7 +208,7 @@ void target2RmlTypes(const ConstrainedJointsCmd& target, const MotionConstraints
             }
         }
         catch(const MotionConstraints::InvalidName &e){
-            LOG_ERROR("Joint '%s' is in target vector but has not been configured in motion constraints", target.names[i].c_str());
+            LOG_ERROR("Joint '%s' is in target vector but has not been configured in motion constraints", e.name.c_str());
             throw e;
         }
     }
@@ -228,7 +228,7 @@ void target2RmlTypes(const ConstrainedJointsCmd& target, const MotionConstraints
             }
         }
         catch(const MotionConstraints::InvalidName &e){
-            LOG_ERROR("Joint '%s' is in target vector but has not been configured in motion constraints", target.names[i].c_str());
+            LOG_ERROR("Joint '%s' is in target vector but has not been configured in motion constraints", e.name.c_str());
             throw e;
         }
     }
