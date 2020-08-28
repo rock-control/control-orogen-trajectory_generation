@@ -99,7 +99,7 @@ void jointState2RmlTypes(const base::samples::Joints& joint_state, const std::ve
             params.CurrentVelocityVector->VecData[i]     = 0;
             params.CurrentAccelerationVector->VecData[i] = 0;
         }
-        catch(const std::out_of_range &e){
+        catch(const base::samples::Joints::InvalidName &e){
             LOG_ERROR("Element %s has been configured in motion constraints, but is not available in joint state", names[i].c_str());
             throw e;
         }
