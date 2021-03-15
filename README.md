@@ -67,9 +67,6 @@ Each component is based on the `RMLTask` task context. An example configuration 
 
   ```
   --- name:default
-  # Cycle Time is seconds. IMPORTANT: This value has to match the period of the component. Default is 0.01 which matches the default period.
-  cycle_time: 0.01
-
   # Motion constraints that define the properties of the output trajectory (command-port). These include the maximum/minimum position,
   # maximum maximum speed, maximum acceleration and maximum jerk (derivative of acceleration).
   motion_constraints:

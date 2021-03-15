@@ -70,10 +70,10 @@ task_context "RMLTask" do abstract
     # Computation time needed for one cycle
     output_port "computation_time", "double"
 
-    # Difference between two consecutive calls of updateHook(). The value given on this port should match as closely as possible the configured cycle time.
+    # Difference between two consecutive calls of updateHook(). The value given on this port should match the task periodicity as closely as possible.
     output_port "actual_cycle_time", "double"
 
-    # This value has to be the same as the cycle_time property. Don't forget to change the cycle_time when you change the period.
+    # This value defines the period at which the task should run and thus determines the desired cycle_time of this component.
     periodic 0.01
 end
 
