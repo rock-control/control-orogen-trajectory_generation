@@ -64,17 +64,30 @@ bool RMLVelocityTask::updateTarget(RMLInputParameters* new_input_parameters){
         fs = fs_constr_target;
 
     if(fs == RTT::NewData){
+        time_of_last_reference = base::Time::now();
         has_target = true;
         target.validate();
-        target2RmlTypes(target, motion_constraints, *(RMLVelocityInputParameters*)new_input_parameters);
-#ifdef USING_REFLEXXES_TYPE_IV
-        // Workaround: If an element is close to a position limit and the target velocity is pointing in direction of the limit, the sychronization time is computed by
-        // reflexxes as if the constrained joint could move freely in the direction of the limit. This leads to incorrect synchronization time for all other elements.
-        // Set the target velocity to zero in this case!
-        if(rml_flags->PositionalLimitsBehavior == POSITIONAL_LIMITS_ACTIVELY_PREVENT)
-            fixRmlSynchronizationBug(cycle_time, *(RMLVelocityInputParameters*)new_input_parameters);
-#endif
+    }else{
+        double duration = (base::Time::now() - time_of_last_reference).toSeconds();
+        if(duration > no_reference_timeout){
+            LOG_WARN_S << "Duration since receving last reference is "<<duration<<". Stopping motion.";
+            for(base::JointState& js : target.elements){
+                js.speed = 0;
+            }
+        }
+        has_target = true;
+        target.validate();
     }
+
+    target2RmlTypes(target, motion_constraints, *(RMLVelocityInputParameters*)new_input_parameters);
+#ifdef USING_REFLEXXES_TYPE_IV
+    // Workaround: If an element is close to a position limit and the target velocity is pointing in direction of the limit, the sychronization time is computed by
+    // reflexxes as if the constrained joint could move freely in the direction of the limit. This leads to incorrect synchronization time for all other elements.
+    // Set the target velocity to zero in this case!
+    if(rml_flags->PositionalLimitsBehavior == POSITIONAL_LIMITS_ACTIVELY_PREVENT)
+        fixRmlSynchronizationBug(cycle_time, *(RMLVelocityInputParameters*)new_input_parameters);
+#endif
+
 
 
     return has_target;
