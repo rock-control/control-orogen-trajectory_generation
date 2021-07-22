@@ -125,6 +125,8 @@ void cartesianState2RmlTypes(const base::samples::RigidBodyStateSE3& cartesian_s
     memcpy(params.CurrentPositionVector->VecData+3, euler.data(),                    sizeof(double)*3);
     memset(params.CurrentVelocityVector->VecData,   0,                               sizeof(double)*6);
     memset(params.CurrentVelocityVector->VecData,   0,                               sizeof(double)*6);
+    memset(params.CurrentAccelerationVector->VecData,   0,                               sizeof(double)*6);
+    memset(params.CurrentAccelerationVector->VecData,   0,                               sizeof(double)*6);
 }
 
 void rmlTypes2CartesianState(const RMLInputParameters& params, base::samples::RigidBodyStateSE3& cartesian_state){
@@ -133,6 +135,8 @@ void rmlTypes2CartesianState(const RMLInputParameters& params, base::samples::Ri
     memcpy(euler.data(),                            params.CurrentPositionVector->VecData+3, sizeof(double)*3);
     memcpy(cartesian_state.twist.linear.data(),         params.CurrentVelocityVector->VecData,   sizeof(double)*3);
     memcpy(cartesian_state.twist.angular.data(), params.CurrentVelocityVector->VecData+3, sizeof(double)*3);
+    memcpy(cartesian_state.acceleration.linear.data(),         params.CurrentAccelerationVector->VecData,   sizeof(double)*3);
+    memcpy(cartesian_state.acceleration.angular.data(), params.CurrentAccelerationVector->VecData+3, sizeof(double)*3);
     cartesian_state.pose.orientation = euler2Quaternion(euler);
 }
 
@@ -175,6 +179,8 @@ void rmlTypes2Command(const RMLPositionOutputParameters& params, base::samples::
     memcpy(euler.data(),                    params.NewPositionVector->VecData+3, sizeof(double)*3);
     memcpy(command.twist.linear.data(),         params.NewVelocityVector->VecData,   sizeof(double)*3);
     memcpy(command.twist.angular.data(), params.NewVelocityVector->VecData+3, sizeof(double)*3);
+    memcpy(command.acceleration.linear.data(),         params.NewAccelerationVector->VecData,   sizeof(double)*3);
+    memcpy(command.acceleration.angular.data(), params.NewAccelerationVector->VecData+3, sizeof(double)*3);
     command.pose.orientation = euler2Quaternion(euler);
 }
 
