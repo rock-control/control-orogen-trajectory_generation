@@ -259,8 +259,9 @@ void target2RmlTypes(const base::samples::RigidBodyState& target, RMLPositionInp
     base::Vector3d euler = quaternion2Euler(target.orientation);
     for(int i = 0; i < 3; i++)
         target2RmlTypes(target.position(i), target.velocity(i), i, params);
+    // TODO: Do NOT interpolate orientation, since this is currently not working
     for(int i = 0; i < 3; i++)
-        target2RmlTypes(euler(i), target.angular_velocity(i), i+3, params);
+        target2RmlTypes(params.CurrentPositionVector->VecData[i+3], 0, i+3, params);
 }
 
 void target2RmlTypes(const base::samples::RigidBodyState& target, RMLVelocityInputParameters& params){
